@@ -1,6 +1,9 @@
 import pygame
 import sys
 
+from drink import Drink
+from station import MixingStation
+
 # Start Pygame
 pygame.init()
 
@@ -13,6 +16,19 @@ pygame.display.set_caption("Cyberpunk Barista - Game Engine")
 #  Clock & FPS Engine
 clock = pygame.time.Clock()
 FPS = 60
+
+
+# --------------------------------------------------
+# Mahirah's Code of the - DRINK MIXING SYSTEM
+# --------------------------------------------------
+
+# Create the current drink
+drink = Drink()
+
+# Create the mixing station and connect it
+# to the Drink object
+mixing_station = MixingStation(drink)
+
 
 # Main Game Loop
 running = True
@@ -31,8 +47,15 @@ while running:
     # Paint the screen background dark gray (RGB: 20, 20, 30)
     screen.fill((20, 20, 30))
 
+
+     # Draw Drink Mixing Station ( Mahirah)
+    mixing_station.draw(screen)
+
+
     # Update the display to show what was drawn
     pygame.display.flip()
+
+
 
 # Clean exit
 pygame.quit()
