@@ -45,7 +45,7 @@ class Drink:
     # --------------------------------------------------
 
     def increase_caffeine(self):
-        """Increase caffeine without going above the maximum."""
+        """ Increase caffeine without going above the maximum."""
 
         self.caffeine = min(
             self.MAX_VALUE,

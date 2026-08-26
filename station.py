@@ -28,7 +28,7 @@ class MixingStation:
         # FONTS
         # --------------------------------------------------
 
-        # Arial is used because it is easy to read.
+        # font in  Arial .
         self.title_font = pygame.font.SysFont(
             "arial",
             28,
