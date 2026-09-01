@@ -83,6 +83,8 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:  # User clicks the X button
             running = False
+            
+        mixing_station.handle_event(event)
 
         # Debug Keybinds to test background level swapping (Press 1, 2, or 3)
         if event.type == pygame.KEYDOWN:
