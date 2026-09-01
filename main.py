@@ -29,6 +29,7 @@ drink = Drink()
 # to the Drink object
 mixing_station = MixingStation(drink)
 
+#--------------------------------------------
 
 # Main Game Loop
 running = True
@@ -43,6 +44,8 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:  # User clicks the X button
             running = False
+            
+        mixing_station.handle_event(event)
 
     # Paint the screen background dark gray (RGB: 20, 20, 30)
     screen.fill((20, 20, 30))
