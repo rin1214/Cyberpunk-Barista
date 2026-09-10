@@ -3,11 +3,12 @@ import pygame
 
 from drink import Drink
 from station import MixingStation
+from ui_economy import UIEconomy  # Yohshini: Economy & Progression HUD
 
 # Start Pygame
 pygame.init()
 
-# Configure the window size (16:9 Aspect Ratio)
+# Configure the window size (16:9 Aspect Ratio matching 960x540)
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -47,17 +48,12 @@ def load_level_background(level_num):
         print(f"[ASSET LOADER] Successfully loaded: {path}")
         return scaled_img
     except (pygame.error, FileNotFoundError) as e:
-        # SAFE FALLBACK: Draw a dark purple canvas instead of crashing
+        # SAFE FALLBACK: Draw dark purple canvas if asset missing
         print(f"[SAFEGUARD WARNING] Could not find asset '{path}'. Using safe fallback color. ({e})")
         fallback = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        fallback.fill((25, 15, 35))  # Dark purple theme background
+        fallback.fill((25, 15, 35))
         bg_cache[level_num] = fallback
         return fallback
-
-
-# Initial Game State
-current_level = 1
-active_bg = load_level_background(current_level)
 
 
 # --------------------------------------------------
@@ -70,7 +66,17 @@ drink = Drink()
 # Create the mixing station and connect it to the Drink object
 mixing_station = MixingStation(drink)
 
-# --------------------------------------------
+
+# --------------------------------------------------
+# Yohshini's Code - ECONOMY & PROGRESSION HUD
+# --------------------------------------------------
+
+# Initialize economy UI system
+economy = UIEconomy(screen=screen)
+
+# Sync background with saved economy level on launch
+active_bg = load_level_background(economy.level)
+
 
 # Main Game Loop
 running = True
@@ -79,23 +85,40 @@ while running:
     # Delta Time Calculation (60 FPS Cap)
     dt = clock.tick(FPS) / 1000.0
 
-    # Event handling loop (checks for user inputs)
+    # Event handling loop
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:  # User clicks the X button
+        if event.type == pygame.QUIT:
             running = False
-            
-        mixing_station.handle_event(event)
 
-        # Debug Keybinds to test background level swapping (Press 1, 2, or 3)
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_1:
-                current_level = 1
+            # Yohshini: Test Keybinds for Economy & Reset
+            if event.key == pygame.K_c:
+                # Test Correct Order (+20 Credits, +30 XP)
+                economy.serve_order(is_correct=True)
+                active_bg = load_level_background(economy.level)
+            elif event.key == pygame.K_w:
+                # Test Wrong Order (-5 Waste Fee, 0 XP)
+                economy.serve_order(is_correct=False)
+            elif event.key == pygame.K_r:
+                # Reset economy back to Level 1
+                economy.reset_economy()
+                active_bg = load_level_background(economy.level)
+
+            # Debug Keybinds to manually test background level swapping (1, 2, 3)
+            elif event.key == pygame.K_1:
+                economy.level = 1
+                economy.location = economy.LOCATIONS[1]
+                economy.save_economy_data()
                 active_bg = load_level_background(1)
             elif event.key == pygame.K_2:
-                current_level = 2
+                economy.level = 2
+                economy.location = economy.LOCATIONS[2]
+                economy.save_economy_data()
                 active_bg = load_level_background(2)
             elif event.key == pygame.K_3:
-                current_level = 3
+                economy.level = 3
+                economy.location = economy.LOCATIONS[3]
+                economy.save_economy_data()
                 active_bg = load_level_background(3)
 
         # Safely pass events to mixing station
@@ -108,16 +131,19 @@ while running:
     # LAYERED RENDERING (Back to Front)
     # --------------------------------------------------
 
-    # LAYER 1: Draw Active Background (PNG or Safe Fallback Surface)
+    # LAYER 1: Draw Nurin's Active Level Background Image
     screen.blit(active_bg, (0, 0))
 
-    # LAYER 2: Draw Drink Mixing Station (Mahirah's UI renders on top)
+    # LAYER 2: Draw Mahirah's Drink Mixing Station
     try:
         mixing_station.draw(screen)
     except Exception as e:
         print(f"[STATION ERROR] Draw exception caught: {e}")
 
-    # Update the display to show what was drawn
+    # LAYER 3: Draw Yohshini's Neon Economy Overlay on Top
+    economy.draw()
+
+    # Update display
     pygame.display.flip()
 
 
