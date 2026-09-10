@@ -3,12 +3,12 @@ import pygame
 
 from drink import Drink
 from station import MixingStation
-from ui_economy import UIEconomy  # Yohshini: Economy & Progression HUD
+from ui_economy import UIEconomy
 
 # Start Pygame
 pygame.init()
 
-# Configure the window size (16:9 Aspect Ratio matching 960x540)
+# Configure the window size
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -91,7 +91,7 @@ while running:
             running = False
 
         if event.type == pygame.KEYDOWN:
-            # Yohshini: Test Keybinds for Economy & Reset
+            # Test Keybinds for Economy & Reset
             if event.key == pygame.K_c:
                 # Test Correct Order (+20 Credits, +30 XP)
                 economy.serve_order(is_correct=True)
