@@ -1,8 +1,8 @@
 {
     "economy": {
-        "credits": 300,
-        "xp": 225,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 0,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     }
 }
