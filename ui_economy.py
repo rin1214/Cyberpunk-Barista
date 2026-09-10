@@ -1,6 +1,6 @@
-import pygame
 import json
 import os
+import pygame
 
 class UIEconomy:
     LOCATIONS = {
@@ -78,6 +78,29 @@ class UIEconomy:
         except IOError:
             print("[UIEconomy] Error: Failed to write to save_data.json")
 
+    def reset_economy(self):
+        """Resets all progression stats back to Level 1 defaults and saves instantly."""
+        self.credits = 0
+        self.xp = 0
+        self.level = 1
+        self.location = self.LOCATIONS[1]
+        self.save_economy_data()
+        print("[RESET] Save data reset to Level 1 default state.")
+
+    def serve_order(self, is_correct, base_credits=20, bonus_xp=30, waste_fee=5):
+        """
+        - Correct Order: Grants +20 Credits and +30 XP.
+        - Wrong Order: Deducts -5 Credits waste fee and 0 XP.
+        """
+        if is_correct:
+            self.add_credits(base_credits)
+            self.add_xp(bonus_xp)
+            print(f"[ORDER SUCCESS] +${base_credits} Credits | +{bonus_xp} XP")
+        else:
+            self.credits = max(0, self.credits - waste_fee)
+            self.save_economy_data()
+            print(f"[ORDER FAILED] -${waste_fee} Ingredient Waste Fee | +0 XP")
+
     def add_credits(self, amount):
         """Add credits and trigger an automatic save."""
         self.credits += amount
@@ -112,11 +135,11 @@ class UIEconomy:
         self.save_economy_data()
 
     def get_level_bg_color(self):
-        """Returns deep dark backgrounds for maximum contrast against bright neon."""
+        """Returns vivid, bright neon background colors for each level."""
         bg_colors = [
-            (11, 7, 26),     # Level 1: Deep Dark Purple
-            (28, 5, 38),     # Level 2: Deep Dark Pink/Violet
-            (5, 20, 36)      # Level 3: Deep Dark Cyber Cyan
+            (140, 0, 255),    # Level 1: Electric Vibrant Purple
+            (255, 0, 110),    # Level 2: Hot Neon Pink / Magenta
+            (0, 220, 255)     # Level 3: Bright Laser Cyan
         ]
         index = min(self.level - 1, len(bg_colors) - 1)
         return bg_colors[index]
