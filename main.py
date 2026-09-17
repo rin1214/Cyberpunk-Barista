@@ -5,15 +5,16 @@ from drink import Drink
 from station import MixingStation
 from ui_economy import UIEconomy
 from customer import Customer
+from start_screen import StartScreen
 
 # Start Pygame Engine
 pygame.init()
 
 # Configure the window size (16:9 Aspect Ratio)
-SCREEN_WIDTH = 960
-SCREEN_HEIGHT = 540
+SCREEN_WIDTH = 1280 
+SCREEN_HEIGHT =720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Cyberpunk Barista - Game Engine")
+pygame.display.set_caption("Cyberpunk Cafe - Game Engine")
 
 # Clock & FPS Engine
 clock = pygame.time.Clock()
@@ -56,7 +57,18 @@ def load_level_background(level_num):
         bg_cache[level_num] = fallback
         return fallback
 
+# ============================================================
+# START SCREEN
+# ============================================================
+start_screen = StartScreen(screen)
+player_name = start_screen.run()
 
+# Player closed the start screen
+if player_name is None:
+    pygame.quit()
+    sys.exit()
+
+print(f"[PLAYER] Welcome to Cyberpunk Café, {player_name}!")
 # --------------------------------------------------
 # SYSTEM INITIALIZATION
 # --------------------------------------------------
