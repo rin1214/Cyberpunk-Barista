@@ -32,14 +32,17 @@ class UIEconomy:
 
     SAVE_FILE = "save_data.json"
 
-    def __init__(self, screen):
+    def __init__(self, screen, player_name="Player"):
         self.screen = screen
+        self.player_name = player_name.strip() if player_name else "Player"
+        
+        # State Defaults
         self.credits = 100
         self.xp = 0
         self.level = 1
         self.location = self.LOCATIONS[1]
 
-        # Load saved data if available
+        # Load specific saved data for this player name
         self.load_economy_data()
 
     def get_xp_for_next_level(self):
@@ -71,7 +74,7 @@ class UIEconomy:
             )
 
     def reset_economy(self):
-        """Resets economy and save file back to defaults."""
+        """Resets economy for current player and updates save file back to defaults."""
         self.credits = 100
         self.xp = 0
         self.level = 1
@@ -79,34 +82,59 @@ class UIEconomy:
         self.save_economy_data()
 
     def save_economy_data(self):
-        """Persists current state into JSON file."""
-        data = {
+        """Persists current player state into JSON file under their player name key."""
+        all_profiles = {}
+        
+        # Read existing profiles first so we don't overwrite other players
+        if os.path.exists(self.SAVE_FILE):
+            try:
+                with open(self.SAVE_FILE, "r") as f:
+                    all_profiles = json.load(f)
+            except (IOError, json.JSONDecodeError):
+                all_profiles = {}
+
+        # Save active player's profile data
+        all_profiles[self.player_name] = {
             "credits": self.credits,
             "xp": self.xp,
             "level": self.level,
             "location": self.location,
         }
+
         try:
             with open(self.SAVE_FILE, "w") as f:
-                json.dump(data, f, indent=4)
+                json.dump(all_profiles, f, indent=4)
         except IOError as e:
             print(f"[ECONOMY ERROR] Could not save economy data: {e}")
 
     def load_economy_data(self):
-        """Loads state from JSON file if present."""
+        """Loads state from JSON file if profile for self.player_name is present."""
         if os.path.exists(self.SAVE_FILE):
             try:
                 with open(self.SAVE_FILE, "r") as f:
-                    data = json.load(f)
-                    self.credits = data.get("credits", 100)
-                    self.xp = data.get("xp", 0)
-                    self.level = data.get("level", 1)
+                    all_profiles = json.load(f)
+                
+                # Retrieve specifically for this player name
+                if self.player_name in all_profiles:
+                    p_data = all_profiles[self.player_name]
+                    self.credits = p_data.get("credits", 100)
+                    self.xp = p_data.get("xp", 0)
+                    self.level = p_data.get("level", 1)
                     self.location = self.LOCATIONS.get(
                         self.level, f"Sector {self.level} Hub"
                     )
+                    print(f"[ECONOMY] Loaded profile for '{self.player_name}'")
+                    return
             except (IOError, json.JSONDecodeError) as e:
-                print(f"[ECONOMY ERROR] Corrupt save file, resetting. ({e})")
-                self.reset_economy()
+                print(f"[ECONOMY ERROR] Could not parse save file ({e}). Starting fresh.")
+
+        # Default setup if profile does not exist yet
+        print(f"[ECONOMY] Initialized new profile for '{self.player_name}'")
+        self.credits = 100
+        self.xp = 0
+        self.level = 1
+        self.location = self.LOCATIONS[1]
+        self.save_economy_data()
 
     def get_level_bg_color(self):
         """Returns the dark background fallback tint matching level."""
@@ -119,8 +147,8 @@ class UIEconomy:
 
         # 16:9 Relative positioning
         padding = int(screen_w * 0.02)
-        hud_w = int(screen_w * 0.32)
-        hud_h = int(screen_h * 0.20)
+        hud_w = int(screen_w * 0.35)
+        hud_h = int(screen_h * 0.22)
 
         # Use Level 3 palette styling for levels > 3
         palette = self.NEON_COLORS.get(self.level, self.NEON_COLORS[3 if self.level > 3 else 1])
@@ -141,31 +169,38 @@ class UIEconomy:
         )
 
         # Fonts Setup
-        title_size = max(14, int(screen_h * 0.03))
-        body_size = max(12, int(screen_h * 0.025))
+        title_size = max(14, int(screen_h * 0.028))
+        body_size = max(12, int(screen_h * 0.022))
 
         font_title = pygame.font.SysFont("Consolas", title_size, bold=True)
         font_body = pygame.font.SysFont("Consolas", body_size)
 
-        # Header Text (Location & Level)
-        header_str = f"LVL {self.level} | {self.location.upper()}"
+        # Header Text (Player Name & Level)
+        header_str = f"BARISTA: {self.player_name.upper()} | LVL {self.level}"
         header_txt = font_title.render(header_str, True, primary_color)
         self.screen.blit(
-            header_txt, (padding + 12, padding + int(hud_h * 0.1))
+            header_txt, (padding + 12, padding + int(hud_h * 0.08))
+        )
+
+        # Location Text
+        loc_str = f"LOC: {self.location.upper()}"
+        loc_txt = font_body.render(loc_str, True, (200, 220, 255))
+        self.screen.blit(
+            loc_txt, (padding + 12, padding + int(hud_h * 0.32))
         )
 
         # Credits Text
         credits_str = f"CREDITS: ${self.credits}"
         credits_txt = font_body.render(credits_str, True, (255, 255, 255))
         self.screen.blit(
-            credits_txt, (padding + 12, padding + int(hud_h * 0.4))
+            credits_txt, (padding + 12, padding + int(hud_h * 0.52))
         )
 
         # XP Progress Bar Setup
         bar_x = padding + 12
-        bar_y = padding + int(hud_h * 0.70)
+        bar_y = padding + int(hud_h * 0.74)
         bar_w = hud_w - 24
-        bar_h = int(hud_h * 0.16)
+        bar_h = int(hud_h * 0.18)
 
         target_xp = self.get_xp_for_next_level()
         xp_str = f"XP: {self.xp}/{target_xp}"
