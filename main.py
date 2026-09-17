@@ -6,6 +6,7 @@ from station import MixingStation
 from ui_economy import UIEconomy
 from customer import Customer
 from start_screen import StartScreen
+from loading_screen import LoadingScreen
 
 # Start Pygame Engine
 pygame.init()
@@ -69,12 +70,29 @@ if player_name is None:
     sys.exit()
 
 print(f"[PLAYER] Welcome to Cyberpunk Café, {player_name}!")
+
+# ============================================================
+# LOADING SCREEN
+# ============================================================
+economy = UIEconomy(screen=screen)
+loading_screen = LoadingScreen(screen)
+
+loading_ok = loading_screen.run(
+    player_name=player_name,
+    level=economy.level,
+    duration=6.7
+)
+
+if not loading_ok:
+    pygame.quit()
+    sys.exit()
+
 # --------------------------------------------------
 # SYSTEM INITIALIZATION
 # --------------------------------------------------
 drink = Drink()
 mixing_station = MixingStation(drink)
-economy = UIEconomy(screen=screen)
+
 
 # Sync background and spawn first customer based on saved economy level
 active_bg = load_level_background(economy.level)
@@ -128,14 +146,35 @@ while running:
 
     # 1. Check if "SERVE DRINK" UI button was clicked on the mixing station
     if mixing_station.served:
-        # Evaluate current drink parameters against customer's requirements
         is_correct = active_customer.verify_order(drink.get_data())
+
+        # Remember the level before serving the order
+        old_level = economy.level
+
+        # Process the order
         economy.serve_order(is_correct=is_correct)
 
-        # Reset drink parameters for the next order
+        # Check if the player has reached a new level
+        if economy.level > old_level:
+            print(
+                f"[LEVEL UP] Level {economy.level} unlocked: "
+                f"{economy.location}"
+            )
+
+            # Show loading screen for the newly unlocked level
+            loading_screen = LoadingScreen(screen)
+
+            loading_ok = loading_screen.run(
+                player_name=player_name,
+                level=economy.level,
+                duration=6.7
+            )
+
+            if not loading_ok:
+                running = False
+
         mixing_station.reset()
 
-        # Update background if level-up occurred, then spawn next customer
         active_bg = load_level_background(economy.level)
         active_customer = Customer(current_level=economy.level)
 

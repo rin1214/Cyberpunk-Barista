@@ -869,8 +869,9 @@ class StartScreen:
 
     def draw_welcome(self):
         # Main futuristic heading with soft neon glow.
+        welcome_name = self.player_name.strip() or "BARISTA"
         self.draw_glowing_text(
-            "WELCOME, BARISTA",
+            f"WELCOME, {welcome_name.upper()}",
             self.font_welcome,
             self.welcome_rect.center,
             self.WHITE,
