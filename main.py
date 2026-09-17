@@ -1,21 +1,21 @@
 import sys
 import pygame
 
+from customer import Customer, CustomerState
 from drink import Drink
+from loading_screen import LoadingScreen
+from start_screen import StartScreen
 from station import MixingStation
 from ui_economy import UIEconomy
-from customer import Customer
-from start_screen import StartScreen
-from loading_screen import LoadingScreen
 
 # Start Pygame Engine
 pygame.init()
 
 # Configure the window size (16:9 Aspect Ratio)
-SCREEN_WIDTH = 1280 
-SCREEN_HEIGHT =720
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Cyberpunk Cafe - Game Engine")
+pygame.display.set_caption("Cyberpunk Barista - Game Engine")
 
 # Clock & FPS Engine
 clock = pygame.time.Clock()
@@ -35,17 +35,16 @@ bg_cache = {}
 
 
 def load_level_background(level_num):
-    """
-    Safely loads, caches, and scales background PNG to 16:9 resolution (960x540).
-    Prevents crashing if file is missing by returning a safe fallback surface.
-    """
+    """Safely loads, caches, and scales background PNG to screen resolution."""
     if level_num in bg_cache:
         return bg_cache[level_num]
 
     path = LEVEL_BACKGROUNDS.get(level_num, LEVEL_BACKGROUNDS[1])
     try:
         raw_img = pygame.image.load(path).convert_alpha()
-        scaled_img = pygame.transform.scale(raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        scaled_img = pygame.transform.scale(
+            raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT)
+        )
         bg_cache[level_num] = scaled_img
         print(f"[ASSET LOADER] Successfully loaded: {path}")
         return scaled_img
@@ -58,13 +57,13 @@ def load_level_background(level_num):
         bg_cache[level_num] = fallback
         return fallback
 
+
 # ============================================================
 # START SCREEN
 # ============================================================
 start_screen = StartScreen(screen)
 player_name = start_screen.run()
 
-# Player closed the start screen
 if player_name is None:
     pygame.quit()
     sys.exit()
@@ -78,9 +77,7 @@ economy = UIEconomy(screen=screen)
 loading_screen = LoadingScreen(screen)
 
 loading_ok = loading_screen.run(
-    player_name=player_name,
-    level=economy.level,
-    duration=6.7
+    player_name=player_name, level=economy.level, duration=6.7
 )
 
 if not loading_ok:
@@ -93,10 +90,12 @@ if not loading_ok:
 drink = Drink()
 mixing_station = MixingStation(drink)
 
-
-# Sync background and spawn first customer based on saved economy level
 active_bg = load_level_background(economy.level)
 active_customer = Customer(current_level=economy.level)
+
+# Spawning Engine Control Flags
+spawn_timer = 0.0
+SPAWN_DELAY = 1.5  # Time delay (seconds) before new customer enters
 
 
 # --------------------------------------------------
@@ -123,6 +122,7 @@ while running:
                 mixing_station.reset()
                 active_bg = load_level_background(economy.level)
                 active_customer = Customer(current_level=economy.level)
+                spawn_timer = 0.0
 
             # Debug Level Swapping (1, 2, 3)
             elif event.key == pygame.K_1:
@@ -131,76 +131,91 @@ while running:
                 economy.save_economy_data()
                 active_bg = load_level_background(1)
                 active_customer = Customer(current_level=1)
+                spawn_timer = 0.0
             elif event.key == pygame.K_2:
                 economy.level = 2
                 economy.location = economy.LOCATIONS[2]
                 economy.save_economy_data()
                 active_bg = load_level_background(2)
                 active_customer = Customer(current_level=2)
+                spawn_timer = 0.0
             elif event.key == pygame.K_3:
                 economy.level = 3
                 economy.location = economy.LOCATIONS[3]
                 economy.save_economy_data()
                 active_bg = load_level_background(3)
                 active_customer = Customer(current_level=3)
+                spawn_timer = 0.0
 
-    # 1. Check if "SERVE DRINK" UI button was clicked on the mixing station
+    # --------------------------------------------------
+    # 1. SERVE DRINK EVALUATION
+    # --------------------------------------------------
     if mixing_station.served:
-        is_correct = active_customer.verify_order(drink.get_data())
+        if active_customer and active_customer.state == CustomerState.WAITING:
+            # Evaluate customer order and set FSM state to SERVED or LEAVING
+            is_correct = active_customer.serve_drink(drink.get_data())
 
-        # Remember the level before serving the order
-        old_level = economy.level
+            old_level = economy.level
+            economy.serve_order(is_correct=is_correct)
 
-        # Process the order
-        economy.serve_order(is_correct=is_correct)
-
-        # Check if the player has reached a new level
-        if economy.level > old_level:
-            print(
-                f"[LEVEL UP] Level {economy.level} unlocked: "
-                f"{economy.location}"
-            )
-
-            # Show loading screen for the newly unlocked level
-            loading_screen = LoadingScreen(screen)
-
-            loading_ok = loading_screen.run(
-                player_name=player_name,
-                level=economy.level,
-                duration=6.7
-            )
-
-            if not loading_ok:
-                running = False
+            # Level Up Transition
+            if economy.level > old_level:
+                print(
+                    f"[LEVEL UP] Level {economy.level} unlocked: {economy.location}"
+                )
+                loading_screen = LoadingScreen(screen)
+                loading_ok = loading_screen.run(
+                    player_name=player_name, level=economy.level, duration=6.7
+                )
+                if not loading_ok:
+                    running = False
 
         mixing_station.reset()
 
-        active_bg = load_level_background(economy.level)
-        active_customer = Customer(current_level=economy.level)
+    # --------------------------------------------------
+    # 2. UPDATE CUSTOMER FSM & QUEUE SPAWNING ENGINE
+    # --------------------------------------------------
+    if active_customer:
+        old_state = active_customer.state
+        active_customer.update(dt)
 
-    # 2. Update Customer Patience Timer
-    active_customer.update(dt)
+        # Catch Patience Expiration (If patience hit 0 during WAITING step)
+        if (
+            old_state == CustomerState.WAITING
+            and active_customer.state == CustomerState.LEAVING
+        ):
+            economy.serve_order(is_correct=False)
+            mixing_station.reset()
 
-    # 3. Check if Customer Patience Expired
-    if active_customer.is_leaving:
-        # Customer left unsatisfied: Apply -$5 waste fee and spawn next customer
-        economy.serve_order(is_correct=False)
-        mixing_station.reset()
-        active_customer = Customer(current_level=economy.level)
+        # CLEANUP: Once customer finishes sliding off screen, remove them
+        if active_customer.is_finished():
+            active_customer = None
+            spawn_timer = SPAWN_DELAY
 
-    # LAYER 1: Draw Active Level Background Image
+    else:
+        # SPAWNING ENGINE: Delay countdown before sliding in next customer
+        spawn_timer -= dt
+        if spawn_timer <= 0:
+            active_bg = load_level_background(economy.level)
+            active_customer = Customer(current_level=economy.level)
+
+    # --------------------------------------------------
+    # 3. RENDER ENGINE
+    # --------------------------------------------------
+    # LAYER 1: Level Background
     screen.blit(active_bg, (0, 0))
 
-    # LAYER 2: Draw Customer (Behind Counter, in front of BG)
-    active_customer.draw(screen)
+    # LAYER 2: Customer Sprite & Speech Bubble (Behind Counter)
+    if active_customer:
+        active_customer.draw(screen)
 
-    # LAYER 3: Draw Drink Mixing Station
+    # LAYER 3: Mixing Station UI
     try:
         mixing_station.draw(screen)
     except Exception as e:
         print(f"[STATION ERROR] Draw exception caught: {e}")
 
-    # LAYER 4: Draw Neon Economy Overlay on Top
+    # LAYER 4: Neon Economy & Level UI
     economy.draw()
 
     # Refresh Screen
