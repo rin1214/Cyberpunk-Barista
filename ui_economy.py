@@ -1,198 +1,168 @@
 import json
 import os
+import random
 import pygame
 
 
+class Particle:
+    """Cyberpunk neon particle FX for level-up and order rewards."""
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.vx = random.uniform(-3, 3)
+        self.vy = random.uniform(-5, -1)
+        self.color = color
+        self.alpha = 255
+        self.radius = random.randint(3, 6)
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.alpha -= 5
+        if self.radius > 0.5:
+            self.radius -= 0.1
+
+    def draw(self, surface):
+        if self.alpha > 0:
+            s = pygame.Surface((int(self.radius * 2), int(self.radius * 2)), pygame.SRCALPHA)
+            pygame.draw.circle(s, (*self.color, self.alpha), (int(self.radius), int(self.radius)), int(self.radius))
+            surface.blit(s, (self.x - self.radius, self.y - self.radius))
+
+
 class UIEconomy:
-
-    # 16:9 Neon Level Palette & Location Names
-    NEON_COLORS = {
-        1: {
-            "primary": (186, 85, 211),
-            "accent": (255, 105, 180),
-            "bg": (25, 15, 35),
-        },  # Level 1: Back Alley Kiosk (Neon Purple / Pink)
-        2: {
-            "primary": (0, 245, 255),
-            "accent": (50, 205, 50),
-            "bg": (10, 25, 40),
-        },  # Level 2: Neon Lounge (Cyber Cyan / Lime)
-        3: {
-            "primary": (255, 215, 0),
-            "accent": (255, 69, 0),
-            "bg": (35, 20, 10),
-        },  # Level 3+: Cyber Penthouse (Gold / Orange Fire)
-    }
-
     LOCATIONS = {
         1: "Back Alley Kiosk",
         2: "Neon Lounge",
-        3: "Cyber Penthouse",
+        3: "Cyber Penthouse"
     }
 
-    SAVE_FILE = "save_data.json"
+    XP_PER_LEVEL = 100
 
-    def __init__(self, screen):
+    def __init__(self, screen, save_file="save_data.json"):
         self.screen = screen
-        self.credits = 100
+        self.save_file = save_file
+
+        # Default Progression State
+        self.credits = 0
         self.xp = 0
         self.level = 1
         self.location = self.LOCATIONS[1]
 
-        # Load saved data if available
+        # UI Animation Properties
+        self.displayed_xp = 0.0
+        self.particles = []
+        self.banner_timer = 0  # Frame counter for Level-Up banner
+
+        # Load saved data
         self.load_economy_data()
 
-    def get_xp_for_next_level(self):
-        """Calculates total XP needed for current level advancement."""
-        return self.level * 100
+        # Fonts setup
+        self.font_large = pygame.font.SysFont("Consolas", 28, bold=True)
+        self.font_small = pygame.font.SysFont("Consolas", 18)
+        self.font_banner = pygame.font.SysFont("Consolas", 42, bold=True)
 
-    def serve_order(self, is_correct: bool):
-        """
-        Updates economy on order completion.
-        Correct: +20 Credits, +30 XP.
-        Incorrect: -$5 Waste Fee, +0 XP.
-        """
+    def serve_order(self, is_correct=True):
+        """Processes order outcome: updates credits, gains XP, and triggers FX."""
         if is_correct:
             self.credits += 20
-            self.xp += 30
-            self.check_level_up()
+            self.add_xp(30)
+            self._spawn_particles(color=(0, 255, 200))  # Cyan/Teal particle burst
         else:
-            self.credits = max(0, self.credits - 5)  # Prevents negative credits
+            self.credits = max(0, self.credits - 10)    # UPDATED: -$10 Waste fee penalty
+            self._spawn_particles(color=(255, 50, 50))  # Red warning particle burst
 
         self.save_economy_data()
 
-    def check_level_up(self):
-        """Handles multi-level progression dynamic logic without a level cap."""
-        while self.xp >= self.get_xp_for_next_level():
-            self.xp -= self.get_xp_for_next_level()
+    def add_xp(self, amount):
+        """Adds XP and handles leveling thresholds."""
+        self.xp += amount
+        while self.xp >= self.XP_PER_LEVEL:
+            self.xp -= self.XP_PER_LEVEL
             self.level += 1
-            self.location = self.LOCATIONS.get(
-                self.level, f"Sector {self.level} Hub"
-            )
+            self.location = self.LOCATIONS.get(self.level, f"Sector {self.level} Hub")
+            self.banner_timer = 120  # Show banner for ~2 seconds (120 frames @ 60FPS)
+            self._spawn_particles(color=(255, 0, 220), count=50) # Magenta explosion
 
-    def reset_economy(self):
-        """Resets economy and save file back to defaults."""
-        self.credits = 100
-        self.xp = 0
-        self.level = 1
-        self.location = self.LOCATIONS[1]
-        self.save_economy_data()
+    def _spawn_particles(self, color, count=20):
+        for _ in range(count):
+            self.particles.append(Particle(150, 50, color))
+
+    def draw(self):
+        """Renders the economy HUD top-bar and floating particles."""
+        # 1. Smooth XP Bar Lerp Animation
+        target_xp = self.xp
+        self.displayed_xp += (target_xp - self.displayed_xp) * 0.1
+
+        # 2. Draw Top HUD Background Bar
+        hud_bg = pygame.Surface((self.screen.get_width(), 60), pygame.SRCALPHA)
+        hud_bg.fill((10, 10, 20, 200))  # Semi-transparent dark overlay
+        self.screen.blit(hud_bg, (0, 0))
+
+        # 3. Draw Text Displays (Credits, Level, Location)
+        cred_text = self.font_large.render(f"CREDITS: ${self.credits}", True, (0, 255, 200))
+        lvl_text = self.font_large.render(f"LVL {self.level}", True, (255, 0, 220))
+        loc_text = self.font_small.render(f"LOCATION: {self.location}", True, (200, 200, 200))
+
+        self.screen.blit(cred_text, (20, 15))
+        self.screen.blit(lvl_text, (260, 15))
+        self.screen.blit(loc_text, (380, 22))
+
+        # 4. Draw XP Progress Bar
+        bar_x, bar_y, bar_w, bar_h = 700, 20, 200, 18
+        pygame.draw.rect(self.screen, (40, 40, 60), (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+
+        fill_w = int((self.displayed_xp / self.XP_PER_LEVEL) * bar_w)
+        if fill_w > 0:
+            pygame.draw.rect(self.screen, (255, 0, 220), (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+        pygame.draw.rect(self.screen, (0, 255, 200), (bar_x, bar_y, bar_w, bar_h), 2, border_radius=4)
+
+        # 5. Update & Draw Particles
+        for p in self.particles[:]:
+            p.update()
+            p.draw(self.screen)
+            if p.alpha <= 0:
+                self.particles.remove(p)
+
+        # 6. Render Level-Up Banner Overlay
+        if self.banner_timer > 0:
+            self.banner_timer -= 1
+            banner_surf = self.font_banner.render("LEVEL UP! NEW LOCATION UNLOCKED!", True, (255, 255, 0))
+            rect = banner_surf.get_rect(center=(self.screen.get_width() // 2, 120))
+            self.screen.blit(banner_surf, rect)
+
+    def load_economy_data(self):
+        """Loads progression from JSON storage file."""
+        if os.path.exists(self.save_file):
+            try:
+                with open(self.save_file, "r") as f:
+                    data = json.load(f)
+                    self.credits = data.get("credits", 0)
+                    self.xp = data.get("xp", 0)
+                    self.level = data.get("level", 1)
+                    self.location = data.get("location", self.LOCATIONS[1])
+                    self.displayed_xp = float(self.xp)
+            except Exception as e:
+                print(f"[ECONOMY ERROR] Could not read {self.save_file}: {e}")
 
     def save_economy_data(self):
-        """Persists current state into JSON file."""
+        """Saves current state to JSON file."""
         data = {
             "credits": self.credits,
             "xp": self.xp,
             "level": self.level,
-            "location": self.location,
+            "location": self.location
         }
         try:
-            with open(self.SAVE_FILE, "w") as f:
+            with open(self.save_file, "w") as f:
                 json.dump(data, f, indent=4)
-        except IOError as e:
-            print(f"[ECONOMY ERROR] Could not save economy data: {e}")
+        except Exception as e:
+            print(f"[ECONOMY ERROR] Could not write to {self.save_file}: {e}")
 
-    def load_economy_data(self):
-        """Loads state from JSON file if present."""
-        if os.path.exists(self.SAVE_FILE):
-            try:
-                with open(self.SAVE_FILE, "r") as f:
-                    data = json.load(f)
-                    self.credits = data.get("credits", 100)
-                    self.xp = data.get("xp", 0)
-                    self.level = data.get("level", 1)
-                    self.location = self.LOCATIONS.get(
-                        self.level, f"Sector {self.level} Hub"
-                    )
-            except (IOError, json.JSONDecodeError) as e:
-                print(f"[ECONOMY ERROR] Corrupt save file, resetting. ({e})")
-                self.reset_economy()
-
-    def get_level_bg_color(self):
-        """Returns the dark background fallback tint matching level."""
-        palette = self.NEON_COLORS.get(self.level, self.NEON_COLORS[3 if self.level > 3 else 1])
-        return palette["bg"]
-
-    def draw(self):
-        """Renders HUD overlay with high-contrast neon borders top-left."""
-        screen_w, screen_h = self.screen.get_size()
-
-        # 16:9 Relative positioning
-        padding = int(screen_w * 0.02)
-        hud_w = int(screen_w * 0.32)
-        hud_h = int(screen_h * 0.20)
-
-        # Use Level 3 palette styling for levels > 3
-        palette = self.NEON_COLORS.get(self.level, self.NEON_COLORS[3 if self.level > 3 else 1])
-        primary_color = palette["primary"]
-        accent_color = palette["accent"]
-
-        # Outer Neon Dashboard Container
-        dashboard_rect = pygame.Rect(padding, padding, hud_w, hud_h)
-
-        # Semi-transparent dark backing box for readability
-        hud_surface = pygame.Surface((hud_w, hud_h), pygame.SRCALPHA)
-        hud_surface.fill((15, 10, 25, 210))
-        self.screen.blit(hud_surface, (padding, padding))
-
-        # Glowing Border
-        pygame.draw.rect(
-            self.screen, primary_color, dashboard_rect, width=2, border_radius=8
-        )
-
-        # Fonts Setup
-        title_size = max(14, int(screen_h * 0.03))
-        body_size = max(12, int(screen_h * 0.025))
-
-        font_title = pygame.font.SysFont("Consolas", title_size, bold=True)
-        font_body = pygame.font.SysFont("Consolas", body_size)
-
-        # Header Text (Location & Level)
-        header_str = f"LVL {self.level} | {self.location.upper()}"
-        header_txt = font_title.render(header_str, True, primary_color)
-        self.screen.blit(
-            header_txt, (padding + 12, padding + int(hud_h * 0.1))
-        )
-
-        # Credits Text
-        credits_str = f"CREDITS: ${self.credits}"
-        credits_txt = font_body.render(credits_str, True, (255, 255, 255))
-        self.screen.blit(
-            credits_txt, (padding + 12, padding + int(hud_h * 0.4))
-        )
-
-        # XP Progress Bar Setup
-        bar_x = padding + 12
-        bar_y = padding + int(hud_h * 0.70)
-        bar_w = hud_w - 24
-        bar_h = int(hud_h * 0.16)
-
-        target_xp = self.get_xp_for_next_level()
-        xp_str = f"XP: {self.xp}/{target_xp}"
-        fill_ratio = min(1.0, max(0.0, self.xp / target_xp))
-
-        fill_w = int(bar_w * fill_ratio)
-
-        # XP Track Background
-        pygame.draw.rect(
-            self.screen, (40, 40, 50), (bar_x, bar_y, bar_w, bar_h), border_radius=4
-        )
-
-        # XP Filled Bar
-        if fill_w > 0:
-            pygame.draw.rect(
-                self.screen,
-                accent_color,
-                (bar_x, bar_y, fill_w, bar_h),
-                border_radius=4,
-            )
-
-        # XP Track Border
-        pygame.draw.rect(
-            self.screen, primary_color, (bar_x, bar_y, bar_w, bar_h), width=1, border_radius=4
-        )
-
-        # XP Numeric Text Overlay
-        xp_txt = font_body.render(xp_str, True, (255, 255, 255))
-        xp_rect = xp_txt.get_rect(center=(bar_x + bar_w // 2, bar_y + bar_h // 2))
-        self.screen.blit(xp_txt, xp_rect)
+    def reset_economy(self):
+        """Resets saved economy progression back to Level 1."""
+        self.credits = 0
+        self.xp = 0
+        self.level = 1
+        self.location = self.LOCATIONS[1]
+        self.displayed_xp = 0.0
+        self.save_economy_data()
