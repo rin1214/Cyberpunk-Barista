@@ -10,23 +10,23 @@ class MixingStation:
         self.btn_font = pygame.font.SysFont("Consolas", 18, bold=True)
         self.serve_font = pygame.font.SysFont("Consolas", 16, bold=True)
 
-        # ANCHOR TO RIGHT SIDE (620 to 930 X)
-        self.panel_rect = pygame.Rect(620, 110, 320, 410)
+        # FAR RIGHT PLACEMENT WITH A CLEAR GAP FROM THE SCREEN EDGE
+        self.panel_rect = pygame.Rect(800, 110, 320, 410)
 
         # ADJUSTED BUTTON & METER RECTS
-        self.sweetness_minus = pygame.Rect(640, 175, 35, 35)
-        self.sweetness_bar   = pygame.Rect(685, 180, 190, 25)
-        self.sweetness_plus  = pygame.Rect(885, 175, 35, 35)
+        self.sweetness_minus = pygame.Rect(820, 175, 35, 35)
+        self.sweetness_bar   = pygame.Rect(865, 180, 190, 25)
+        self.sweetness_plus  = pygame.Rect(1065, 175, 35, 35)
 
-        self.caffeine_minus  = pygame.Rect(640, 255, 35, 35)
-        self.caffeine_bar    = pygame.Rect(685, 260, 190, 25)
-        self.caffeine_plus   = pygame.Rect(885, 255, 35, 35)
+        self.caffeine_minus  = pygame.Rect(820, 255, 35, 35)
+        self.caffeine_bar    = pygame.Rect(865, 260, 190, 25)
+        self.caffeine_plus   = pygame.Rect(1065, 255, 35, 35)
 
-        self.temp_minus      = pygame.Rect(640, 335, 35, 35)
-        self.temp_bar        = pygame.Rect(685, 340, 190, 25)
-        self.temp_plus       = pygame.Rect(885, 335, 35, 35)
+        self.temp_minus      = pygame.Rect(820, 335, 35, 35)
+        self.temp_bar        = pygame.Rect(865, 340, 190, 25)
+        self.temp_plus       = pygame.Rect(1065, 335, 35, 35)
 
-        self.serve_button    = pygame.Rect(640, 445, 280, 50)
+        self.serve_button    = pygame.Rect(820, 445, 280, 50)
         self.served = False
 
     def draw(self, screen):
@@ -92,7 +92,7 @@ class MixingStation:
         b = min(255, int((self.drink.caffeine / 100.0) * 255))
         fluid_color = (max(40, r), max(40, g), max(40, b))
 
-        cup_x, cup_y = 765, 385
+        cup_x, cup_y = 930, 385
         # Glass Cup Backing
         pygame.draw.rect(screen, (20, 25, 40), (cup_x, cup_y, 30, 45), border_radius=4)
         # Dynamic Fluid Level

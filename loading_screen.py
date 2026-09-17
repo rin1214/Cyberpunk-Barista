@@ -1,0 +1,239 @@
+import os
+import pygame
+
+
+class LoadingScreen:
+    """Cyberpunk Café reusable 1280x720 loading screen."""
+
+    WIDTH = 1280
+    HEIGHT = 720
+    FPS = 60
+
+    MAHIRAH_ROOT = os.path.join("assets", "mahirah")
+    START_ROOT = os.path.join(MAHIRAH_ROOT, "start")
+    LOADING_ROOT = os.path.join(MAHIRAH_ROOT, "loading")
+
+    LEVEL_INFO = {
+        1: ("BACK ALLEY KIOSK", "SECTOR 01"),
+        2: ("NEON LOUNGE", "SECTOR 02"),
+        3: ("CYBER PENTHOUSE", "SECTOR 03"),
+    }
+
+    MESSAGES = [
+        "Initializing Café Network...",
+        "Syncing Customer Database...",
+        "Calibrating Drink Dispenser...",
+        "Preparing Neon Menu...",
+        "Warming Coffee Machines...",
+        "Connecting Café Systems...",
+        "Almost Ready...",
+    ]
+
+    def __init__(self, screen):
+        self.screen = screen
+        self.clock = pygame.time.Clock()
+        self.background = self._load("loading_bg.png", self.LOADING_ROOT)
+        self.logo = self._load("logo_cyberpunk_cafe.png", self.START_ROOT)
+
+        # If the new loading background is not installed yet,
+        # temporarily use the existing start-screen background.
+        if self.background is None:
+            self.background = self._load("start_bg.png", self.START_ROOT)
+
+        self.title_font = pygame.font.SysFont("Consolas", 30, bold=True)
+        self.name_font = pygame.font.SysFont("Consolas", 25, bold=True)
+        self.message_font = pygame.font.SysFont("Consolas", 19, bold=True)
+        self.small_font = pygame.font.SysFont("Consolas", 16)
+        self.percent_font = pygame.font.SysFont("Consolas", 24, bold=True)
+
+    def _load(self, filename, folder):
+        path = os.path.join(folder, filename)
+        try:
+            image = pygame.image.load(path).convert_alpha()
+            print(f"[LOADING ASSET] Loaded: {path}")
+            return image
+        except (pygame.error, FileNotFoundError) as e:
+            print(f"[LOADING ASSET WARNING] {path} ({e})")
+            return None
+
+    def _draw_background(self):
+        if self.background is None:
+            self.screen.fill((18, 15, 35))
+            return
+
+        iw, ih = self.background.get_size()
+        scale = max(self.WIDTH / iw, self.HEIGHT / ih)
+        size = (max(1, int(iw * scale)), max(1, int(ih * scale)))
+        image = pygame.transform.smoothscale(self.background, size)
+        self.screen.blit(
+            image,
+            ((self.WIDTH - size[0]) // 2, (self.HEIGHT - size[1]) // 2)
+        )
+
+        # Subtle overlay keeps Python-drawn UI readable without making
+        # the selected city background too dark.
+        overlay = pygame.Surface((self.WIDTH, self.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((5, 8, 20, 35))
+        self.screen.blit(overlay, (0, 0))
+
+    def _draw_logo(self):
+        if self.logo is None:
+            return
+
+        iw, ih = self.logo.get_size()
+        scale = min(430 / iw, 145 / ih)
+        size = (max(1, int(iw * scale)), max(1, int(ih * scale)))
+        image = pygame.transform.smoothscale(self.logo, size)
+        self.screen.blit(image, image.get_rect(center=(640, 105)))
+
+    def _text_center(self, text, font, color, y):
+        surface = font.render(text, True, color)
+        self.screen.blit(surface, surface.get_rect(center=(640, y)))
+
+    def _draw_panel(self):
+        rect = pygame.Rect(315, 185, 650, 430)
+        panel = pygame.Surface(rect.size, pygame.SRCALPHA)
+        panel.fill((8, 12, 28, 185))
+        self.screen.blit(panel, rect.topleft)
+        pygame.draw.rect(
+            self.screen, (0, 220, 255), rect, width=2, border_radius=14
+        )
+        pygame.draw.rect(
+            self.screen, (255, 100, 200), rect.inflate(-12, -12),
+            width=1, border_radius=10
+        )
+
+    def _draw_progress(self, progress):
+        x, y, w, h = 400, 350, 480, 26
+        outer = pygame.Rect(x, y, w, h)
+
+        pygame.draw.rect(
+            self.screen, (15, 20, 38), outer, border_radius=13
+        )
+
+        fill_w = int((w - 6) * max(0.0, min(1.0, progress)))
+        if fill_w:
+            fill = pygame.Rect(x + 3, y + 3, fill_w, h - 6)
+            pygame.draw.rect(
+                self.screen, (255, 100, 205), fill, border_radius=10
+            )
+            highlight_w = min(80, fill_w)
+            highlight = pygame.Rect(
+                x + 3 + fill_w - highlight_w, y + 3,
+                highlight_w, h - 6
+            )
+            pygame.draw.rect(
+                self.screen, (80, 225, 255), highlight, border_radius=10
+            )
+
+        pygame.draw.rect(
+            self.screen, (0, 225, 255), outer, width=2, border_radius=13
+        )
+
+        percent = self.percent_font.render(
+            f"{int(progress * 100)}%", True, (255, 255, 255)
+        )
+        self.screen.blit(percent, percent.get_rect(midleft=(900, 363)))
+
+    def _draw_message(self, index):
+        message = self.MESSAGES[index % len(self.MESSAGES)]
+
+        prefix = self.small_font.render(
+            ">>",
+            True,
+            (255, 100, 205)
+        )
+
+        text = self.message_font.render(
+            message,
+            True,
+            (220, 235, 255)
+        )
+
+        # Combine the prefix and message into one centered group
+        spacing = 10
+
+        total_width = (
+            prefix.get_width()
+            + spacing
+            + text.get_width()
+        )
+
+        start_x = (self.WIDTH - total_width) // 2
+
+        self.screen.blit(
+            prefix,
+            (start_x, 403)
+        )
+
+        self.screen.blit(
+            text,
+            (
+                start_x
+                + prefix.get_width()
+                + spacing,
+                403
+            )
+        )
+
+    def run(self, player_name="Barista", level=1, duration=6.7):
+        """Returns True when loading finishes, False if the game is closed."""
+        player_name = str(player_name).strip() or "BARISTA"
+        level = level if level in self.LEVEL_INFO else 1
+        location, sector = self.LEVEL_INFO[level]
+
+        elapsed = 0.0
+
+        while elapsed < duration:
+            dt = self.clock.tick(self.FPS) / 1000.0
+            elapsed += dt
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return False
+
+            progress = min(1.0, elapsed / duration)
+            smooth = progress * progress * (3.0 - 2.0 * progress)
+            index = min(
+                len(self.MESSAGES) - 1,
+                int(progress * len(self.MESSAGES))
+            )
+
+            self._draw_background()
+            self._draw_logo()
+            self._draw_panel()
+
+            self._text_center(
+                f"WELCOME, {player_name.upper()}!",
+                self.name_font, (255, 180, 235), 245
+            )
+            self._text_center(
+                location, self.title_font, (0, 235, 255), 285
+            )
+            self._text_center(
+                sector, self.small_font, (210, 220, 245), 315
+            )
+
+            self._draw_progress(smooth)
+            self._draw_message(index)
+
+            self._text_center(
+                "GOOD COFFEE  ✦  BRIGHTER PEOPLE",
+                self.small_font, (255, 190, 235), 565
+            )
+            self._text_center(
+                "Preparing your café experience...",
+                self.small_font, (180, 205, 235), 595
+            )
+
+            pygame.display.flip()
+
+        return True
+
+
+if __name__ == "__main__":
+    pygame.init()
+    screen = pygame.display.set_mode((1280, 720))
+    pygame.display.set_caption("Cyberpunk Café - Loading Screen")
+    LoadingScreen(screen).run("Mahirah", level=1,  duration=6.7)
+    pygame.quit()
