@@ -11,6 +11,7 @@ from ui_economy import UIEconomy
 # Start Pygame Engine
 pygame.init()
 
+
 # Configure the window size (16:9 Aspect Ratio - 1280x720)
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -22,7 +23,7 @@ clock = pygame.time.Clock()
 FPS = 60
 
 # --------------------------------------------------
-# BACKGROUND ASSET LOADER
+# CARD: background asset loader (NURIN)
 # --------------------------------------------------
 LEVEL_BACKGROUNDS = {
     1: "assets/places/cafe_lvl1.png",
@@ -87,9 +88,15 @@ if not loading_ok:
     sys.exit()
 
 # --------------------------------------------------
+
 # DRINK MIXING SYSTEM & CUSTOMER INITIALIZATION
+
+# Mahirah's Code - DRINK MIXING SYSTEM
+
 # --------------------------------------------------
 drink = Drink()
+
+# Create the mixing station and connect it to the Drink object
 mixing_station = MixingStation(drink)
 
 active_bg = load_level_background(economy.level)
@@ -114,11 +121,27 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+
         # Pass events to mixing station
         try:
             mixing_station.handle_event(event)
         except Exception as e:
             print(f"[STATION ERROR] Event handling exception caught: {e}")
+
+        if event.type == pygame.KEYDOWN:
+            # Test Keybinds for Economy & Reset
+            if event.key == pygame.K_c:
+                # Test Correct Order (+20 Credits, +30 XP)
+                economy.serve_order(is_correct=True)
+                active_bg = load_level_background(economy.level)
+            elif event.key == pygame.K_w:
+                # Test Wrong Order (-5 Waste Fee, 0 XP)
+                economy.serve_order(is_correct=False)
+            elif event.key == pygame.K_r:
+                # Reset economy back to Level 1
+                economy.reset_economy()
+                active_bg = load_level_background(economy.level)
+
 
         if event.type == pygame.KEYDOWN:
             # Test Keybinds for Economy & Reset
@@ -157,6 +180,7 @@ while running:
                 economy.location = economy.LOCATIONS[3]
                 economy.save_economy_data()
                 active_bg = load_level_background(3)
+
                 active_customer = Customer(current_level=3)
                 spawn_timer = 0.0
 
@@ -215,6 +239,19 @@ while running:
     # 3. LAYERED RENDERING
     # --------------------------------------------------
     # LAYER 1: Level Background
+
+        # Safely pass events to mixing station
+        try:
+            mixing_station.handle_event(event)
+        except Exception as e:
+            print(f"[STATION ERROR] Event handling exception caught: {e}")
+
+    # --------------------------------------------------
+    # LAYERED RENDERING (Back to Front)
+    # --------------------------------------------------
+
+    # LAYER 1: Draw Nurin's Active Level Background Image
+
     screen.blit(active_bg, (0, 0))
 
     # LAYER 2: Customer Sprite & Speech Bubble
