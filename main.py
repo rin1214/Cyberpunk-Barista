@@ -21,7 +21,6 @@ pygame.display.set_caption("Cyberpunk Cafe - Game Engine (16:9)")
 clock = pygame.time.Clock()
 FPS = 60
 
-
 # --------------------------------------------------
 # CARD: background asset loader (NURIN)
 # --------------------------------------------------
@@ -36,7 +35,7 @@ bg_cache = {}
 
 def load_level_background(level_num):
     """
-    Safely loads, caches, and scales background PNG to 16:9 resolution (960x540).
+    Safely loads, caches, and scales background PNG to 16:9 resolution (1280x720).
     Prevents crashing if file is missing by returning a safe fallback surface.
     """
     if level_num in bg_cache:
@@ -57,6 +56,7 @@ def load_level_background(level_num):
         fallback.fill((25, 15, 35))
         bg_cache[level_num] = fallback
         return fallback
+
 
 # ============================================================
 # START SCREEN
