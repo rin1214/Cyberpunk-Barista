@@ -1,5 +1,5 @@
-import pygame
 import sys
+import pygame
 
 from drink import Drink
 from station import MixingStation
@@ -9,25 +9,17 @@ from ui_economy import UIEconomy
 pygame.init()
 
 # Configure the window size
-<<<<<<< HEAD
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-=======
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
->>>>>>> yohshini-code
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Cyberpunk Barista - Game Engine")
+pygame.display.set_caption("Cyberpunk Cafe - Game Engine (16:9)")
 
-#  Clock & FPS Engine
+# Clock & FPS Engine
 clock = pygame.time.Clock()
 FPS = 60
 
 
 # --------------------------------------------------
-<<<<<<< HEAD
-# Mahirah's Code of the - DRINK MIXING SYSTEM
-=======
 # CARD: background asset loader (NURIN)
 # --------------------------------------------------
 LEVEL_BACKGROUNDS = {
@@ -66,18 +58,14 @@ def load_level_background(level_num):
 
 # --------------------------------------------------
 # Mahirah's Code - DRINK MIXING SYSTEM
->>>>>>> yohshini-code
 # --------------------------------------------------
 
 # Create the current drink
 drink = Drink()
 
-# Create the mixing station and connect it
-# to the Drink object
+# Create the mixing station and connect it to the Drink object
 mixing_station = MixingStation(drink)
 
-<<<<<<< HEAD
-=======
 
 # --------------------------------------------------
 # Yohshini's Code - ECONOMY & PROGRESSION HUD
@@ -89,15 +77,12 @@ economy = UIEconomy(screen=screen)
 # Sync background with saved economy level on launch
 active_bg = load_level_background(economy.level)
 
->>>>>>> yohshini-code
 
 # Main Game Loop
 running = True
 while running:
 
-    # Delta Time Calculation 
-    # clock.tick(60) caps game at 60 FPS and returns elapsed milliseconds.
-    # Dividing by 1000.0 converts milliseconds into seconds (e.g., 0.016s).
+    # Delta Time Calculation (60 FPS Cap)
     dt = clock.tick(FPS) / 1000.0
 
     # Event handling loop
@@ -105,10 +90,6 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-<<<<<<< HEAD
-    # Paint the screen background dark gray (RGB: 20, 20, 30)
-    screen.fill((20, 20, 30))
-=======
         if event.type == pygame.KEYDOWN:
             # Test Keybinds for Economy & Reset
             if event.key == pygame.K_c:
@@ -139,14 +120,17 @@ while running:
                 economy.location = economy.LOCATIONS[3]
                 economy.save_economy_data()
                 active_bg = load_level_background(3)
->>>>>>> yohshini-code
 
+        # Safely pass events to mixing station
+        try:
+            mixing_station.handle_event(event)
+        except Exception as e:
+            print(f"[STATION ERROR] Event handling exception caught: {e}")
 
-     # Draw Drink Mixing Station ( Mahirah)
-    mixing_station.draw(screen)
+    # --------------------------------------------------
+    # LAYERED RENDERING (Back to Front)
+    # --------------------------------------------------
 
-<<<<<<< HEAD
-=======
     # LAYER 1: Draw Nurin's Active Level Background Image
     screen.blit(active_bg, (0, 0))
 
@@ -155,14 +139,12 @@ while running:
         mixing_station.draw(screen)
     except Exception as e:
         print(f"[STATION ERROR] Draw exception caught: {e}")
->>>>>>> yohshini-code
 
     # LAYER 3: Draw Yohshini's Neon Economy Overlay on Top
     economy.draw()
 
     # Update display
     pygame.display.flip()
-
 
 
 # Clean exit
