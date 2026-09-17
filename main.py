@@ -11,7 +11,7 @@ from ui_economy import UIEconomy
 # Start Pygame Engine
 pygame.init()
 
-# Configure the window size (16:9 Aspect Ratio)
+# Configure the window size (16:9 Aspect Ratio - 1280x720)
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
