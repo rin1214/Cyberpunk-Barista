@@ -3,6 +3,25 @@ import random
 import pygame
 
 
+# ============================================================
+# 1280x720 GAME SCALING
+# ============================================================
+GAME_WIDTH = 1280
+GAME_HEIGHT = 720
+
+BASE_WIDTH = 960
+BASE_HEIGHT = 540
+
+SCALE_X = GAME_WIDTH / BASE_WIDTH
+SCALE_Y = GAME_HEIGHT / BASE_HEIGHT
+
+def sx(value):
+    return int(round(value * SCALE_X))
+
+def sy(value):
+    return int(round(value * SCALE_Y))
+
+
 class Customer:
     """
     Manages customer state, sprite rendering, order generation,
@@ -10,8 +29,8 @@ class Customer:
     """
 
     def __init__(self, x=360, y_counter=405, current_level=1):
-        self.x = x
-        self.y_counter = y_counter  # Y-coordinate where the counter top rests
+        self.x = sx(x)
+        self.y_counter = sy(y_counter)  # Y-coordinate where the counter top rests
         self.level = current_level  # Stored for difficulty scaling if needed
 
         # Customer archetypes and asset paths
@@ -37,7 +56,7 @@ class Customer:
         self.is_leaving = False
 
         # Speech Bubble UI Font
-        self.font = pygame.font.SysFont("Consolas", 12, bold=True)
+        self.font = pygame.font.SysFont("Consolas", sy(12), bold=True)
         self.dialogue = self._generate_dialogue()
 
     def _load_sprite(self, ctype):
@@ -49,11 +68,11 @@ class Customer:
             img = pygame.image.load(path).convert_alpha()
         else:
             # Fallback surface if image file is missing
-            img = pygame.Surface((180, 220), pygame.SRCALPHA)
+            img = pygame.Surface((sx(180), sy(220)), pygame.SRCALPHA)
             img.fill((100, 100, 150))
 
         # Scale up half-body sprite so character feels close behind the counter
-        return pygame.transform.scale(img, (180, 220))
+        return pygame.transform.scale(img,(sx(180), sy(220)))
 
     def _generate_dialogue(self):
         """Generates thematic customer order text based on parameters."""
@@ -89,9 +108,10 @@ class Customer:
 
     def _draw_patience_bar(self, screen):
         """Draws a dynamic patience progress bar above customer."""
-        bar_w, bar_h = 120, 10
+        bar_w = sx(120)
+        bar_h = sy(10)
         bar_x = self.rect.centerx - (bar_w // 2)
-        bar_y = self.rect.top - 20
+        bar_y = self.rect.top - sy(20)
 
         # Background track
         pygame.draw.rect(
@@ -113,8 +133,12 @@ class Customer:
             pygame.draw.rect(
                 screen,
                 color,
-                (bar_x + 1, bar_y + 1, fill_w, bar_h - 2),
-                border_radius=3,
+                (
+                    bar_x + sx(1),
+                    bar_y + sy(1),
+                    fill_w,
+                    bar_h - sy(2)),
+                border_radius=sy(3),
             )
 
         pygame.draw.rect(
@@ -122,19 +146,20 @@ class Customer:
             (100, 110, 130),
             (bar_x, bar_y, bar_w, bar_h),
             width=1,
-            border_radius=4,
+            border_radius=sy(4),
         )
 
     def _draw_speech_bubble(self, screen):
         """Draws cyberpunk order bubble above customer head."""
         txt_surf = self.font.render(self.dialogue, True, (0, 240, 255))
-        padding = 10
+        pad_x = sx(10)
+        pad_y = sy(10)
 
-        bubble_w = txt_surf.get_width() + (padding * 2)
-        bubble_h = txt_surf.get_height() + (padding * 2)
+        bubble_w = txt_surf.get_width() + (pad_x * 2)
+        bubble_h = txt_surf.get_height() + (pad_y * 2)
 
         bubble_x = self.rect.centerx - (bubble_w // 2)
-        bubble_y = self.rect.top - 60
+        bubble_y = self.rect.top - (sy(60))
 
         bubble_rect = pygame.Rect(bubble_x, bubble_y, bubble_w, bubble_h)
 
@@ -145,19 +170,19 @@ class Customer:
 
         # Neon Cyan Border
         pygame.draw.rect(
-            screen, (0, 220, 255), bubble_rect, width=2, border_radius=8
+            screen, (0, 220, 255), bubble_rect, width=2, border_radius=sy(8)
         )
 
         # Speech bubble pointer pointing down towards head
         pointer_pts = [
-            (self.rect.centerx - 6, bubble_y + bubble_h),
-            (self.rect.centerx + 6, bubble_y + bubble_h),
-            (self.rect.centerx, bubble_y + bubble_h + 8),
+            (self.rect.centerx - (sx(6)), bubble_y + bubble_h),
+            (self.rect.centerx + sx(6), bubble_y + bubble_h),
+            (self.rect.centerx, bubble_y + bubble_h + sy(8)),
         ]
         pygame.draw.polygon(screen, (0, 220, 255), pointer_pts)
 
         # Text render
-        screen.blit(txt_surf, (bubble_x + padding, bubble_y + padding))
+        screen.blit(txt_surf, (bubble_x + pad_x, bubble_y + pad_y))
 
     def verify_order(self, drink_data):
         """
