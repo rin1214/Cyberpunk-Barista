@@ -1,6 +1,31 @@
 import json
 import os
+import random
 import pygame
+
+
+class LevelParticle:
+    """Explosive particle FX spawned during level-up events."""
+
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.vx = random.uniform(-5, 5)
+        self.vy = random.uniform(-7, -2)
+        self.radius = random.randint(3, 6)
+        self.lifetime = 35  # Frames to render
+        self.color = color
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.lifetime -= 1
+
+    def draw(self, surface):
+        if self.lifetime > 0:
+            pygame.draw.circle(
+                surface, self.color, (int(self.x), int(self.y)), self.radius
+            )
 
 
 class UIEconomy:
@@ -39,6 +64,13 @@ class UIEconomy:
         self.level = 1
         self.location = self.LOCATIONS[1]
 
+        # Smooth XP interpolation tracker
+        self.display_xp = 0.0
+
+        # Visual FX state management
+        self.particles = []
+        self.level_up_banner_timer = 0
+
         # Load saved data if available
         self.load_economy_data()
 
@@ -63,12 +95,31 @@ class UIEconomy:
 
     def check_level_up(self):
         """Handles multi-level progression dynamic logic without a level cap."""
+        leveled_up = False
         while self.xp >= self.get_xp_for_next_level():
             self.xp -= self.get_xp_for_next_level()
+            self.display_xp = 0.0  # Reset animated tracker for new level
             self.level += 1
             self.location = self.LOCATIONS.get(
                 self.level, f"Sector {self.level} Hub"
             )
+            leveled_up = True
+
+        if leveled_up:
+            # Trigger Visual FX
+            self.level_up_banner_timer = 90  # ~1.5 seconds at 60 FPS
+            palette = self.NEON_COLORS.get(
+                self.level, self.NEON_COLORS[3 if self.level > 3 else 1]
+            )
+
+            # Spawn particle burst around top HUD box
+            screen_w, screen_h = self.screen.get_size()
+            center_x = int(screen_w * 0.18)
+            center_y = int(screen_h * 0.12)
+            for _ in range(45):
+                self.particles.append(
+                    LevelParticle(center_x, center_y, palette["accent"])
+                )
 
     def reset_economy(self):
         """Resets economy and save file back to defaults."""
@@ -76,6 +127,7 @@ class UIEconomy:
         self.xp = 0
         self.level = 1
         self.location = self.LOCATIONS[1]
+        self.display_xp = 0.0
         self.save_economy_data()
 
     def save_economy_data(self):
@@ -104,13 +156,16 @@ class UIEconomy:
                     self.location = self.LOCATIONS.get(
                         self.level, f"Sector {self.level} Hub"
                     )
+                    self.display_xp = float(self.xp)
             except (IOError, json.JSONDecodeError) as e:
                 print(f"[ECONOMY ERROR] Corrupt save file, resetting. ({e})")
                 self.reset_economy()
 
     def get_level_bg_color(self):
         """Returns the dark background fallback tint matching level."""
-        palette = self.NEON_COLORS.get(self.level, self.NEON_COLORS[3 if self.level > 3 else 1])
+        palette = self.NEON_COLORS.get(
+            self.level, self.NEON_COLORS[3 if self.level > 3 else 1]
+        )
         return palette["bg"]
 
     def draw(self):
@@ -123,7 +178,9 @@ class UIEconomy:
         hud_h = int(screen_h * 0.20)
 
         # Use Level 3 palette styling for levels > 3
-        palette = self.NEON_COLORS.get(self.level, self.NEON_COLORS[3 if self.level > 3 else 1])
+        palette = self.NEON_COLORS.get(
+            self.level, self.NEON_COLORS[3 if self.level > 3 else 1]
+        )
         primary_color = palette["primary"]
         accent_color = palette["accent"]
 
@@ -168,9 +225,11 @@ class UIEconomy:
         bar_h = int(hud_h * 0.16)
 
         target_xp = self.get_xp_for_next_level()
-        xp_str = f"XP: {self.xp}/{target_xp}"
-        fill_ratio = min(1.0, max(0.0, self.xp / target_xp))
 
+        # Smooth XP Interpolation (10% step each frame toward current target XP)
+        self.display_xp += (self.xp - self.display_xp) * 0.10
+
+        fill_ratio = min(1.0, max(0.0, self.display_xp / target_xp))
         fill_w = int(bar_w * fill_ratio)
 
         # XP Track Background
@@ -193,6 +252,39 @@ class UIEconomy:
         )
 
         # XP Numeric Text Overlay
+        xp_str = f"XP: {int(self.display_xp)}/{target_xp}"
         xp_txt = font_body.render(xp_str, True, (255, 255, 255))
         xp_rect = xp_txt.get_rect(center=(bar_x + bar_w // 2, bar_y + bar_h // 2))
         self.screen.blit(xp_txt, xp_rect)
+
+        # -------------------------------------------------------------
+        # Level Up Particle Effects & Center Banner Overlay
+        # -------------------------------------------------------------
+        for p in self.particles[:]:
+            p.update()
+            p.draw(self.screen)
+            if p.lifetime <= 0:
+                self.particles.remove(p)
+
+        if self.level_up_banner_timer > 0:
+            self.level_up_banner_timer -= 1
+
+            banner_size = max(16, int(screen_h * 0.04))
+            banner_font = pygame.font.SysFont("Consolas", banner_size, bold=True)
+            banner_str = f"LEVEL UP! WELCOME TO {self.location.upper()}"
+            banner_txt = banner_font.render(banner_str, True, accent_color)
+
+            banner_rect = banner_txt.get_rect(
+                center=(screen_w // 2, int(screen_h * 0.15))
+            )
+
+            # Dark Backing Container with Glowing Border
+            bg_rect = banner_rect.inflate(32, 16)
+            bg_surface = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+            bg_surface.fill((10, 10, 20, 230))
+
+            self.screen.blit(bg_surface, bg_rect.topleft)
+            pygame.draw.rect(
+                self.screen, accent_color, bg_rect, width=2, border_radius=8
+            )
+            self.screen.blit(banner_txt, banner_rect)
