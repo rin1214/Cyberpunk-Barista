@@ -1,6 +1,13 @@
 {
+<<<<<<< HEAD
     "credits": 500,
     "xp": 30,
     "level": 4,
     "location": "Sector 4 Hub"
+=======
+    "credits": 0,
+    "xp": 30,
+    "level": 1,
+    "location": "Back Alley Kiosk"
+>>>>>>> origin/main
 }

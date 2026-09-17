@@ -1,584 +1,126 @@
 import pygame
 
-
 class MixingStation:
-    """
-    Interactive Drink Mixing Station.
-
-    This class controls:
-    - The visual mixing station
-    - Sweetness controls
-    - Caffeine controls
-    - Temperature controls
-    - Mouse interaction
-    - Serve button
-    """
-
     def __init__(self, drink):
-
-        # Store the Drink object.
-        # This allows the station to read and modify
-        # the actual drink being prepared.
         self.drink = drink
 
-        # ==================================================
         # FONTS
-        # ==================================================
+        self.title_font = pygame.font.SysFont("Consolas", 20, bold=True)
+        self.label_font = pygame.font.SysFont("Consolas", 12, bold=True)
+        self.btn_font = pygame.font.SysFont("Consolas", 18, bold=True)
+        self.serve_font = pygame.font.SysFont("Consolas", 16, bold=True)
 
-        self.title_font = pygame.font.SysFont(
-            "arial",
-            28,
-            bold=True
-        )
+        # FAR RIGHT PLACEMENT WITH A CLEAR GAP FROM THE SCREEN EDGE
+        self.panel_rect = pygame.Rect(800, 110, 320, 410)
 
-        self.subtitle_font = pygame.font.SysFont(
-            "arial",
-            13
-        )
+        # ADJUSTED BUTTON & METER RECTS
+        self.sweetness_minus = pygame.Rect(820, 175, 35, 35)
+        self.sweetness_bar   = pygame.Rect(865, 180, 190, 25)
+        self.sweetness_plus  = pygame.Rect(1065, 175, 35, 35)
 
-        self.label_font = pygame.font.SysFont(
-            "arial",
-            20,
-            bold=True
-        )
+        self.caffeine_minus  = pygame.Rect(820, 255, 35, 35)
+        self.caffeine_bar    = pygame.Rect(865, 260, 190, 25)
+        self.caffeine_plus   = pygame.Rect(1065, 255, 35, 35)
 
-        self.value_font = pygame.font.SysFont(
-            "arial",
-            24,
-            bold=True
-        )
+        self.temp_minus      = pygame.Rect(820, 335, 35, 35)
+        self.temp_bar        = pygame.Rect(865, 340, 190, 25)
+        self.temp_plus       = pygame.Rect(1065, 335, 35, 35)
 
-        self.button_font = pygame.font.SysFont(
-            "arial",
-            22,
-            bold=True
-        )
-
-        self.serve_font = pygame.font.SysFont(
-            "arial",
-            20,
-            bold=True
-        )
-
-        # ==================================================
-        # PASTEL COLOR PALETTE
-        # ==================================================
-
-        # Main panel
-        self.panel_color = (36, 39, 58)
-
-        # Inner value boxes
-        self.panel_inner_color = (30, 33, 48)
-
-        # Soft pastel blue
-        self.border_color = (137, 211, 255)
-
-        # Text
-        self.title_color = (174, 224, 255)
-        self.label_color = (225, 228, 240)
-        self.value_color = (255, 255, 255)
-        self.subtitle_color = (165, 170, 190)
-
-        # Pastel pink
-        self.minus_color = (255, 174, 190)
-        self.minus_hover = (255, 194, 207)
-
-        # Pastel mint
-        self.plus_color = (160, 235, 203)
-        self.plus_hover = (185, 245, 220)
-
-        # Pastel lavender
-        self.serve_color = (218, 166, 230)
-        self.serve_hover = (234, 190, 244)
-
-        # Dark text for buttons
-        self.button_text_color = (40, 35, 50)
-
-        # Value box border
-        self.value_border_color = (177, 239, 221)
-
-        # ==================================================
-        # MAIN PANEL
-        # ==================================================
-
-        self.panel_rect = pygame.Rect(
-            455,
-            55,
-            310,
-            510
-        )
-
-        # ==================================================
-        # SWEETNESS BUTTONS
-        # ==================================================
-
-        self.sweetness_minus = pygame.Rect(
-            485,
-            175,
-            60,
-            50
-        )
-
-        self.sweetness_plus = pygame.Rect(
-            675,
-            175,
-            60,
-            50
-        )
-
-        # ==================================================
-        # CAFFEINE BUTTONS
-        # ==================================================
-
-        self.caffeine_minus = pygame.Rect(
-            485,
-            290,
-            60,
-            50
-        )
-
-        self.caffeine_plus = pygame.Rect(
-            675,
-            290,
-            60,
-            50
-        )
-
-        # ==================================================
-        # TEMPERATURE BUTTONS
-        # ==================================================
-
-        self.temperature_minus = pygame.Rect(
-            485,
-            405,
-            60,
-            50
-        )
-
-        self.temperature_plus = pygame.Rect(
-            675,
-            405,
-            60,
-            50
-        )
-
-        # ==================================================
-        # VALUE BOXES
-        # ==================================================
-
-        self.sweetness_value_box = pygame.Rect(
-            565,
-            175,
-            90,
-            50
-        )
-
-        self.caffeine_value_box = pygame.Rect(
-            565,
-            290,
-            90,
-            50
-        )
-
-        self.temperature_value_box = pygame.Rect(
-            565,
-            405,
-            90,
-            50
-        )
-
-        # ==================================================
-        # SERVE BUTTON
-        # ==================================================
-
-        self.serve_button = pygame.Rect(
-            485,
-            490,
-            250,
-            55
-        )
-
-        # ==================================================
-        # SERVE STATUS
-        # ==================================================
-
+        self.serve_button    = pygame.Rect(820, 445, 280, 50)
         self.served = False
 
-    # ======================================================
-    # DRAW EVERYTHING
-    # ======================================================
-
     def draw(self, screen):
+        # 1. Translucent Cyberpunk Workbench Panel
+        panel_surf = pygame.Surface((self.panel_rect.width, self.panel_rect.height), pygame.SRCALPHA)
+        panel_surf.fill((14, 16, 28, 225))
+        screen.blit(panel_surf, self.panel_rect.topleft)
 
-        # Main station panel
-        pygame.draw.rect(
-            screen,
-            self.panel_color,
-            self.panel_rect,
-            border_radius=20
-        )
+        # Neon Outer Frame
+        pygame.draw.rect(screen, (0, 220, 255), self.panel_rect, width=2, border_radius=12)
 
-        # Panel border
-        pygame.draw.rect(
-            screen,
-            self.border_color,
-            self.panel_rect,
-            width=2,
-            border_radius=20
-        )
+        # Header Title
+        title_txt = self.title_font.render("// DRINK DISPENSER //", True, (0, 240, 255))
+        screen.blit(title_txt, (self.panel_rect.x + 35, self.panel_rect.y + 15))
 
-        # Title
-        self.draw_title(screen)
+        # 2. Controls & Dynamic Color Meters
+        self._draw_control(screen, "SWEETNESS", self.drink.sweetness, 155, 
+                           self.sweetness_minus, self.sweetness_bar, self.sweetness_plus, (255, 100, 200))
+        
+        self._draw_control(screen, "CAFFEINE", self.drink.caffeine, 235, 
+                           self.caffeine_minus, self.caffeine_bar, self.caffeine_plus, (0, 220, 255))
 
-        # Sweetness
-        self.draw_parameter(
-            screen,
-            "SWEETNESS",
-            self.drink.sweetness,
-            145,
-            self.sweetness_minus,
-            self.sweetness_value_box,
-            self.sweetness_plus
-        )
+        # Temperature shifts color: Cold Blue -> Hot Red
+        temp_color = (255, 60, 60) if self.drink.temperature > 60 else (60, 180, 255)
+        self._draw_control(screen, "TEMPERATURE", self.drink.temperature, 315, 
+                           self.temp_minus, self.temp_bar, self.temp_plus, temp_color)
 
-        # Caffeine
-        self.draw_parameter(
-            screen,
-            "CAFFEINE",
-            self.drink.caffeine,
-            260,
-            self.caffeine_minus,
-            self.caffeine_value_box,
-            self.caffeine_plus
-        )
+        # 3. Dynamic Mixing Cup Preview
+        self._draw_cup_preview(screen)
 
-        # Temperature
-        self.draw_parameter(
-            screen,
-            "TEMPERATURE",
-            self.drink.temperature,
-            375,
-            self.temperature_minus,
-            self.temperature_value_box,
-            self.temperature_plus
-        )
+        # 4. Serve Button
+        self._draw_serve_btn(screen)
 
-        # Serve button
-        self.draw_serve_button(screen)
+    def _draw_control(self, screen, label, value, y_pos, btn_minus, bar_rect, btn_plus, color):
+        # Label
+        lbl_txt = self.label_font.render(f"{label}: {value}%", True, (220, 225, 240))
+        screen.blit(lbl_txt, (bar_rect.x, y_pos))
 
-    # ======================================================
-    # DRAW TITLE
-    # ======================================================
+        # Minus Button
+        m_pos = pygame.mouse.get_pos()
+        m_color = (255, 80, 120) if btn_minus.collidepoint(m_pos) else (180, 50, 90)
+        pygame.draw.rect(screen, m_color, btn_minus, border_radius=6)
+        txt = self.btn_font.render("-", True, (255, 255, 255))
+        screen.blit(txt, txt.get_rect(center=btn_minus.center))
 
-    def draw_title(self, screen):
+        # Meter Track
+        pygame.draw.rect(screen, (20, 22, 35), bar_rect, border_radius=6)
+        fill_w = int((bar_rect.width - 4) * (value / 100.0))
+        if fill_w > 0:
+            pygame.draw.rect(screen, color, (bar_rect.x + 2, bar_rect.y + 2, fill_w, bar_rect.height - 4), border_radius=4)
+        pygame.draw.rect(screen, (70, 80, 110), bar_rect, width=1, border_radius=6)
 
-        title_surface = self.title_font.render(
-            "DRINK MIXING",
-            True,
-            self.title_color
-        )
+        # Plus Button
+        p_color = (0, 240, 160) if btn_plus.collidepoint(m_pos) else (0, 160, 110)
+        pygame.draw.rect(screen, p_color, btn_plus, border_radius=6)
+        txt = self.btn_font.render("+", True, (255, 255, 255))
+        screen.blit(txt, txt.get_rect(center=btn_plus.center))
 
-        title_rect = title_surface.get_rect(
-            center=(
-                self.panel_rect.centerx,
-                88
-            )
-        )
+    def _draw_cup_preview(self, screen):
+        # Calculates fluid tint based on parameters
+        r = min(255, int((self.drink.temperature / 100.0) * 255))
+        g = min(255, int((self.drink.sweetness / 100.0) * 200))
+        b = min(255, int((self.drink.caffeine / 100.0) * 255))
+        fluid_color = (max(40, r), max(40, g), max(40, b))
 
-        screen.blit(
-            title_surface,
-            title_rect
-        )
+        cup_x, cup_y = 930, 385
+        # Glass Cup Backing
+        pygame.draw.rect(screen, (20, 25, 40), (cup_x, cup_y, 30, 45), border_radius=4)
+        # Dynamic Fluid Level
+        pygame.draw.rect(screen, fluid_color, (cup_x + 2, cup_y + 10, 26, 33), border_radius=3)
+        # Neon Glass Outline
+        pygame.draw.rect(screen, (0, 240, 255), (cup_x, cup_y, 30, 45), width=2, border_radius=4)
 
-        subtitle_surface = self.subtitle_font.render(
-            "CUSTOMIZE YOUR RECIPE",
-            True,
-            self.subtitle_color
-        )
+    def _draw_serve_btn(self, screen):
+        m_pos = pygame.mouse.get_pos()
+        btn_color = (255, 0, 128) if self.serve_button.collidepoint(m_pos) else (180, 0, 95)
+        
+        pygame.draw.rect(screen, btn_color, self.serve_button, border_radius=8)
+        pygame.draw.rect(screen, (255, 150, 220), self.serve_button, width=2, border_radius=8)
 
-        subtitle_rect = subtitle_surface.get_rect(
-            center=(
-                self.panel_rect.centerx,
-                118
-            )
-        )
-
-        screen.blit(
-            subtitle_surface,
-            subtitle_rect
-        )
-
-    # ======================================================
-    # DRAW PARAMETER
-    # ======================================================
-
-    def draw_parameter(
-        self,
-        screen,
-        label,
-        value,
-        label_y,
-        minus_button,
-        value_box,
-        plus_button
-    ):
-
-        # Parameter name
-        label_surface = self.label_font.render(
-            label,
-            True,
-            self.label_color
-        )
-
-        screen.blit(
-            label_surface,
-            (485, label_y)
-        )
-
-        # Separator
-        line_y = label_y + 32
-
-        pygame.draw.line(
-            screen,
-            (65, 70, 95),
-            (485, line_y),
-            (735, line_y),
-            1
-        )
-
-        # Minus button
-        self.draw_button(
-            screen,
-            minus_button,
-            "-",
-            self.minus_color,
-            self.minus_hover
-        )
-
-        # Number box
-        self.draw_value_box(
-            screen,
-            value_box,
-            value
-        )
-
-        # Plus button
-        self.draw_button(
-            screen,
-            plus_button,
-            "+",
-            self.plus_color,
-            self.plus_hover
-        )
-
-    # ======================================================
-    # DRAW VALUE BOX
-    # ======================================================
-
-    def draw_value_box(
-        self,
-        screen,
-        rect,
-        value
-    ):
-
-        pygame.draw.rect(
-            screen,
-            self.panel_inner_color,
-            rect,
-            border_radius=10
-        )
-
-        pygame.draw.rect(
-            screen,
-            self.value_border_color,
-            rect,
-            width=2,
-            border_radius=10
-        )
-
-        value_surface = self.value_font.render(
-            str(value),
-            True,
-            self.value_color
-        )
-
-        value_rect = value_surface.get_rect(
-            center=rect.center
-        )
-
-        screen.blit(
-            value_surface,
-            value_rect
-        )
-
-    # ======================================================
-    # DRAW NORMAL BUTTON
-    # ======================================================
-
-    def draw_button(
-        self,
-        screen,
-        rect,
-        text,
-        normal_color,
-        hover_color
-    ):
-
-        mouse_position = pygame.mouse.get_pos()
-
-        # Change color when mouse is over button
-        if rect.collidepoint(mouse_position):
-            button_color = hover_color
-        else:
-            button_color = normal_color
-
-        pygame.draw.rect(
-            screen,
-            button_color,
-            rect,
-            border_radius=12
-        )
-
-        text_surface = self.button_font.render(
-            text,
-            True,
-            self.button_text_color
-        )
-
-        text_rect = text_surface.get_rect(
-            center=rect.center
-        )
-
-        screen.blit(
-            text_surface,
-            text_rect
-        )
-
-    # ======================================================
-    # DRAW SERVE BUTTON
-    # ======================================================
-
-    def draw_serve_button(self, screen):
-
-        mouse_position = pygame.mouse.get_pos()
-
-        if self.serve_button.collidepoint(mouse_position):
-            button_color = self.serve_hover
-        else:
-            button_color = self.serve_color
-
-        pygame.draw.rect(
-            screen,
-            button_color,
-            self.serve_button,
-            border_radius=12
-        )
-
-        pygame.draw.rect(
-            screen,
-            (245, 225, 250),
-            self.serve_button,
-            width=2,
-            border_radius=12
-        )
-
-        text_surface = self.serve_font.render(
-            "SERVE DRINK",
-            True,
-            self.button_text_color
-        )
-
-        text_rect = text_surface.get_rect(
-            center=self.serve_button.center
-        )
-
-        screen.blit(
-            text_surface,
-            text_rect
-        )
-
-    # ======================================================
-    # HANDLE PLAYER INPUT
-    # ======================================================
+        txt = self.serve_font.render("[SERVE DRINK]", True, (255, 255, 255))
+        screen.blit(txt, txt.get_rect(center=self.serve_button.center))
 
     def handle_event(self, event):
-
-        # We only care about mouse clicks
-        if event.type == pygame.MOUSEBUTTONDOWN:
-
-            # Only use left mouse button
-            if event.button == 1:
-
-                mouse_position = event.pos
-
-                # ------------------------------------------
-                # SWEETNESS
-                # ------------------------------------------
-
-                if self.sweetness_minus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.decrease_sweetness()
-
-                elif self.sweetness_plus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.increase_sweetness()
-
-                # ------------------------------------------
-                # CAFFEINE
-                # ------------------------------------------
-
-                elif self.caffeine_minus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.decrease_caffeine()
-
-                elif self.caffeine_plus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.increase_caffeine()
-
-                # ------------------------------------------
-                # TEMPERATURE
-                # ------------------------------------------
-
-                elif self.temperature_minus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.decrease_temperature()
-
-                elif self.temperature_plus.collidepoint(
-                    mouse_position
-                ):
-
-                    self.drink.increase_temperature()
-
-                # ------------------------------------------
-                # SERVE
-                # ------------------------------------------
-
-                elif self.serve_button.collidepoint(
-                    mouse_position
-                ):
-
-                    self.served = True
-
-                    print("DRINK SERVED!")
-                    print(self.drink.get_data())
-
-    # ======================================================
-    # RESET STATION
-    # ======================================================
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = event.pos
+            if self.sweetness_minus.collidepoint(pos): self.drink.decrease_sweetness()
+            elif self.sweetness_plus.collidepoint(pos): self.drink.increase_sweetness()
+            elif self.caffeine_minus.collidepoint(pos): self.drink.decrease_caffeine()
+            elif self.caffeine_plus.collidepoint(pos): self.drink.increase_caffeine()
+            elif self.temp_minus.collidepoint(pos): self.drink.decrease_temperature()
+            elif self.temp_plus.collidepoint(pos): self.drink.increase_temperature()
+            elif self.serve_button.collidepoint(pos): self.served = True
 
     def reset(self):
-
         self.drink.reset()
-
         self.served = False
