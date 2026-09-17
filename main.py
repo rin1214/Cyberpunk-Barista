@@ -121,8 +121,16 @@ while running:
             print(f"[STATION ERROR] Event handling exception caught: {e}")
 
         if event.type == pygame.KEYDOWN:
-            # Reset Economy (R Key)
-            if event.key == pygame.K_r:
+            # Test Keybinds for Economy & Reset
+            if event.key == pygame.K_c:
+                # Test Correct Order (+20 Credits, +30 XP)
+                economy.serve_order(is_correct=True)
+                active_bg = load_level_background(economy.level)
+            elif event.key == pygame.K_w:
+                # Test Wrong Order (-5 Waste Fee, 0 XP)
+                economy.serve_order(is_correct=False)
+            elif event.key == pygame.K_r:
+                # Reset Economy (R Key)
                 economy.reset_economy()
                 mixing_station.reset()
                 active_bg = load_level_background(economy.level)
