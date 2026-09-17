@@ -15,12 +15,11 @@ pygame.init()
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Cyberpunk Barista - Game Engine")
+pygame.display.set_caption("Cyberpunk Barista - Game Engine (16:9)")
 
 # Clock & FPS Engine
 clock = pygame.time.Clock()
 FPS = 60
-
 
 # --------------------------------------------------
 # BACKGROUND ASSET LOADER
@@ -35,7 +34,10 @@ bg_cache = {}
 
 
 def load_level_background(level_num):
-    """Safely loads, caches, and scales background PNG to screen resolution."""
+    """
+    Safely loads, caches, and scales background PNG to 16:9 resolution (1280x720).
+    Prevents crashing if file is missing by returning a safe fallback surface.
+    """
     if level_num in bg_cache:
         return bg_cache[level_num]
 
@@ -71,9 +73,9 @@ if player_name is None:
 print(f"[PLAYER] Welcome to Cyberpunk Café, {player_name}!")
 
 # ============================================================
-# LOADING SCREEN
+# ECONOMY & LOADING SCREEN
 # ============================================================
-economy = UIEconomy(screen=screen)
+economy = UIEconomy(screen=screen, player_name=player_name)
 loading_screen = LoadingScreen(screen)
 
 loading_ok = loading_screen.run(
@@ -85,7 +87,7 @@ if not loading_ok:
     sys.exit()
 
 # --------------------------------------------------
-# SYSTEM INITIALIZATION
+# DRINK MIXING SYSTEM & CUSTOMER INITIALIZATION
 # --------------------------------------------------
 drink = Drink()
 mixing_station = MixingStation(drink)
@@ -104,7 +106,7 @@ SPAWN_DELAY = 1.5  # Time delay (seconds) before new customer enters
 running = True
 while running:
 
-    # Delta Time Calculation
+    # Delta Time Calculation (60 FPS Cap)
     dt = clock.tick(FPS) / 1000.0
 
     # Event handling loop
@@ -112,8 +114,11 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        # Pass event to mixing station (handles button clicks on +/- and Serve)
-        mixing_station.handle_event(event)
+        # Pass events to mixing station
+        try:
+            mixing_station.handle_event(event)
+        except Exception as e:
+            print(f"[STATION ERROR] Event handling exception caught: {e}")
 
         if event.type == pygame.KEYDOWN:
             # Reset Economy (R Key)
@@ -124,7 +129,7 @@ while running:
                 active_customer = Customer(current_level=economy.level)
                 spawn_timer = 0.0
 
-            # Debug Level Swapping (1, 2, 3)
+            # Debug Level Swapping (1, 2, 3 Keys)
             elif event.key == pygame.K_1:
                 economy.level = 1
                 economy.location = economy.LOCATIONS[1]
@@ -152,7 +157,6 @@ while running:
     # --------------------------------------------------
     if mixing_station.served:
         if active_customer and active_customer.state == CustomerState.WAITING:
-            # Evaluate customer order and set FSM state to SERVED or LEAVING
             is_correct = active_customer.serve_drink(drink.get_data())
 
             old_level = economy.level
@@ -179,7 +183,7 @@ while running:
         old_state = active_customer.state
         active_customer.update(dt)
 
-        # Catch Patience Expiration (If patience hit 0 during WAITING step)
+        # Catch Patience Expiration
         if (
             old_state == CustomerState.WAITING
             and active_customer.state == CustomerState.LEAVING
@@ -200,12 +204,12 @@ while running:
             active_customer = Customer(current_level=economy.level)
 
     # --------------------------------------------------
-    # 3. RENDER ENGINE
+    # 3. LAYERED RENDERING
     # --------------------------------------------------
     # LAYER 1: Level Background
     screen.blit(active_bg, (0, 0))
 
-    # LAYER 2: Customer Sprite & Speech Bubble (Behind Counter)
+    # LAYER 2: Customer Sprite & Speech Bubble
     if active_customer:
         active_customer.draw(screen)
 
