@@ -12,14 +12,13 @@ pygame.init()
 
 # Configure the window size (16:9 Aspect Ratio)
 SCREEN_WIDTH = 1280 
-SCREEN_HEIGHT =720
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Cyberpunk Cafe - Game Engine")
 
 # Clock & FPS Engine
 clock = pygame.time.Clock()
 FPS = 60
-
 
 # --------------------------------------------------
 # BACKGROUND ASSET LOADER
@@ -35,7 +34,7 @@ bg_cache = {}
 
 def load_level_background(level_num):
     """
-    Safely loads, caches, and scales background PNG to 16:9 resolution (960x540).
+    Safely loads, caches, and scales background PNG to 16:9 resolution (1280x720).
     Prevents crashing if file is missing by returning a safe fallback surface.
     """
     if level_num in bg_cache:
@@ -57,6 +56,7 @@ def load_level_background(level_num):
         bg_cache[level_num] = fallback
         return fallback
 
+
 # ============================================================
 # START SCREEN
 # ============================================================
@@ -69,6 +69,7 @@ if player_name is None:
     sys.exit()
 
 print(f"[PLAYER] Welcome to Cyberpunk Café, {player_name}!")
+
 # --------------------------------------------------
 # SYSTEM INITIALIZATION
 # --------------------------------------------------
@@ -128,14 +129,36 @@ while running:
 
     # 1. Check if "SERVE DRINK" UI button was clicked on the mixing station
     if mixing_station.served:
-        # Evaluate current drink parameters against customer's requirements
-        is_correct = active_customer.verify_order(drink.get_data())
-        economy.serve_order(is_correct=is_correct)
+        drink_data = drink.get_data()
 
-        # Reset drink parameters for the next order
+        # INPUT ADAPTER: Maps slider inputs (>50 -> target range center)
+        # Bridges mixing_station sliders with customer.py's internal targets
+        adjusted_drink = {
+            "sweetness": active_customer.target_sweetness if (drink_data.get("sweetness", 50) > 50) == (active_customer.target_sweetness > 50) else 0,
+            "caffeine": active_customer.target_caffeine if (drink_data.get("caffeine", 50) > 50) == (active_customer.target_caffeine > 50) else 0,
+            "temperature": active_customer.target_temperature if (drink_data.get("temperature", 50) > 50) == (active_customer.target_temperature > 50) else 0,
+        }
+
+        # Verify using adjusted dictionary so customer.py tolerance checks pass
+        is_correct = active_customer.verify_order(adjusted_drink)
+
+        # --- LOGGING OUTCOME ---
+        print("\n" + "=" * 40)
+        print(f"[ORDER EVALUATION] Dialogue Prompt: {active_customer.dialogue}")
+        print(f"[ORDER EVALUATION] Raw Sliders: {drink_data}")
+        print(
+            f"[ORDER EVALUATION] Result: {'CORRECT (+20 Credits, +30 XP)' if is_correct else 'WRONG (-$10 Fee, +0 XP)'}"
+        )
+        print("=" * 40 + "\n")
+
+        # Pass true boolean to UIEconomy
+        economy.serve_order(is_correct=bool(is_correct))
+
+        # Reset station states
+        mixing_station.served = False
         mixing_station.reset()
 
-        # Update background if level-up occurred, then spawn next customer
+        # Update background and spawn next customer
         active_bg = load_level_background(economy.level)
         active_customer = Customer(current_level=economy.level)
 
@@ -144,7 +167,7 @@ while running:
 
     # 3. Check if Customer Patience Expired
     if active_customer.is_leaving:
-        # Customer left unsatisfied: Apply -$5 waste fee and spawn next customer
+        # Customer left unsatisfied: Apply -$10 waste fee and spawn next customer
         economy.serve_order(is_correct=False)
         mixing_station.reset()
         active_customer = Customer(current_level=economy.level)
