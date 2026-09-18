@@ -15,9 +15,9 @@ class MapManager:
         
         # Define districts/nodes on the map with individual costs
         self.nodes = {
-            "neon_alley": MapNode("Neon Alley Cafe", level_req=1, x=280, y=360, description="The gritty starting district. Neon lights and simple brews.", cost=0),
-            "cyber_dock": MapNode("Cyber Dock Coffee", level_req=2, x=640, y=360, description="Bustling shipping docks with heavy cybernetic foot traffic.", cost=150),
-            "high_rise": MapNode("High-Rise Bar", level_req=3, x=1000, y=360, description="Elite skyscraper lounge for high-tier corporate clients.", cost=300)
+            "neon_alley": MapNode("Back Alley Kiosk", level_req=1, x=280, y=360, description="The gritty starting district. Neon lights and simple brews.", cost=0),
+            "cyber_dock": MapNode("Neon Lounge", level_req=2, x=640, y=360, description="Bustling shipping docks with heavy cybernetic foot traffic.", cost=150),
+            "high_rise":  MapNode("Cyber Penthouse", level_req=3, x=1000, y=360, description="Elite skyscraper lounge for high-tier corporate clients.", cost=300)
         }
         
         self.check_unlocks()

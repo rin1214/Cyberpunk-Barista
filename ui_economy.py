@@ -9,9 +9,9 @@ class UIEconomy:
     )
 
     LOCATIONS = {
-        1: "NEON ALLEY CAFE",
-        2: "CYBER DOCK COFFEE",
-        3: "HIGH-RISE BAR",
+        1: "BACK ALLEY KIOSK",
+        2: "NEON LOUNGE",
+        3: "CYBER PENTHOUSE",
     }
 
     NEON_COLORS = {
@@ -37,7 +37,7 @@ class UIEconomy:
             self.credits += 25  # Spendable currency goes up
             self.xp += 50       # Leaderboard XP goes up more for correct orders
         else:
-            self.credits = max(0, self.credits - 5)  # Penalty only hits spendable credits
+            self.credits = max(0, self.credits - 10)  # Penalty only hits spendable credits
             # XP is never lost on mistakes, preserving lifetime progress!
 
         self.save_economy_data()
