@@ -3,6 +3,7 @@ import pygame
 
 from customer import Customer, CustomerState
 from drink import Drink
+from level_unlock_screen import LevelUnlockScreen
 from loading_screen import LoadingScreen
 from start_screen import StartScreen
 from station import MixingStation
@@ -10,7 +11,6 @@ from ui_economy import UIEconomy
 
 # Start Pygame Engine
 pygame.init()
-
 
 # Configure the window size (16:9 Aspect Ratio - 1280x720)
 SCREEN_WIDTH = 1280
@@ -88,79 +88,40 @@ if not loading_ok:
     sys.exit()
 
 # --------------------------------------------------
-
 # DRINK MIXING SYSTEM & CUSTOMER INITIALIZATION
-
-# Mahirah's Code - DRINK MIXING SYSTEM
-
 # --------------------------------------------------
 drink = Drink()
-
-# Create the mixing station and connect it to the Drink object
 mixing_station = MixingStation(drink)
 
 active_bg = load_level_background(economy.level)
 active_customer = Customer(current_level=economy.level)
 
-# Spawning Engine Control Flags
 spawn_timer = 0.0
-SPAWN_DELAY = 1.5  # Time delay (seconds) before new customer enters
-
+SPAWN_DELAY = 1.5
 
 # --------------------------------------------------
 # MAIN GAME LOOP
 # --------------------------------------------------
 running = True
 while running:
-
-    # Delta Time Calculation (60 FPS Cap)
     dt = clock.tick(FPS) / 1000.0
 
-    # Event handling loop
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-
-        # Pass events to mixing station
         try:
             mixing_station.handle_event(event)
         except Exception as e:
             print(f"[STATION ERROR] Event handling exception caught: {e}")
 
         if event.type == pygame.KEYDOWN:
-            # Test Keybinds for Economy & Reset
-            if event.key == pygame.K_c:
-                # Test Correct Order (+20 Credits, +30 XP)
-                economy.serve_order(is_correct=True)
-                active_bg = load_level_background(economy.level)
-            elif event.key == pygame.K_w:
-                # Test Wrong Order (-5 Waste Fee, 0 XP)
-                economy.serve_order(is_correct=False)
-            elif event.key == pygame.K_r:
-                # Reset economy back to Level 1
-                economy.reset_economy()
-                active_bg = load_level_background(economy.level)
-
-
-        if event.type == pygame.KEYDOWN:
-            # Test Keybinds for Economy & Reset
-            if event.key == pygame.K_c:
-                # Test Correct Order (+20 Credits, +30 XP)
-                economy.serve_order(is_correct=True)
-                active_bg = load_level_background(economy.level)
-            elif event.key == pygame.K_w:
-                # Test Wrong Order (-5 Waste Fee, 0 XP)
-                economy.serve_order(is_correct=False)
-            elif event.key == pygame.K_r:
-                # Reset Economy (R Key)
+            if event.key == pygame.K_r:
                 economy.reset_economy()
                 mixing_station.reset()
                 active_bg = load_level_background(economy.level)
                 active_customer = Customer(current_level=economy.level)
                 spawn_timer = 0.0
-
-            # Debug Level Swapping (1, 2, 3 Keys)
             elif event.key == pygame.K_1:
                 economy.level = 1
                 economy.location = economy.LOCATIONS[1]
@@ -180,13 +141,9 @@ while running:
                 economy.location = economy.LOCATIONS[3]
                 economy.save_economy_data()
                 active_bg = load_level_background(3)
-
                 active_customer = Customer(current_level=3)
                 spawn_timer = 0.0
 
-    # --------------------------------------------------
-    # 1. SERVE DRINK EVALUATION
-    # --------------------------------------------------
     if mixing_station.served:
         if active_customer and active_customer.state == CustomerState.WAITING:
             is_correct = active_customer.serve_drink(drink.get_data())
@@ -194,28 +151,40 @@ while running:
             old_level = economy.level
             economy.serve_order(is_correct=is_correct)
 
-            # Level Up Transition
             if economy.level > old_level:
                 print(
                     f"[LEVEL UP] Level {economy.level} unlocked: {economy.location}"
                 )
-                loading_screen = LoadingScreen(screen)
-                loading_ok = loading_screen.run(
-                    player_name=player_name, level=economy.level, duration=6.7
+
+                unlock_screen = LevelUnlockScreen(screen)
+                unlock_ok = unlock_screen.run(
+                    level=economy.level,
+                    duration=4.0
                 )
-                if not loading_ok:
+
+                if not unlock_ok:
                     running = False
+                else:
+                    loading_screen = LoadingScreen(screen)
+                    loading_ok = loading_screen.run(
+                        player_name=player_name,
+                        level=economy.level,
+                        duration=6.7
+                    )
+
+                    if not loading_ok:
+                        running = False
+                    else:
+                        mixing_station.reset()
+                        active_bg = load_level_background(economy.level)
+                        active_customer = Customer(current_level=economy.level)
 
         mixing_station.reset()
 
-    # --------------------------------------------------
-    # 2. UPDATE CUSTOMER FSM & QUEUE SPAWNING ENGINE
-    # --------------------------------------------------
     if active_customer:
         old_state = active_customer.state
         active_customer.update(dt)
 
-        # Catch Patience Expiration
         if (
             old_state == CustomerState.WAITING
             and active_customer.state == CustomerState.LEAVING
@@ -223,53 +192,27 @@ while running:
             economy.serve_order(is_correct=False)
             mixing_station.reset()
 
-        # CLEANUP: Once customer finishes sliding off screen, remove them
         if active_customer.is_finished():
             active_customer = None
             spawn_timer = SPAWN_DELAY
-
     else:
-        # SPAWNING ENGINE: Delay countdown before sliding in next customer
         spawn_timer -= dt
         if spawn_timer <= 0:
             active_bg = load_level_background(economy.level)
             active_customer = Customer(current_level=economy.level)
 
-    # --------------------------------------------------
-    # 3. LAYERED RENDERING
-    # --------------------------------------------------
-    # LAYER 1: Level Background
-
-        # Safely pass events to mixing station
-        try:
-            mixing_station.handle_event(event)
-        except Exception as e:
-            print(f"[STATION ERROR] Event handling exception caught: {e}")
-
-    # --------------------------------------------------
-    # LAYERED RENDERING (Back to Front)
-    # --------------------------------------------------
-
-    # LAYER 1: Draw Nurin's Active Level Background Image
-
     screen.blit(active_bg, (0, 0))
 
-    # LAYER 2: Customer Sprite & Speech Bubble
     if active_customer:
         active_customer.draw(screen)
 
-    # LAYER 3: Mixing Station UI
     try:
         mixing_station.draw(screen)
     except Exception as e:
         print(f"[STATION ERROR] Draw exception caught: {e}")
 
-    # LAYER 4: Neon Economy & Level UI
     economy.draw()
-
-    # Refresh Screen
     pygame.display.flip()
 
-# Clean exit
 pygame.quit()
 sys.exit()
