@@ -80,6 +80,21 @@ class UIEconomy:
                     self.location = self.LOCATIONS.get(self.level, f"Sector {self.level} Hub")
                     print(f"[ECONOMY] Loaded profile for '{self.player_name}'")
                     return
+
+                if all(
+                    key in all_profiles
+                    for key in ("credits", "xp", "level", "location")
+                ):
+                    self.credits = all_profiles.get("credits", 100)
+                    self.xp = all_profiles.get("xp", 0)
+                    self.level = all_profiles.get("level", 1)
+                    self.location = self.LOCATIONS.get(
+                        self.level, f"Sector {self.level} Hub"
+                    )
+                    print(
+                        f"[ECONOMY] Loaded legacy save data for '{self.player_name}'"
+                    )
+                    return
             except (IOError, json.JSONDecodeError) as e:
                 print(f"[ECONOMY ERROR] Could not parse save file ({e}). Starting fresh.")
 
