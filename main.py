@@ -9,25 +9,24 @@ from loading_screen import LoadingScreen
 from start_screen import StartScreen
 from station import MixingStation
 from ui_economy import UIEconomy
+from map_manager import MapManager
+from map_screen import MapScreen  # Added clickable map screen
+from leaderboard_manager import LeaderboardManager
+from leaderboard_screen import LeaderboardScreen
 
 # Start Pygame Engine
 pygame.init()
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# Configure the window size (16:9 Aspect Ratio - 1280x720)
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Cyberpunk Barista - Game Engine (16:9)")
 
-# Clock & FPS Engine
 clock = pygame.time.Clock()
 FPS = 60
 
-# --------------------------------------------------
-# CARD: background asset loader (NURIN)
-# --------------------------------------------------
 LEVEL_BACKGROUNDS = {
     1: "assets/places/cafe_lvl1.png",
     2: "assets/places/cafe_lvl2.png",
@@ -36,12 +35,7 @@ LEVEL_BACKGROUNDS = {
 
 bg_cache = {}
 
-
 def load_level_background(level_num):
-    """
-    Safely loads, caches, and scales background PNG to 16:9 resolution (1280x720).
-    Prevents crashing if file is missing by returning a safe fallback surface.
-    """
     if level_num in bg_cache:
         return bg_cache[level_num]
 
@@ -49,21 +43,14 @@ def load_level_background(level_num):
     path = os.path.join(PROJECT_ROOT, relative_path)
     try:
         raw_img = pygame.image.load(path).convert_alpha()
-        scaled_img = pygame.transform.scale(
-            raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT)
-        )
+        scaled_img = pygame.transform.scale(raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
         bg_cache[level_num] = scaled_img
-        print(f"[ASSET LOADER] Successfully loaded: {path}")
         return scaled_img
-    except (pygame.error, FileNotFoundError) as e:
-        print(
-            f"[SAFEGUARD WARNING] Could not find asset '{path}'. Using safe fallback color. ({e})"
-        )
+    except (pygame.error, FileNotFoundError):
         fallback = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         fallback.fill((25, 15, 35))
         bg_cache[level_num] = fallback
         return fallback
-
 
 # ============================================================
 # START SCREEN
@@ -75,12 +62,12 @@ if player_name is None:
     pygame.quit()
     sys.exit()
 
-print(f"[PLAYER] Welcome to Cyberpunk Café, {player_name}!")
-
 # ============================================================
-# ECONOMY & LOADING SCREEN
+# ECONOMY, MAP MANAGER, LEADERBOARD & LOADING SCREEN
 # ============================================================
 economy = UIEconomy(screen=screen, player_name=player_name)
+map_manager = MapManager(economy_ref=economy)
+leaderboard_manager = LeaderboardManager(economy_ref=economy)
 loading_screen = LoadingScreen(screen)
 
 loading_ok = loading_screen.run(
@@ -126,63 +113,56 @@ while running:
                 active_bg = load_level_background(economy.level)
                 active_customer = Customer(current_level=economy.level)
                 spawn_timer = 0.0
+            
+            # Press 'M' to open the interactive, clickable district map
+            elif event.key == pygame.K_m:
+                map_screen = MapScreen(screen, map_manager, economy)
+                map_screen.run()
+                # Refresh background and customer after closing the map
+                active_bg = load_level_background(economy.level)
+                active_customer = Customer(current_level=economy.level)
+                spawn_timer = 0.0
+
+            # Press 'L' to open the interactive, clickable leaderboard screen
+            elif event.key == pygame.K_l:
+                lb_screen = LeaderboardScreen(screen, leaderboard_manager, economy)
+                lb_screen.run()
+                active_bg = load_level_background(economy.level)
+                active_customer = Customer(current_level=economy.level)
+                spawn_timer = 0.0
+
             elif event.key == pygame.K_1:
-                economy.level = 1
-                economy.location = economy.LOCATIONS[1]
-                economy.save_economy_data()
-                active_bg = load_level_background(1)
-                active_customer = Customer(current_level=1)
-                spawn_timer = 0.0
+                if map_manager.nodes["neon_alley"].is_unlocked:
+                    economy.level = 1
+                    economy.location = economy.LOCATIONS[1]
+                    active_bg = load_level_background(1)
+                    active_customer = Customer(current_level=1)
+                    spawn_timer = 0.0
+
             elif event.key == pygame.K_2:
-                economy.level = 2
-                economy.location = economy.LOCATIONS[2]
-                economy.save_economy_data()
-                active_bg = load_level_background(2)
-                active_customer = Customer(current_level=2)
-                spawn_timer = 0.0
+                node = map_manager.nodes["cyber_dock"]
+                if node.is_unlocked:
+                    economy.level = 2
+                    economy.location = economy.LOCATIONS[2]
+                    economy.save_economy_data()
+                    active_bg = load_level_background(2)
+                    active_customer = Customer(current_level=2)
+                    spawn_timer = 0.0
+
             elif event.key == pygame.K_3:
-                economy.level = 3
-                economy.location = economy.LOCATIONS[3]
-                economy.save_economy_data()
-                active_bg = load_level_background(3)
-                active_customer = Customer(current_level=3)
-                spawn_timer = 0.0
+                node = map_manager.nodes["high_rise"]
+                if node.is_unlocked:
+                    economy.level = 3
+                    economy.location = economy.LOCATIONS[3]
+                    economy.save_economy_data()
+                    active_bg = load_level_background(3)
+                    active_customer = Customer(current_level=3)
+                    spawn_timer = 0.0
 
     if mixing_station.served:
         if active_customer and active_customer.state == CustomerState.WAITING:
             is_correct = active_customer.serve_drink(drink.get_data())
-
-            old_level = economy.level
             economy.serve_order(is_correct=is_correct)
-
-            if economy.level > old_level:
-                print(
-                    f"[LEVEL UP] Level {economy.level} unlocked: {economy.location}"
-                )
-
-                unlock_screen = LevelUnlockScreen(screen)
-                unlock_ok = unlock_screen.run(
-                    level=economy.level,
-                    duration=4.0
-                )
-
-                if not unlock_ok:
-                    running = False
-                else:
-                    loading_screen = LoadingScreen(screen)
-                    loading_ok = loading_screen.run(
-                        player_name=player_name,
-                        level=economy.level,
-                        duration=6.7
-                    )
-
-                    if not loading_ok:
-                        running = False
-                    else:
-                        mixing_station.reset()
-                        active_bg = load_level_background(economy.level)
-                        active_customer = Customer(current_level=economy.level)
-
         mixing_station.reset()
 
     if active_customer:
@@ -213,7 +193,7 @@ while running:
     try:
         mixing_station.draw(screen)
     except Exception as e:
-        print(f"[STATION ERROR] Draw exception caught: {e}")
+        print(f"[STATION ERROR] {e}")
 
     economy.draw()
     pygame.display.flip()
