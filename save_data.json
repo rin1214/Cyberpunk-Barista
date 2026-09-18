@@ -10,9 +10,9 @@
         "location": "NEON ALLEY CAFE"
     },
     "lola": {
-        "credits": 235,
-        "xp": 30,
-        "level": 3,
-        "location": "HIGH-RISE BAR"
+        "credits": 445,
+        "xp": 20,
+        "level": 5,
+        "location": "Sector 5 Hub"
     }
 }
