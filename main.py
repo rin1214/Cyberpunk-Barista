@@ -75,6 +75,9 @@ if not loading_ok:
     pygame.quit()
     sys.exit()
 
+# --------------------------------------------------
+# DRINK MIXING SYSTEM & CUSTOMER INITIALIZATION
+# --------------------------------------------------
 drink = Drink()
 mixing_station = MixingStation(drink)
 
@@ -98,7 +101,7 @@ while running:
         try:
             mixing_station.handle_event(event)
         except Exception as e:
-            print(f"[STATION ERROR] {e}")
+            print(f"[STATION ERROR] Event handling exception caught: {e}")
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
@@ -117,7 +120,6 @@ while running:
                 active_customer = Customer(current_level=economy.level)
                 spawn_timer = 0.0
 
-            # Quick-switch keys (1, 2, 3) if nodes are already unlocked
             elif event.key == pygame.K_1:
                 if map_manager.nodes["neon_alley"].is_unlocked:
                     economy.level = 1
@@ -131,6 +133,7 @@ while running:
                 if node.is_unlocked:
                     economy.level = 2
                     economy.location = economy.LOCATIONS[2]
+                    economy.save_economy_data()
                     active_bg = load_level_background(2)
                     active_customer = Customer(current_level=2)
                     spawn_timer = 0.0
@@ -140,6 +143,7 @@ while running:
                 if node.is_unlocked:
                     economy.level = 3
                     economy.location = economy.LOCATIONS[3]
+                    economy.save_economy_data()
                     active_bg = load_level_background(3)
                     active_customer = Customer(current_level=3)
                     spawn_timer = 0.0
@@ -148,7 +152,6 @@ while running:
         if active_customer and active_customer.state == CustomerState.WAITING:
             is_correct = active_customer.serve_drink(drink.get_data())
             economy.serve_order(is_correct=is_correct)
-
         mixing_station.reset()
 
     if active_customer:
