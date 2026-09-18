@@ -25,22 +25,34 @@ class UIEconomy:
         self.player_name = player_name.strip() if player_name else "Player"
 
         self.credits = 100
+        self.xp = 0  # XP starts at 0 and only goes UP for the leaderboard
         self.level = 1
         self.location = self.LOCATIONS[1]
 
         self.load_economy_data()
 
     def serve_order(self, is_correct: bool):
-        """Earn credits from shifts instead of automatic level progression."""
+        """Earns credits (spendable) and XP (lifetime score) independently."""
         if is_correct:
-            self.credits += 25
+            self.credits += 25  # Spendable currency goes up
+            self.xp += 50       # Leaderboard XP goes up more for correct orders
         else:
-            self.credits = max(0, self.credits - 5)
+            self.credits = max(0, self.credits - 5)  # Penalty only hits spendable credits
+            # XP is never lost on mistakes, preserving lifetime progress!
 
         self.save_economy_data()
 
+    def spend_credits(self, amount: int) -> bool:
+        """Call this when buying map levels or upgrades using credits only."""
+        if self.credits >= amount:
+            self.credits -= amount
+            self.save_economy_data()
+            return True
+        return False
+
     def reset_economy(self):
         self.credits = 100
+        self.xp = 0
         self.level = 1
         self.location = self.LOCATIONS[1]
         self.save_economy_data()
@@ -57,6 +69,7 @@ class UIEconomy:
 
         all_profiles[self.player_name] = {
             "credits": self.credits,
+            "xp": self.xp,
             "level": self.level,
             "location": self.location,
         }
@@ -76,30 +89,17 @@ class UIEconomy:
                 if self.player_name in all_profiles:
                     p_data = all_profiles[self.player_name]
                     self.credits = p_data.get("credits", 100)
+                    self.xp = p_data.get("xp", 0)  # Loaded independently
                     self.level = p_data.get("level", 1)
                     self.location = self.LOCATIONS.get(self.level, f"Sector {self.level} Hub")
                     print(f"[ECONOMY] Loaded profile for '{self.player_name}'")
-                    return
-
-                if all(
-                    key in all_profiles
-                    for key in ("credits", "xp", "level", "location")
-                ):
-                    self.credits = all_profiles.get("credits", 100)
-                    self.xp = all_profiles.get("xp", 0)
-                    self.level = all_profiles.get("level", 1)
-                    self.location = self.LOCATIONS.get(
-                        self.level, f"Sector {self.level} Hub"
-                    )
-                    print(
-                        f"[ECONOMY] Loaded legacy save data for '{self.player_name}'"
-                    )
                     return
             except (IOError, json.JSONDecodeError) as e:
                 print(f"[ECONOMY ERROR] Could not parse save file ({e}). Starting fresh.")
 
         print(f"[ECONOMY] Initialized new profile for '{self.player_name}'")
         self.credits = 100
+        self.xp = 0
         self.level = 1
         self.location = self.LOCATIONS[1]
         self.save_economy_data()
@@ -115,7 +115,7 @@ class UIEconomy:
 
         padding = int(screen_w * 0.02)
         hud_w = int(screen_w * 0.35)
-        hud_h = int(screen_h * 0.17)  # Kept compact to stay above customer bubble
+        hud_h = int(screen_h * 0.17)
 
         palette = self.NEON_COLORS.get(
             self.level, self.NEON_COLORS[3 if self.level > 3 else 1]
@@ -147,15 +147,20 @@ class UIEconomy:
         # Location Info
         loc_str = f"LOC: {self.location.upper()}"
         loc_txt = font_body.render(loc_str, True, (200, 220, 255))
-        self.screen.blit(loc_txt, (padding + 12, padding + int(loc_h_y := hud_h * 0.40)))
+        self.screen.blit(loc_txt, (padding + 12, padding + int(hud_h * 0.40)))
 
-        # Credits Display
-        credits_str = f"CREDITS: ${self.credits}"
-        credits_txt = font_body.render(credits_str, True, (255, 255, 255))
-        self.screen.blit(credits_txt, (padding + 12, padding + int(hud_h * 0.68)))
+        # Distinct Credits and XP Display
+        stats_str = f"CREDITS: ${self.credits} | XP: {self.xp}"
+        stats_txt = font_body.render(stats_str, True, (255, 255, 255))
+        self.screen.blit(stats_txt, (padding + 12, padding + int(hud_h * 0.68)))
 
-        # Moved Map Prompt to Top Right Corner (Outside the main HUD box)
+        # Top Right Prompts
         map_prompt_str = "[PRESS 'M' FOR MAP]"
         map_prompt_txt = font_body.render(map_prompt_str, True, accent_color)
         prompt_rect = map_prompt_txt.get_rect(topright=(screen_w - padding, padding + 4))
         self.screen.blit(map_prompt_txt, prompt_rect)
+
+        lb_prompt_str = "[PRESS 'L' FOR LEADERBOARD]"
+        lb_prompt_txt = font_body.render(lb_prompt_str, True, (255, 0, 128))
+        lb_rect = lb_prompt_txt.get_rect(topright=(screen_w - padding, padding + 32))
+        self.screen.blit(lb_prompt_txt, lb_rect)

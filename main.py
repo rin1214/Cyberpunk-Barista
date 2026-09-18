@@ -11,6 +11,8 @@ from station import MixingStation
 from ui_economy import UIEconomy
 from map_manager import MapManager
 from map_screen import MapScreen  # Added clickable map screen
+from leaderboard_manager import LeaderboardManager
+from leaderboard_screen import LeaderboardScreen
 
 # Start Pygame Engine
 pygame.init()
@@ -61,10 +63,11 @@ if player_name is None:
     sys.exit()
 
 # ============================================================
-# ECONOMY, MAP MANAGER & LOADING SCREEN
+# ECONOMY, MAP MANAGER, LEADERBOARD & LOADING SCREEN
 # ============================================================
 economy = UIEconomy(screen=screen, player_name=player_name)
 map_manager = MapManager(economy_ref=economy)
+leaderboard_manager = LeaderboardManager(economy_ref=economy)
 loading_screen = LoadingScreen(screen)
 
 loading_ok = loading_screen.run(
@@ -120,6 +123,14 @@ while running:
                 active_customer = Customer(current_level=economy.level)
                 spawn_timer = 0.0
 
+            # Press 'L' to open the interactive, clickable leaderboard screen
+            elif event.key == pygame.K_l:
+                lb_screen = LeaderboardScreen(screen, leaderboard_manager, economy)
+                lb_screen.run()
+                active_bg = load_level_background(economy.level)
+                active_customer = Customer(current_level=economy.level)
+                spawn_timer = 0.0
+
             elif event.key == pygame.K_1:
                 if map_manager.nodes["neon_alley"].is_unlocked:
                     economy.level = 1
@@ -162,7 +173,7 @@ while running:
             old_state == CustomerState.WAITING
             and active_customer.state == CustomerState.LEAVING
         ):
-            economy.serve_order(is_correct=False)
+            economy.serve_order(is_correct=is_correct)
             mixing_station.reset()
 
         if active_customer.is_finished():

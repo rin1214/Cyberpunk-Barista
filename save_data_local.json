@@ -6,16 +6,16 @@
         "location": "CYBER DOCK COFFEE"
     },
     "kian": {
-        "credits": 160,
-        "xp": 100,
+        "credits": 115,
+        "xp": 60,
         "level": 2,
         "location": "CYBER DOCK COFFEE"
     },
     "yin": {
-        "credits": 95,
-        "xp": 200,
-        "level": 2,
-        "location": "CYBER DOCK COFFEE"
+        "credits": 150,
+        "xp": 0,
+        "level": 3,
+        "location": "HIGH-RISE BAR"
     },
     "mahi": {
         "credits": 80,
