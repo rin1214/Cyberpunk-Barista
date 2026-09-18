@@ -1,7 +1,4 @@
 __pycache__/
-<<<<<<< HEAD
-*.pyc
-=======
 *.py[cod]
 *.pyo
 *.pyd
@@ -9,4 +6,4 @@ __pycache__/
 venv/
 .pytest_cache/
 *.log
->>>>>>> c33535f85bba93d6ecec5123ca4d86eb263557fd
+.vscode/

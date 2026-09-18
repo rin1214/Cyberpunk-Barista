@@ -9,7 +9,8 @@ class LoadingScreen:
     HEIGHT = 720
     FPS = 60
 
-    MAHIRAH_ROOT = os.path.join("assets", "mahirah")
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    MAHIRAH_ROOT = os.path.join(PROJECT_ROOT, "assets", "mahirah")
     START_ROOT = os.path.join(MAHIRAH_ROOT, "start")
     LOADING_ROOT = os.path.join(MAHIRAH_ROOT, "loading")
 

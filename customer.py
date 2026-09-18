@@ -74,7 +74,8 @@ class Customer:
     def _load_sprite(self, ctype):
         """Loads character image asset and scales using resolution helper."""
         filename = f"{ctype}.png"
-        path = os.path.join("assets", "customers", filename)
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(project_root, "assets", "customers", filename)
 
         if os.path.exists(path):
             img = pygame.image.load(path).convert_alpha()
