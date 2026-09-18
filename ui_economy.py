@@ -4,7 +4,9 @@ import pygame
 
 
 class UIEconomy:
-    SAVE_FILE = "save_data.json"
+    SAVE_FILE = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "save_data.json"
+    )
 
     LOCATIONS = {
         1: "NEON ALLEY CAFE",
@@ -95,6 +97,21 @@ class UIEconomy:
                         self.level, f"Sector {self.level} Hub"
                     )
                     print(f"[ECONOMY] Loaded profile for '{self.player_name}'")
+                    return
+
+                if all(
+                    key in all_profiles
+                    for key in ("credits", "xp", "level", "location")
+                ):
+                    self.credits = all_profiles.get("credits", 100)
+                    self.xp = all_profiles.get("xp", 0)
+                    self.level = all_profiles.get("level", 1)
+                    self.location = self.LOCATIONS.get(
+                        self.level, f"Sector {self.level} Hub"
+                    )
+                    print(
+                        f"[ECONOMY] Loaded legacy save data for '{self.player_name}'"
+                    )
                     return
             except (IOError, json.JSONDecodeError) as e:
                 print(

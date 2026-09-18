@@ -1,4 +1,5 @@
 import sys
+import os
 import pygame
 
 from customer import Customer, CustomerState
@@ -11,6 +12,8 @@ from ui_economy import UIEconomy
 
 # Start Pygame Engine
 pygame.init()
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Configure the window size (16:9 Aspect Ratio - 1280x720)
 SCREEN_WIDTH = 1280
@@ -42,7 +45,8 @@ def load_level_background(level_num):
     if level_num in bg_cache:
         return bg_cache[level_num]
 
-    path = LEVEL_BACKGROUNDS.get(level_num, LEVEL_BACKGROUNDS[1])
+    relative_path = LEVEL_BACKGROUNDS.get(level_num, LEVEL_BACKGROUNDS[1])
+    path = os.path.join(PROJECT_ROOT, relative_path)
     try:
         raw_img = pygame.image.load(path).convert_alpha()
         scaled_img = pygame.transform.scale(

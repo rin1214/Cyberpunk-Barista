@@ -10,7 +10,8 @@ class LevelUnlockScreen:
     FPS = 60
     DISPLAY_TIME = 4.0
 
-    UNLOCK_ROOT = os.path.join("assets", "mahirah", "unlock")
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    UNLOCK_ROOT = os.path.join(PROJECT_ROOT, "assets", "mahirah", "unlock")
 
     LEVEL_IMAGES = {
         2: "level_2_unlock.png",

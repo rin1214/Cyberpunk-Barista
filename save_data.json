@@ -2,5 +2,11 @@
     "credits": 100,
     "xp": 0,
     "level": 1,
-    "location": "NEON ALLEY CAFE"
+    "location": "NEON ALLEY CAFE",
+    "mahira": {
+        "credits": 70,
+        "xp": 0,
+        "level": 1,
+        "location": "NEON ALLEY CAFE"
+    }
 }
