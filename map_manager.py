@@ -1,55 +1,66 @@
-class SkillNode:
-    def __init__(self, node_id, name, level_req, cost, description, pos, prerequisites=None):
-        self.node_id = node_id
+class MapNode:
+    def __init__(self, name, level_req, x, y, description, cost=0):
         self.name = name
-        self.level_req = level_req  # Level number (1, 2, or 3)
-        self.cost = cost            # Shift credits required to unlock
+        self.level_req = level_req
+        self.x = x
+        self.y = y
+        self.pos = (x, y)  # Required by map_screen.py for drawing lines and nodes
         self.description = description
-        self.pos = pos              # (x, y) coordinates for the click UI
-        self.prerequisites = prerequisites if prerequisites else []
-        self.is_unlocked = (level_req == 1)  # Level 1 is unlocked by default
+        self.cost = cost   # Required by map_screen.py to show unlock/travel costs
+        self.is_unlocked = False
 
 class MapManager:
     def __init__(self, economy_ref):
         self.economy = economy_ref
-        self.nodes = {}
-        self._initialize_default_nodes()
+        
+        # Define districts/nodes on the map with individual costs
+        self.nodes = {
+            "neon_alley": MapNode("Neon Alley Cafe", level_req=1, x=280, y=360, description="The gritty starting district. Neon lights and simple brews.", cost=0),
+            "cyber_dock": MapNode("Cyber Dock Coffee", level_req=2, x=640, y=360, description="Bustling shipping docks with heavy cybernetic foot traffic.", cost=150),
+            "high_rise": MapNode("High-Rise Bar", level_req=3, x=1000, y=360, description="Elite skyscraper lounge for high-tier corporate clients.", cost=300)
+        }
+        
+        self.check_unlocks()
 
-    def _initialize_default_nodes(self):
-        """Initializes your 3 map nodes with visual screen coordinates."""
-        self.add_node(SkillNode("neon_alley", "Neon Alley", 1, 0, "The starting underground district cafe.", (320, 360)))
-        self.add_node(SkillNode("cyber_dock", "Cyber Dock", 2, 50, "A humid, neon-lit dockside bar.", (640, 360), prerequisites=["neon_alley"]))
-        self.add_node(SkillNode("high_rise", "High Rise Bar", 3, 120, "An upscale lounge overlooking the skyline.", (960, 360), prerequisites=["cyber_dock"]))
+    def check_unlocks(self):
+        """Automatically unlocks nodes based on the player's saved level or economy progress."""
+        current_lvl = getattr(self.economy, "level", 1)
+        
+        if current_lvl >= 1:
+            self.nodes["neon_alley"].is_unlocked = True
+        if current_lvl >= 2:
+            self.nodes["neon_alley"].is_unlocked = True
+            self.nodes["cyber_dock"].is_unlocked = True
+        if current_lvl >= 3:
+            self.nodes["neon_alley"].is_unlocked = True
+            self.nodes["cyber_dock"].is_unlocked = True
+            self.nodes["high_rise"].is_unlocked = True
 
-    def add_node(self, node):
-        self.nodes[node.node_id] = node
+    def unlock_node(self, node_key):
+        """Bridge method matching what map_screen.py expects for unlocking/selecting nodes."""
+        return self.select_node(node_key)
 
-    def unlock_node(self, node_id):
-        """Manually unlocks a map node using player credits if prerequisites are met."""
-        if node_id not in self.nodes:
-            print(f"[MAP MANAGER] Error: Node '{node_id}' does not exist.")
-            return False
-
-        node = self.nodes[node_id]
-
-        if node.is_unlocked:
-            return True
-
-        # Check prerequisites
-        for prereq_id in node.prerequisites:
-            if not self.nodes[prereq_id].is_unlocked:
-                print(f"[MAP MANAGER] Cannot unlock [{node.name}]. Missing required map: [{self.nodes[prereq_id].name}]")
-                return False
-
-        # Check credit balance
-        if self.economy.credits < node.cost:
-            print(f"[MAP MANAGER] Not enough credits for [{node.name}]. Need {node.cost}c, have {self.economy.credits}c.")
-            return False
-
-        # Deduct credits and unlock
-        self.economy.credits -= node.cost
-        node.is_unlocked = True
-        self.economy.save_economy_data()
-
-        print(f"[MAP MANAGER] SUCCESS: Unlocked map [{node.name}] for {node.cost} credits!")
-        return True
+    def select_node(self, node_key):
+        """Selects a node, handles credit deduction if locking requires a purchase, and updates economy level."""
+        if node_key in self.nodes:
+            node = self.nodes[node_key]
+            self.check_unlocks()
+            
+            # If already unlocked, just travel there
+            if node.is_unlocked:
+                self.economy.level = node.level_req
+                if node.level_req in self.economy.LOCATIONS:
+                    self.economy.location = self.economy.LOCATIONS[node.level_req]
+                self.economy.save_economy_data()
+                return True
+            
+            # If locked, check if player has enough credits to buy it
+            elif not node.is_unlocked and self.economy.credits >= node.cost:
+                if self.economy.spend_credits(node.cost):
+                    node.is_unlocked = True
+                    self.economy.level = node.level_req
+                    if node.level_req in self.economy.LOCATIONS:
+                        self.economy.location = self.economy.LOCATIONS[node.level_req]
+                    self.economy.save_economy_data()
+                    return True
+        return False
