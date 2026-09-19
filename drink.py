@@ -1,30 +1,8 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 # ============================================================
-# CYBERPUNK CAFÉ - DRINK SYSTEM
-# ============================================================
-#
-# This file contains the game's drink information.
-#
-# We have:
-#   9 official drinks
-#   3 temperature choices
-#   3 caffeine choices
-#   3 sweetness choices
-#
-# Therefore:
-#
-#   3 x 3 x 3 = 27 combinations per drink
-#
-#   9 x 27 = 243 possible drink/order combinations
-#
-# ============================================================
-
-
-# ============================================================
-# 1. CUSTOMISATION OPTIONS
+# PLAYER CUSTOMISATION OPTIONS
 # ============================================================
 
 TEMPERATURE_OPTIONS = (
@@ -47,7 +25,7 @@ SWEETNESS_OPTIONS = (
 
 
 # ============================================================
-# 2. DRINK RECIPE
+# DRINK RECIPE
 # ============================================================
 
 @dataclass(frozen=True)
@@ -55,26 +33,27 @@ class DrinkRecipe:
     """
     Stores the permanent information about one drink.
 
-    A recipe describes WHAT the drink is.
+    A DrinkRecipe describes what the drink IS.
 
-    It does not describe what a particular customer ordered.
+    It does not describe what the player is currently making.
     """
 
     name: str
     unlock_level: int
-    toppings: tuple[str, ...]
-    liquid_color: tuple[int, int, int]
+    toppings: tuple
+    liquid_color: tuple
 
-    def is_unlocked(self, current_level: int) -> bool:
+    def is_unlocked(self, level):
         """
-        Returns True if the player has unlocked this drink.
+        Returns True if this drink is unlocked
+        at the given player level.
         """
 
-        return current_level >= self.unlock_level
+        return level >= self.unlock_level
 
 
 # ============================================================
-# 3. PLAYER-MADE DRINK
+# PLAYER DRINK
 # ============================================================
 
 @dataclass
@@ -82,38 +61,71 @@ class PlayerDrink:
     """
     Stores the drink currently being made by the player.
 
-    This describes WHAT the player selected.
+    Example:
+
+        drink_name = "Milkyway"
+        temperature = "Hot"
+        caffeine = "High"
+        sweetness = "Extra"
     """
 
-    drink_name: Optional[str] = None
-    temperature: Optional[str] = None
-    caffeine: Optional[str] = None
-    sweetness: Optional[str] = None
+    drink_name: str = None
+    temperature: str = None
+    caffeine: str = None
+    sweetness: str = None
 
-    def has_drink(self) -> bool:
-        """Returns True if the player selected a drink."""
+    # --------------------------------------------------------
+    # CHECK DRINK
+    # --------------------------------------------------------
+
+    def has_drink(self):
+        """
+        Returns True if a drink has been selected.
+        """
 
         return self.drink_name is not None
 
-    def has_temperature(self) -> bool:
-        """Returns True if temperature was selected."""
+    # --------------------------------------------------------
+    # CHECK TEMPERATURE
+    # --------------------------------------------------------
+
+    def has_temperature(self):
+        """
+        Returns True if temperature has been selected.
+        """
 
         return self.temperature is not None
 
-    def has_caffeine(self) -> bool:
-        """Returns True if caffeine was selected."""
+    # --------------------------------------------------------
+    # CHECK CAFFEINE
+    # --------------------------------------------------------
+
+    def has_caffeine(self):
+        """
+        Returns True if caffeine has been selected.
+        """
 
         return self.caffeine is not None
 
-    def has_sweetness(self) -> bool:
-        """Returns True if sweetness was selected."""
+    # --------------------------------------------------------
+    # CHECK SWEETNESS
+    # --------------------------------------------------------
+
+    def has_sweetness(self):
+        """
+        Returns True if sweetness has been selected.
+        """
 
         return self.sweetness is not None
 
-    def is_fully_customised(self) -> bool:
+    # --------------------------------------------------------
+    # CHECK COMPLETE CUSTOMISATION
+    # --------------------------------------------------------
+
+    def is_fully_customised(self):
         """
-        Returns True only when all four required
-        drink choices have been made.
+        Returns True when all four required choices
+        have been selected.
         """
 
         return (
@@ -123,19 +135,31 @@ class PlayerDrink:
             and self.has_sweetness()
         )
 
-    def reset(self) -> None:
-        """Clear the player's current drink."""
+    # --------------------------------------------------------
+    # RESET
+    # --------------------------------------------------------
+
+    def reset(self):
+        """
+        Clears the player's current drink.
+        """
 
         self.drink_name = None
         self.temperature = None
         self.caffeine = None
         self.sweetness = None
 
-    def get_data(self) -> dict:
-        """
-        Return the player's drink as a dictionary.
+    # --------------------------------------------------------
+    # GET DATA
+    # --------------------------------------------------------
 
-        This will later be used by the accuracy system.
+    def get_data(self):
+        """
+        Returns the player's drink information
+        as a dictionary.
+
+        This dictionary will later be passed
+        to the accuracy system.
         """
 
         return {
@@ -147,7 +171,7 @@ class PlayerDrink:
 
 
 # ============================================================
-# 4. OFFICIAL CYBERPUNK CAFÉ DRINKS
+# OFFICIAL CYBERPUNK CAFÉ DRINK RECIPES
 # ============================================================
 
 DRINK_RECIPES = {
@@ -159,22 +183,47 @@ DRINK_RECIPES = {
     "Neon Latte": DrinkRecipe(
         name="Neon Latte",
         unlock_level=1,
-        toppings=("whipped_cream",),
-        liquid_color=(255, 170, 220),
+
+        toppings=(
+            "whipped_cream",
+        ),
+
+        liquid_color=(
+            255,
+            150,
+            210,
+        ),
     ),
 
-    "Galaxy Mocha": DrinkRecipe(
-        name="Galaxy Mocha",
+    "Milkyway": DrinkRecipe(
+        name="Milkyway",
         unlock_level=1,
-        toppings=("whipped_cream", "chocolate_bits"),
-        liquid_color=(95, 65, 130),
+
+        toppings=(
+            "whipped_cream",
+            "chocolate_bits",
+        ),
+
+        liquid_color=(
+            105,
+            75,
+            145,
+        ),
     ),
 
     "Void Chai": DrinkRecipe(
         name="Void Chai",
         unlock_level=1,
-        toppings=("whipped_cream",),
-        liquid_color=(255, 190, 130),
+
+        toppings=(
+            "whipped_cream",
+        ),
+
+        liquid_color=(
+            255,
+            190,
+            135,
+        ),
     ),
 
     # --------------------------------------------------------
@@ -184,95 +233,150 @@ DRINK_RECIPES = {
     "Cyber Fuel": DrinkRecipe(
         name="Cyber Fuel",
         unlock_level=2,
+
         toppings=(),
-        liquid_color=(155, 220, 255),
+
+        liquid_color=(
+            155,
+            220,
+            255,
+        ),
     ),
 
     "Hologram Frappe": DrinkRecipe(
         name="Hologram Frappe",
         unlock_level=2,
-        toppings=("whipped_cream",),
-        liquid_color=(210, 180, 255),
+
+        toppings=(
+            "whipped_cream",
+        ),
+
+        liquid_color=(
+            190,
+            170,
+            255,
+        ),
     ),
 
-    "Caramel Byte": DrinkRecipe(
-        name="Caramel Byte",
+    "Pixel Lemint": DrinkRecipe(
+        name="Pixel Lemint",
         unlock_level=2,
-        toppings=("whipped_cream", "caramel_crunch"),
-        liquid_color=(220, 165, 95),
+
+        toppings=(
+            "mint_leaves",
+        ),
+
+        liquid_color=(
+            255,
+            225,
+            95,
+        ),
     ),
 
     # --------------------------------------------------------
     # LEVEL 3
     # --------------------------------------------------------
 
-    "Pixel Lemint": DrinkRecipe(
-        name="Pixel Lemint",
+    "Caramel Byte": DrinkRecipe(
+        name="Caramel Byte",
         unlock_level=3,
-        toppings=("mint_leaves",),
-        liquid_color=(255, 225, 90),
+
+        toppings=(
+            "whipped_cream",
+            "caramel_crunch",
+        ),
+
+        liquid_color=(
+            205,
+            135,
+            70,
+        ),
     ),
 
     "Stardust Matcha": DrinkRecipe(
         name="Stardust Matcha",
         unlock_level=3,
-        toppings=("yellow_stardust",),
-        liquid_color=(150, 205, 125),
+
+        toppings=(
+            "yellow_stardust",
+        ),
+
+        liquid_color=(
+            165,
+            195,
+            105,
+        ),
     ),
 
     "Meteorite": DrinkRecipe(
         name="Meteorite",
         unlock_level=3,
-        toppings=("meteorite_crumbs",),
-        liquid_color=(235, 245, 255),
+
+        toppings=(
+            "meteorite_crumbs",
+        ),
+
+        liquid_color=(
+            235,
+            245,
+            255,
+        ),
     ),
 }
 
 
 # ============================================================
-# 5. DRINK MENU ORDER
+# OFFICIAL MENU ORDER
 # ============================================================
 
 DRINK_MENU = (
     "Neon Latte",
-    "Galaxy Mocha",
+    "Milkyway",
     "Void Chai",
     "Cyber Fuel",
     "Hologram Frappe",
-    "Caramel Byte",
     "Pixel Lemint",
+    "Caramel Byte",
     "Stardust Matcha",
     "Meteorite",
 )
 
 
 # ============================================================
-# 6. DRINK SYSTEM HELPER FUNCTIONS
+# RECIPE LOOKUP
 # ============================================================
 
-def get_recipe(drink_name: str) -> Optional[DrinkRecipe]:
+def get_recipe(drink_name):
     """
-    Find a recipe by drink name.
+    Return the recipe for a drink.
 
-    Returns:
-        DrinkRecipe if the drink exists.
-        None if it does not exist.
+    Returns None if the drink does not exist.
     """
 
     return DRINK_RECIPES.get(drink_name)
 
 
-def is_valid_drink(drink_name: str) -> bool:
+# ============================================================
+# VALID DRINK CHECK
+# ============================================================
+
+def is_valid_drink(drink_name):
     """
-    Check whether a drink name exists in our official menu.
+    Returns True if the drink exists in the
+    official Cyberpunk Café menu.
     """
 
     return drink_name in DRINK_RECIPES
 
 
-def is_drink_unlocked(drink_name: str, current_level: int) -> bool:
+# ============================================================
+# UNLOCK CHECK
+# ============================================================
+
+def is_drink_unlocked(drink_name, level):
     """
-    Check whether a particular drink is unlocked.
+    Returns True if the specified drink is unlocked
+    at the player's current level.
     """
 
     recipe = get_recipe(drink_name)
@@ -280,177 +384,262 @@ def is_drink_unlocked(drink_name: str, current_level: int) -> bool:
     if recipe is None:
         return False
 
-    return recipe.is_unlocked(current_level)
+    return recipe.is_unlocked(level)
 
 
-def get_unlocked_drinks(current_level: int) -> list[str]:
+# ============================================================
+# GET UNLOCKED DRINKS
+# ============================================================
+
+def get_unlocked_drinks(level):
     """
-    Return all drinks available at the current level.
+    Returns a list of all drinks unlocked at
+    the player's current level.
     """
 
     return [
         drink_name
         for drink_name in DRINK_MENU
-        if is_drink_unlocked(drink_name, current_level)
+        if is_drink_unlocked(drink_name, level)
     ]
 
 
-def get_locked_drinks(current_level: int) -> list[str]:
+# ============================================================
+# GET LOCKED DRINKS
+# ============================================================
+
+def get_locked_drinks(level):
     """
-    Return all drinks that are still locked.
+    Returns a list of drinks that are still locked
+    at the player's current level.
     """
 
     return [
         drink_name
         for drink_name in DRINK_MENU
-        if not is_drink_unlocked(drink_name, current_level)
+        if not is_drink_unlocked(drink_name, level)
     ]
 
 
-def is_valid_temperature(value: str) -> bool:
-    """Check whether a temperature selection is valid."""
+# ============================================================
+# GET ALL DRINKS
+# ============================================================
 
-    return value in TEMPERATURE_OPTIONS
+def get_all_drinks():
+    """
+    Returns all 9 official drinks in menu order.
+    """
 
-
-def is_valid_caffeine(value: str) -> bool:
-    """Check whether a caffeine selection is valid."""
-
-    return value in CAFFEINE_OPTIONS
-
-
-def is_valid_sweetness(value: str) -> bool:
-    """Check whether a sweetness selection is valid."""
-
-    return value in SWEETNESS_OPTIONS
+    return list(DRINK_MENU)
 
 
 # ============================================================
-# 7. BACKWARD COMPATIBILITY
+# VALID TEMPERATURE
+# ============================================================
+
+def is_valid_temperature(temperature):
+    """
+    Checks whether a temperature choice is valid.
+    """
+
+    return temperature in TEMPERATURE_OPTIONS
+
+
+# ============================================================
+# VALID CAFFEINE
+# ============================================================
+
+def is_valid_caffeine(caffeine):
+    """
+    Checks whether a caffeine choice is valid.
+    """
+
+    return caffeine in CAFFEINE_OPTIONS
+
+
+# ============================================================
+# VALID SWEETNESS
+# ============================================================
+
+def is_valid_sweetness(sweetness):
+    """
+    Checks whether a sweetness choice is valid.
+    """
+
+    return sweetness in SWEETNESS_OPTIONS
+
+
+# ============================================================
+# VALID PLAYER DRINK
+# ============================================================
+
+def validate_player_drink(player_drink):
+    """
+    Checks whether a PlayerDrink contains valid
+    drink and customisation choices.
+
+    Returns True when everything is valid.
+    """
+
+    if not isinstance(player_drink, PlayerDrink):
+        return False
+
+    if not is_valid_drink(player_drink.drink_name):
+        return False
+
+    if not is_valid_temperature(player_drink.temperature):
+        return False
+
+    if not is_valid_caffeine(player_drink.caffeine):
+        return False
+
+    if not is_valid_sweetness(player_drink.sweetness):
+        return False
+
+    return True
+
+
+# ============================================================
+# LEGACY DRINK CLASS
 # ============================================================
 #
-# The current station.py still uses the old numeric Drink class.
+# This class temporarily exists so the current station.py
+# and other older parts of the project can continue running.
 #
-# We are temporarily keeping this class so the game does not
-# immediately break while we migrate the Mixing Station.
+# The NEW system above uses:
 #
-# THIS CLASS WILL EVENTUALLY BE REMOVED.
+#     PlayerDrink
 #
-# Do not build new gameplay features using this class.
+# The older system uses:
 #
-
+#     Drink
+#
+# Once station.py has been fully converted to the new
+# system, this legacy class can be removed.
+# ============================================================
 
 class Drink:
     """
-    Temporary compatibility class for the OLD Mixing Station.
+    Temporary backwards-compatible Drink class.
 
-    OLD SYSTEM:
-        sweetness = 0-100
-        caffeine = 0-100
-        temperature = 0-100
-
-    NEW SYSTEM:
-        drink name
-        temperature choice
-        caffeine choice
-        sweetness choice
-
-    This class exists only during our transition.
+    This keeps the current older mixing station working
+    while we transition to the new data-driven system.
     """
 
-    MIN_VALUE = 0
-    MAX_VALUE = 100
-    DEFAULT_VALUE = 50
-    ADJUSTMENT_AMOUNT = 10
-
     def __init__(self):
-        """Create a legacy drink."""
-
-        self.sweetness = self.DEFAULT_VALUE
-        self.caffeine = self.DEFAULT_VALUE
-        self.temperature = self.DEFAULT_VALUE
+        # Old numerical values used by the previous
+        # mixing station.
+        self.sweetness = 50
+        self.caffeine = 50
+        self.temperature = 50
 
     # --------------------------------------------------------
-    # OLD SWEETNESS CONTROLS
+    # SWEETNESS
     # --------------------------------------------------------
 
     def increase_sweetness(self):
+        """
+        Increase sweetness by 10.
+        """
+
         self.sweetness = min(
-            self.MAX_VALUE,
-            self.sweetness + self.ADJUSTMENT_AMOUNT
+            100,
+            self.sweetness + 10
         )
 
     def decrease_sweetness(self):
+        """
+        Decrease sweetness by 10.
+        """
+
         self.sweetness = max(
-            self.MIN_VALUE,
-            self.sweetness - self.ADJUSTMENT_AMOUNT
+            0,
+            self.sweetness - 10
         )
 
     # --------------------------------------------------------
-    # OLD CAFFEINE CONTROLS
+    # CAFFEINE
     # --------------------------------------------------------
 
     def increase_caffeine(self):
+        """
+        Increase caffeine by 10.
+        """
+
         self.caffeine = min(
-            self.MAX_VALUE,
-            self.caffeine + self.ADJUSTMENT_AMOUNT
+            100,
+            self.caffeine + 10
         )
 
     def decrease_caffeine(self):
+        """
+        Decrease caffeine by 10.
+        """
+
         self.caffeine = max(
-            self.MIN_VALUE,
-            self.caffeine - self.ADJUSTMENT_AMOUNT
+            0,
+            self.caffeine - 10
         )
 
     # --------------------------------------------------------
-    # OLD TEMPERATURE CONTROLS
+    # TEMPERATURE
     # --------------------------------------------------------
 
     def increase_temperature(self):
+        """
+        Increase temperature by 10.
+        """
+
         self.temperature = min(
-            self.MAX_VALUE,
-            self.temperature + self.ADJUSTMENT_AMOUNT
+            100,
+            self.temperature + 10
         )
 
     def decrease_temperature(self):
+        """
+        Decrease temperature by 10.
+        """
+
         self.temperature = max(
-            self.MIN_VALUE,
-            self.temperature - self.ADJUSTMENT_AMOUNT
+            0,
+            self.temperature - 10
         )
 
     # --------------------------------------------------------
-    # OLD RESET
+    # RESET
     # --------------------------------------------------------
 
     def reset(self):
-        """Reset the old numeric values."""
+        """
+        Reset the old numerical drink values.
+        """
 
-        self.sweetness = self.DEFAULT_VALUE
-        self.caffeine = self.DEFAULT_VALUE
-        self.temperature = self.DEFAULT_VALUE
+        self.sweetness = 50
+        self.caffeine = 50
+        self.temperature = 50
 
     # --------------------------------------------------------
-    # OLD DATA FORMAT
+    # GET OLD DATA
     # --------------------------------------------------------
 
     def get_data(self):
         """
-        Temporary old data format.
+        Returns the old numerical drink format.
 
-        This will later be replaced by PlayerDrink.get_data().
+        This is temporary compatibility for the existing
+        station/main system.
+
+        The new accuracy system will eventually use
+        PlayerDrink data instead.
         """
 
         return {
             "sweetness": self.sweetness,
             "caffeine": self.caffeine,
-            "temperature": self.temperature
+            "temperature": self.temperature,
         }
 
-    def __str__(self):
-        return (
-            f"LegacyDrink("
-            f"Sweetness={self.sweetness}, "
-            f"Caffeine={self.caffeine}, "
-            f"Temperature={self.temperature}"
-            f")"
-        )
+
+# ============================================================
+# END OF DRINK.PY
+# ============================================================
