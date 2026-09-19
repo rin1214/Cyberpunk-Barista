@@ -243,3 +243,4 @@ class RewardSystem:
 
         self.combo = 0
         self.total_credits_earned = 0
+
