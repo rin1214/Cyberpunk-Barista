@@ -1,291 +1,491 @@
+"""
+CYBERPUNK CAFÉ
+PLAYER PROGRESSION SYSTEM
+
+This system controls:
+
+    • Current level
+    • Current XP
+    • XP required for the next level
+    • Level-up detection
+    • Drink unlocks
+    • Location unlocks
+    • Feature unlocks
+
+IMPORTANT:
+
+Credits/money are handled separately by UIEconomy.
+
+Order rewards are handled by rewards.py.
+
+Order accuracy is handled by accuracy.py.
+"""
+
 from drink import get_unlocked_drinks
 
 
 class Progression:
-    """
-    Handles the player's long-term progression.
 
-    This class manages:
-        - Current level
-        - Current XP
-        - XP required for the next level
-        - Level-up detection
-        - Drink unlocks
-        - Location unlocks
-        - Feature unlocks
-    """
+    # ============================================================
+    # INITIALISATION
+    # ============================================================
 
-    def __init__(self):
-        # ------------------------------------------
-        # BASIC PLAYER PROGRESSION
-        # ------------------------------------------
+    def __init__(
+        self,
+        level=1,
+        xp=0,
+    ):
 
-        self.level = 1
-        self.xp = 0
+        # --------------------------------------------------------
+        # BASIC PROGRESSION
+        # --------------------------------------------------------
 
-        # ------------------------------------------
-        # LEVEL-UP INFORMATION
-        # ------------------------------------------
+        self.level = max(
+            1,
+            int(level),
+        )
+
+        self.xp = max(
+            0,
+            int(xp),
+        )
+
+        # --------------------------------------------------------
+        # LEVEL-UP STATUS
+        # --------------------------------------------------------
 
         self.level_up = False
 
-        # Stores the level reached during the
-        # most recent level-up.
-        self.previous_level = 1
+        self.previous_level = (
+            self.level
+        )
 
-        # ------------------------------------------
+        # --------------------------------------------------------
         # XP REQUIREMENTS
-        # ------------------------------------------
+        #
+        # XP needed to advance FROM that level.
+        #
+        # Level 1 → 100 XP
+        # Level 2 → 250 XP
+        # Level 3 → 450 XP
+        # etc.
+        # --------------------------------------------------------
 
         self.xp_requirements = {
+
             1: 100,
+
             2: 250,
+
             3: 450,
+
             4: 700,
+
             5: 1000,
+
             6: 1350,
+
             7: 1750,
+
             8: 2200,
+
             9: 2700,
+
             10: 3300,
         }
 
-        # ------------------------------------------
-        # LOCATION UNLOCKS
-        # ------------------------------------------
+        # --------------------------------------------------------
+        # LOCATIONS
+        # --------------------------------------------------------
 
         self.location_unlocks = {
+
             1: "Neon Alley",
+
             2: "Cyber District",
+
             3: "Neon Skyline",
+
             4: "Penthouse Café",
+
             5: "Cyber Plaza",
+
             6: "Digital Garden",
+
             7: "Neon Market",
+
             8: "Skyline Lounge",
+
             9: "Cyber City",
+
             10: "Grand Cyber Café",
         }
 
-        # ------------------------------------------
-        # FEATURE UNLOCKS
-        # ------------------------------------------
+        # --------------------------------------------------------
+        # FEATURES
+        # --------------------------------------------------------
 
         self.feature_unlocks = {
-            1: ["Basic Café"],
-            2: ["New Drinks"],
-            3: ["New Drinks"],
-            4: ["New Location"],
-            5: ["Special Customers"],
-            6: ["Advanced Café"],
-            7: ["Rush Hour"],
-            8: ["Rare Drinks"],
-            9: ["VIP Customers"],
-            10: ["Grand Café"],
+
+            1: [
+                "Basic Café",
+            ],
+
+            2: [
+                "New Drinks",
+            ],
+
+            3: [
+                "New Drinks",
+            ],
+
+            4: [
+                "New Location",
+            ],
+
+            5: [
+                "Special Customers",
+            ],
+
+            6: [
+                "Advanced Café",
+            ],
+
+            7: [
+                "Rush Hour",
+            ],
+
+            8: [
+                "Rare Drinks",
+            ],
+
+            9: [
+                "VIP Customers",
+            ],
+
+            10: [
+                "Grand Café",
+            ],
         }
 
-    # ==================================================
-    # XP SYSTEM
-    # ==================================================
+    # ============================================================
+    # ADD XP
+    # ============================================================
 
-    def add_xp(self, amount):
+    def add_xp(
+        self,
+        amount,
+    ):
         """
-        Add XP to the player's progression.
+        Add XP to the player.
 
-        Returns True if the player levelled up.
+        Returns True if at least one level-up occurred.
         """
+
+        amount = int(amount)
 
         if amount <= 0:
+
             return False
 
         self.xp += amount
 
         return self.check_level_up()
 
-    # ==================================================
+    # ============================================================
     # LEVEL-UP CHECK
-    # ==================================================
+    # ============================================================
 
     def check_level_up(self):
         """
-        Check whether the player has enough XP
-        to reach the next level.
+        Checks whether the player has enough XP
+        to advance.
 
-        XP left over after a level-up is carried
-        into the next level.
+        Any remaining XP carries into the new level.
+
+        Example:
+
+            Level 1
+            90 / 100 XP
+
+            Earn 45 XP
+
+            Total = 135 XP
+
+            Level up!
+
+            New level:
+            2
+
+            Remaining XP:
+            35
         """
 
         self.level_up = False
 
         while (
+
             self.level < 10
-            and self.level in self.xp_requirements
-            and self.xp >= self.xp_requirements[self.level]
+
+            and
+
+            self.level
+            in self.xp_requirements
+
+            and
+
+            self.xp
+            >= self.xp_requirements[
+                self.level
+            ]
+
         ):
 
-            # Remember the level before changing it.
-            self.previous_level = self.level
+            # ----------------------------------------------------
+            # REMEMBER OLD LEVEL
+            # ----------------------------------------------------
 
-            # XP required for this level-up.
-            required_xp = self.xp_requirements[self.level]
+            self.previous_level = (
+                self.level
+            )
 
-            # Remove the XP used for the level-up.
+            # ----------------------------------------------------
+            # XP REQUIRED
+            # ----------------------------------------------------
+
+            required_xp = (
+                self.xp_requirements[
+                    self.level
+                ]
+            )
+
+            # ----------------------------------------------------
+            # REMOVE XP USED
+            # ----------------------------------------------------
+
             self.xp -= required_xp
 
-            # Increase the player's level.
+            # ----------------------------------------------------
+            # LEVEL UP
+            # ----------------------------------------------------
+
             self.level += 1
 
-            # Tell the game that a level-up happened.
             self.level_up = True
 
         return self.level_up
 
-    # ==================================================
-    # XP REQUIRED FOR NEXT LEVEL
-    # ==================================================
+    # ============================================================
+    # XP REQUIRED
+    # ============================================================
 
     def get_xp_required(self):
-        """
-        Returns the total XP required for the
-        player's current level.
-
-        Returns None if the player is at the
-        maximum level.
-        """
 
         if self.level >= 10:
+
             return None
 
-        return self.xp_requirements.get(self.level)
-
-    # ==================================================
-    # XP PROGRESS
-    # ==================================================
-
-    def get_xp_progress(self):
-        """
-        Returns XP progress as a decimal between 0 and 1.
-
-        Example:
-
-            50 / 100 XP
-            = 0.5
-
-        This can later be used to draw an XP bar.
-        """
-
-        required_xp = self.get_xp_required()
-
-        if required_xp is None:
-            return 1.0
-
-        return min(
-            self.xp / required_xp,
-            1.0
+        return self.xp_requirements.get(
+            self.level
         )
 
-    # ==================================================
+    # ============================================================
+    # XP PROGRESS
+    # ============================================================
+
+    def get_xp_progress(self):
+
+        required_xp = (
+            self.get_xp_required()
+        )
+
+        if required_xp is None:
+
+            return 1.0
+
+        if required_xp <= 0:
+
+            return 1.0
+
+        return max(
+            0.0,
+            min(
+                self.xp / required_xp,
+                1.0,
+            ),
+        )
+
+    # ============================================================
     # XP PERCENTAGE
-    # ==================================================
+    # ============================================================
 
     def get_xp_percentage(self):
-        """
-        Returns XP progress as a percentage.
 
-        Example:
+        return (
+            self.get_xp_progress()
+            * 100
+        )
 
-            50 / 100
-            = 50%
-        """
-
-        return self.get_xp_progress() * 100
-
-    # ==================================================
+    # ============================================================
     # UNLOCKED DRINKS
-    # ==================================================
+    # ============================================================
 
     def get_unlocked_drinks(self):
-        """
-        Returns all drinks unlocked at the
-        player's current level.
-        """
 
-        return get_unlocked_drinks(self.level)
+        return get_unlocked_drinks(
+            self.level
+        )
 
-    # ==================================================
+    # ============================================================
     # LOCATION
-    # ==================================================
+    # ============================================================
 
     def get_current_location(self):
-        """
-        Returns the location belonging to
-        the player's current level.
-        """
 
         return self.location_unlocks.get(
             self.level,
-            "Unknown Location"
+            "Unknown Location",
         )
 
-    # ==================================================
-    # UNLOCKED FEATURES
-    # ==================================================
+    # ============================================================
+    # FEATURES
+    # ============================================================
 
     def get_unlocked_features(self):
-        """
-        Returns all features unlocked up to
-        the player's current level.
-        """
 
         unlocked_features = []
 
-        for level in range(1, self.level + 1):
+        for level in range(
+            1,
+            self.level + 1,
+        ):
 
-            features = self.feature_unlocks.get(
-                level,
-                []
+            features = (
+                self.feature_unlocks.get(
+                    level,
+                    [],
+                )
             )
 
-            unlocked_features.extend(features)
+            unlocked_features.extend(
+                features
+            )
 
         return unlocked_features
 
-    # ==================================================
+    # ============================================================
     # LEVEL-UP STATUS
-    # ==================================================
+    # ============================================================
 
     def has_levelled_up(self):
-        """
-        Returns True when a level-up has happened.
-        """
 
         return self.level_up
 
-    # ==================================================
+    # ============================================================
     # PREVIOUS LEVEL
-    # ==================================================
+    # ============================================================
 
     def get_previous_level(self):
-        """
-        Returns the level the player had before
-        the most recent level-up.
-        """
 
         return self.previous_level
 
-    # ==================================================
-    # CLEAR LEVEL-UP FLAG
-    # ==================================================
+    # ============================================================
+    # CURRENT LEVEL NAME
+    # ============================================================
 
-    def clear_level_up(self):
-        """
-        Clears the level-up notification.
+    def get_level_name(self):
 
-        This will be useful after the game has shown
-        the Level Up screen.
-        """
+        return (
+            f"LEVEL {self.level}"
+        )
+
+    # ============================================================
+    # MAX LEVEL
+    # ============================================================
+
+    def is_max_level(self):
+
+        return self.level >= 10
+
+    # ============================================================
+    # SAVE DATA
+    # ============================================================
+
+    def get_data(self):
+
+        return {
+
+            "level":
+                self.level,
+
+            "xp":
+                self.xp,
+        }
+
+    # ============================================================
+    # LOAD DATA
+    # ============================================================
+
+    def set_data(
+        self,
+        data,
+    ):
+
+        if not isinstance(
+            data,
+            dict,
+        ):
+
+            return
+
+        self.level = max(
+            1,
+            int(
+                data.get(
+                    "level",
+                    1,
+                )
+            ),
+        )
+
+        self.xp = max(
+            0,
+            int(
+                data.get(
+                    "xp",
+                    0,
+                )
+            ),
+        )
 
         self.level_up = False
 
+        self.previous_level = (
+            self.level
+        )
 
+        self.check_level_up()
 
+        self.level_up = False
+
+    # ============================================================
+    # CLEAR LEVEL-UP FLAG
+    # ============================================================
+
+    def clear_level_up(self):
+
+        self.level_up = False
+
+    # ============================================================
+    # RESET
+    # ============================================================
+
+    def reset(self):
+
+        self.level = 1
+
+        self.xp = 0
+
+        self.level_up = False
+
+        self.previous_level = 1

@@ -1,246 +1,468 @@
+"""
+CYBERPUNK CAFÉ
+REWARD SYSTEM
+
+This file calculates the rewards earned after serving
+a customer.
+
+The reward system handles:
+
+    • Accuracy rewards
+    • Combo rewards
+    • Speed rewards
+    • XP earned
+    • Credits / money earned
+
+IMPORTANT:
+
+This class does NOT control the player's level.
+
+Progression.py controls:
+    • Level
+    • XP progression
+    • Level ups
+    • Drink unlocks
+    • Location progression
+"""
+
+
 from dataclasses import dataclass
 
 
+# ============================================================
+# REWARD RESULT
+# ============================================================
+
 @dataclass
 class RewardResult:
-    """
-    Stores the rewards earned from serving
-    one customer.
-    """
+
+    # --------------------------------------------------------
+    # BASE REWARD
+    # --------------------------------------------------------
 
     base_xp: int
+
     base_credits: int
 
+    # --------------------------------------------------------
+    # COMBO BONUS
+    # --------------------------------------------------------
+
     combo_bonus_xp: int
+
     combo_bonus_credits: int
 
+    # --------------------------------------------------------
+    # SPEED BONUS
+    # --------------------------------------------------------
+
     speed_bonus_xp: int
+
     speed_bonus_credits: int
 
+    # --------------------------------------------------------
+    # FINAL REWARD
+    # --------------------------------------------------------
+
     total_xp: int
+
     total_credits: int
+
+    # --------------------------------------------------------
+    # CURRENT COMBO
+    # --------------------------------------------------------
 
     combo_count: int
 
+    # ========================================================
+    # POSITIVE REWARD
+    # ========================================================
+
     @property
     def is_positive(self):
-        """
-        Returns True if the player earned
-        a reward.
-        """
 
         return (
+
             self.total_xp > 0
-            or self.total_credits > 0
+
+            or
+
+            self.total_credits > 0
+
         )
 
+    # ========================================================
+    # ACCURACY TEXT
+    # ========================================================
+
+    @property
+    def accuracy_text(self):
+
+        return (
+            f"{self.combo_count}"
+        )
+
+
+# ============================================================
+# REWARD SYSTEM
+# ============================================================
 
 class RewardSystem:
-    """
-    Calculates XP and credit rewards.
 
-    This class does NOT control the player's
-    level. That job belongs to Progression.
+    """
+    Calculates rewards after each customer.
+
+    RewardSystem does NOT control:
+
+        • player level
+        • XP progression
+        • drink unlocks
+        • locations
+
+    Those systems belong to Progression.
     """
 
-    # ==========================================
+    # ========================================================
     # BASE REWARDS
-    # ==========================================
+    # ========================================================
 
     BASE_REWARDS = {
-        4: (40, 30),
-        3: (30, 24),
-        2: (20, 18),
-        1: (10, 10),
-        0: (5, 5),
+
+        # Perfect order
+        4: (
+            40,
+            30,
+        ),
+
+        # 3 / 4
+        3: (
+            30,
+            24,
+        ),
+
+        # 2 / 4
+        2: (
+            20,
+            18,
+        ),
+
+        # 1 / 4
+        1: (
+            10,
+            10,
+        ),
+
+        # 0 / 4
+        0: (
+            5,
+            5,
+        ),
     }
 
-    # ==========================================
-    # COMBO REWARDS
-    # ==========================================
+    # ========================================================
+    # COMBO
+    # ========================================================
 
     COMBO_XP_BONUS = 5
+
     COMBO_CREDITS_BONUS = 3
 
-    # ==========================================
-    # SPEED REWARDS
-    # ==========================================
+    # ========================================================
+    # SPEED
+    # ========================================================
 
     SPEED_XP_BONUS = 10
+
     SPEED_CREDITS_BONUS = 5
 
+    # ========================================================
+    # INITIALISATION
+    # ========================================================
+
     def __init__(self):
+
+        # Current perfect-order combo.
         self.combo = 0
+
+        # Total credits earned during this
+        # current gameplay session.
         self.total_credits_earned = 0
 
-    # ==========================================
-    # ACCURACY REWARD
-    # ==========================================
+        # Total XP earned during this
+        # current gameplay session.
+        self.total_xp_earned = 0
 
-    def get_base_reward(self, correct_count):
-        """
-        Returns the base XP and credits
-        for the accuracy result.
-        """
+    # ========================================================
+    # BASE REWARD
+    # ========================================================
+
+    def get_base_reward(
+        self,
+        correct_count,
+    ):
 
         return self.BASE_REWARDS.get(
-            correct_count,
-            (0, 0)
+            int(correct_count),
+            (
+                0,
+                0,
+            ),
         )
 
-    # ==========================================
-    # COMBO
-    # ==========================================
+    # ========================================================
+    # UPDATE COMBO
+    # ========================================================
 
-    def update_combo(self, correct_count):
+    def update_combo(
+        self,
+        correct_count,
+    ):
+
         """
-        Updates the player's combo.
+        Perfect orders increase the combo.
 
-        A perfect order increases the combo.
-
-        A less-than-perfect order resets it.
+        Anything below 4/4 resets the combo.
         """
 
-        if correct_count == 4:
+        if int(correct_count) == 4:
+
             self.combo += 1
+
         else:
+
             self.combo = 0
 
         return self.combo
 
-    # ==========================================
+    # ========================================================
     # CALCULATE REWARD
-    # ==========================================
+    # ========================================================
 
     def calculate_reward(
         self,
         accuracy_result,
-        served_quickly=False
+        served_quickly=False,
     ):
+
         """
-        Calculate the complete reward for
-        the current customer.
+        Calculates the complete reward.
 
-        Returns a RewardResult.
+        accuracy_result is expected to contain:
+
+            accuracy_result.correct_count
+
+        Example:
+
+            4 / 4
+            3 / 4
+            2 / 4
+            1 / 4
+            0 / 4
         """
 
-        correct_count = accuracy_result.correct_count
+        # ----------------------------------------------------
+        # GET ACCURACY
+        # ----------------------------------------------------
 
-        # --------------------------------------
-        # Base reward
-        # --------------------------------------
+        correct_count = int(
+            accuracy_result.correct_count
+        )
 
-        base_xp, base_credits = self.get_base_reward(
+        # Keep the value safely inside
+        # the expected 0–4 range.
+
+        correct_count = max(
+            0,
+            min(
+                correct_count,
+                4,
+            ),
+        )
+
+        # ----------------------------------------------------
+        # BASE REWARD
+        # ----------------------------------------------------
+
+        (
+            base_xp,
+            base_credits,
+        ) = self.get_base_reward(
             correct_count
         )
 
-        # --------------------------------------
-        # Update combo
-        # --------------------------------------
+        # ----------------------------------------------------
+        # UPDATE COMBO
+        # ----------------------------------------------------
 
-        combo_count = self.update_combo(
-            correct_count
+        combo_count = (
+            self.update_combo(
+                correct_count
+            )
         )
 
-        # --------------------------------------
-        # Combo bonus
-        # --------------------------------------
+        # ----------------------------------------------------
+        # COMBO BONUS
+        # ----------------------------------------------------
 
         combo_bonus_xp = 0
+
         combo_bonus_credits = 0
 
         if combo_count >= 2:
 
             combo_bonus_xp = (
+
                 combo_count - 1
+
             ) * self.COMBO_XP_BONUS
 
             combo_bonus_credits = (
+
                 combo_count - 1
+
             ) * self.COMBO_CREDITS_BONUS
 
-        # --------------------------------------
-        # Speed bonus
-        # --------------------------------------
+        # ----------------------------------------------------
+        # SPEED BONUS
+        # ----------------------------------------------------
 
         speed_bonus_xp = 0
+
         speed_bonus_credits = 0
 
         if served_quickly:
 
-            speed_bonus_xp = self.SPEED_XP_BONUS
-            speed_bonus_credits = self.SPEED_CREDITS_BONUS
+            speed_bonus_xp = (
+                self.SPEED_XP_BONUS
+            )
 
-        # --------------------------------------
-        # Total reward
-        # --------------------------------------
+            speed_bonus_credits = (
+                self.SPEED_CREDITS_BONUS
+            )
+
+        # ----------------------------------------------------
+        # TOTAL XP
+        # ----------------------------------------------------
 
         total_xp = (
+
             base_xp
+
             + combo_bonus_xp
+
             + speed_bonus_xp
+
         )
+
+        # ----------------------------------------------------
+        # TOTAL CREDITS
+        # ----------------------------------------------------
 
         total_credits = (
+
             base_credits
+
             + combo_bonus_credits
+
             + speed_bonus_credits
+
         )
 
-        # --------------------------------------
-        # Store lifetime credits
-        # --------------------------------------
+        # ----------------------------------------------------
+        # SESSION TOTALS
+        # ----------------------------------------------------
 
-        self.total_credits_earned += total_credits
+        self.total_xp_earned += (
+            total_xp
+        )
+
+        self.total_credits_earned += (
+            total_credits
+        )
+
+        # ----------------------------------------------------
+        # RESULT
+        # ----------------------------------------------------
 
         return RewardResult(
+
             base_xp=base_xp,
+
             base_credits=base_credits,
 
             combo_bonus_xp=combo_bonus_xp,
-            combo_bonus_credits=combo_bonus_credits,
 
-            speed_bonus_xp=speed_bonus_xp,
-            speed_bonus_credits=speed_bonus_credits,
+            combo_bonus_credits=
+                combo_bonus_credits,
+
+            speed_bonus_xp=
+                speed_bonus_xp,
+
+            speed_bonus_credits=
+                speed_bonus_credits,
 
             total_xp=total_xp,
-            total_credits=total_credits,
 
-            combo_count=combo_count
+            total_credits=
+                total_credits,
+
+            combo_count=combo_count,
         )
 
-    # ==========================================
+    # ========================================================
     # CURRENT COMBO
-    # ==========================================
+    # ========================================================
 
     def get_combo(self):
-        """
-        Returns the current combo count.
-        """
 
         return self.combo
 
-    # ==========================================
+    # ========================================================
     # TOTAL CREDITS
-    # ==========================================
+    # ========================================================
 
     def get_total_credits(self):
-        """
-        Returns the total credits earned
-        during the current session.
-        """
 
-        return self.total_credits_earned
+        return (
+            self.total_credits_earned
+        )
 
-    # ==========================================
+    # ========================================================
+    # TOTAL XP
+    # ========================================================
+
+    def get_total_xp(self):
+
+        return (
+            self.total_xp_earned
+        )
+
+    # ========================================================
+    # DATA
+    # ========================================================
+
+    def get_data(self):
+
+        return {
+
+            "combo":
+                self.combo,
+
+            "total_credits_earned":
+                self.total_credits_earned,
+
+            "total_xp_earned":
+                self.total_xp_earned,
+        }
+
+    # ========================================================
     # RESET
-    # ==========================================
+    # ========================================================
 
     def reset(self):
-        """
-        Reset rewards for a new game.
-        """
 
         self.combo = 0
+
         self.total_credits_earned = 0
 
+        self.total_xp_earned = 0
