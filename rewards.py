@@ -1,28 +1,40 @@
 """
+============================================================
 CYBERPUNK CAFÉ
 REWARD SYSTEM
+============================================================
 
-This file calculates the rewards earned after serving
-a customer.
+This file calculates the rewards and penalties earned
+after serving one customer.
 
-The reward system handles:
+The RewardSystem handles:
 
     • Accuracy rewards
+    • Mistake penalties
     • Combo rewards
     • Speed rewards
     • XP earned
-    • Credits / money earned
+    • Credits earned/lost
 
 IMPORTANT:
 
 This class does NOT control the player's level.
 
 Progression.py controls:
+
+    • XP
     • Level
-    • XP progression
-    • Level ups
+    • Level-ups
     • Drink unlocks
     • Location progression
+
+
+UIEconomy controls:
+
+    • Player credits
+    • Saving credits
+    • Loading credits
+    • Spending credits
 """
 
 
@@ -61,15 +73,25 @@ class RewardResult:
     speed_bonus_credits: int
 
     # --------------------------------------------------------
-    # FINAL REWARD
+    # MISTAKE PENALTY
+    # --------------------------------------------------------
+
+    credit_penalty: int
+
+    # --------------------------------------------------------
+    # FINAL XP
     # --------------------------------------------------------
 
     total_xp: int
 
-    total_credits: int
+    # --------------------------------------------------------
+    # FINAL CREDIT CHANGE
+    # --------------------------------------------------------
+
+    net_credits: int
 
     # --------------------------------------------------------
-    # CURRENT COMBO
+    # COMBO
     # --------------------------------------------------------
 
     combo_count: int
@@ -80,15 +102,17 @@ class RewardResult:
 
     @property
     def is_positive(self):
+        """
+        Returns True when the player gained something.
+
+        XP is included because XP can still be positive
+        even when a credit penalty occurs.
+        """
 
         return (
-
             self.total_xp > 0
-
             or
-
-            self.total_credits > 0
-
+            self.net_credits > 0
         )
 
     # ========================================================
@@ -97,10 +121,14 @@ class RewardResult:
 
     @property
     def accuracy_text(self):
+        """
+        Compatibility property.
 
-        return (
-            f"{self.combo_count}"
-        )
+        Actual accuracy information will come from
+        accuracy.py.
+        """
+
+        return ""
 
 
 # ============================================================
@@ -110,7 +138,7 @@ class RewardResult:
 class RewardSystem:
 
     """
-    Calculates rewards after each customer.
+    Calculates the reward for one completed customer order.
 
     RewardSystem does NOT control:
 
@@ -128,31 +156,46 @@ class RewardSystem:
 
     BASE_REWARDS = {
 
-        # Perfect order
+        # ----------------------------------------------------
+        # PERFECT ORDER
+        # ----------------------------------------------------
+
         4: (
             40,
             30,
         ),
 
+        # ----------------------------------------------------
         # 3 / 4
+        # ----------------------------------------------------
+
         3: (
             30,
             24,
         ),
 
+        # ----------------------------------------------------
         # 2 / 4
+        # ----------------------------------------------------
+
         2: (
             20,
             18,
         ),
 
+        # ----------------------------------------------------
         # 1 / 4
+        # ----------------------------------------------------
+
         1: (
             10,
             10,
         ),
 
+        # ----------------------------------------------------
         # 0 / 4
+        # ----------------------------------------------------
+
         0: (
             5,
             5,
@@ -160,10 +203,24 @@ class RewardSystem:
     }
 
     # ========================================================
+    # MISTAKE PENALTY
+    # ========================================================
+
+    # Every imperfect order receives a $10 penalty.
+
+    MISTAKE_CREDIT_PENALTY = 10
+
+    # ========================================================
     # COMBO
     # ========================================================
 
+    # Every additional perfect order in a combo
+    # gives +5 XP.
+
     COMBO_XP_BONUS = 5
+
+    # Every additional perfect order in a combo
+    # gives +3 credits.
 
     COMBO_CREDITS_BONUS = 3
 
@@ -181,16 +238,29 @@ class RewardSystem:
 
     def __init__(self):
 
-        # Current perfect-order combo.
+        # ----------------------------------------------------
+        # CURRENT COMBO
+        # ----------------------------------------------------
+
         self.combo = 0
 
-        # Total credits earned during this
-        # current gameplay session.
+        # ----------------------------------------------------
+        # SESSION TOTAL CREDITS
+        # ----------------------------------------------------
+
         self.total_credits_earned = 0
 
-        # Total XP earned during this
-        # current gameplay session.
+        # ----------------------------------------------------
+        # SESSION TOTAL XP
+        # ----------------------------------------------------
+
         self.total_xp_earned = 0
+
+        # ----------------------------------------------------
+        # SESSION TOTAL PENALTIES
+        # ----------------------------------------------------
+
+        self.total_credit_penalties = 0
 
     # ========================================================
     # BASE REWARD
@@ -200,14 +270,84 @@ class RewardSystem:
         self,
         correct_count,
     ):
+        """
+        Returns:
+
+            (base_xp, base_credits)
+
+        based on the number of correct requirements.
+        """
+
+        try:
+
+            correct_count = int(
+                correct_count
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            correct_count = 0
+
+        # Keep the number between 0 and 4.
+
+        correct_count = max(
+            0,
+            min(
+                correct_count,
+                4,
+            ),
+        )
 
         return self.BASE_REWARDS.get(
-            int(correct_count),
+            correct_count,
             (
                 0,
                 0,
             ),
         )
+
+    # ========================================================
+    # GET MISTAKE PENALTY
+    # ========================================================
+
+    def get_mistake_penalty(
+        self,
+        correct_count,
+    ):
+        """
+        Returns the credit penalty.
+
+        Perfect order:
+            4/4 → $0 penalty
+
+        Any imperfect order:
+            3/4 → $10 penalty
+            2/4 → $10 penalty
+            1/4 → $10 penalty
+            0/4 → $10 penalty
+        """
+
+        try:
+
+            correct_count = int(
+                correct_count
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            correct_count = 0
+
+        if correct_count == 4:
+
+            return 0
+
+        return self.MISTAKE_CREDIT_PENALTY
 
     # ========================================================
     # UPDATE COMBO
@@ -217,11 +357,10 @@ class RewardSystem:
         self,
         correct_count,
     ):
-
         """
         Perfect orders increase the combo.
 
-        Anything below 4/4 resets the combo.
+        Any imperfect order resets the combo to zero.
         """
 
         if int(correct_count) == 4:
@@ -243,33 +382,41 @@ class RewardSystem:
         accuracy_result,
         served_quickly=False,
     ):
-
         """
-        Calculates the complete reward.
+        Calculate the complete reward for one customer.
 
-        accuracy_result is expected to contain:
+        accuracy_result must contain:
 
             accuracy_result.correct_count
 
-        Example:
+        Examples:
 
-            4 / 4
-            3 / 4
-            2 / 4
-            1 / 4
-            0 / 4
+            4/4
+            3/4
+            2/4
+            1/4
+            0/4
         """
 
-        # ----------------------------------------------------
-        # GET ACCURACY
-        # ----------------------------------------------------
+        # ====================================================
+        # GET CORRECT COUNT
+        # ====================================================
 
-        correct_count = int(
-            accuracy_result.correct_count
-        )
+        try:
 
-        # Keep the value safely inside
-        # the expected 0–4 range.
+            correct_count = int(
+                accuracy_result.correct_count
+            )
+
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+        ):
+
+            correct_count = 0
+
+        # Keep value safely between 0 and 4.
 
         correct_count = max(
             0,
@@ -279,9 +426,9 @@ class RewardSystem:
             ),
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # BASE REWARD
-        # ----------------------------------------------------
+        # ====================================================
 
         (
             base_xp,
@@ -290,9 +437,9 @@ class RewardSystem:
             correct_count
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # UPDATE COMBO
-        # ----------------------------------------------------
+        # ====================================================
 
         combo_count = (
             self.update_combo(
@@ -300,31 +447,48 @@ class RewardSystem:
             )
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # COMBO BONUS
-        # ----------------------------------------------------
+        # ====================================================
 
         combo_bonus_xp = 0
 
         combo_bonus_credits = 0
 
+        # ----------------------------------------------------
+        # Combo starts giving a bonus from combo 2.
+        #
+        # Combo 1:
+        #   no bonus
+        #
+        # Combo 2:
+        #   +5 XP
+        #   +3 credits
+        #
+        # Combo 3:
+        #   +10 XP
+        #   +6 credits
+        #
+        # Combo 4:
+        #   +15 XP
+        #   +9 credits
+        # ----------------------------------------------------
+
         if combo_count >= 2:
 
             combo_bonus_xp = (
-
-                combo_count - 1
-
-            ) * self.COMBO_XP_BONUS
+                (combo_count - 1)
+                * self.COMBO_XP_BONUS
+            )
 
             combo_bonus_credits = (
+                (combo_count - 1)
+                * self.COMBO_CREDITS_BONUS
+            )
 
-                combo_count - 1
-
-            ) * self.COMBO_CREDITS_BONUS
-
-        # ----------------------------------------------------
+        # ====================================================
         # SPEED BONUS
-        # ----------------------------------------------------
+        # ====================================================
 
         speed_bonus_xp = 0
 
@@ -340,9 +504,19 @@ class RewardSystem:
                 self.SPEED_CREDITS_BONUS
             )
 
-        # ----------------------------------------------------
-        # TOTAL XP
-        # ----------------------------------------------------
+        # ====================================================
+        # MISTAKE PENALTY
+        # ====================================================
+
+        credit_penalty = (
+            self.get_mistake_penalty(
+                correct_count
+            )
+        )
+
+        # ====================================================
+        # FINAL XP
+        # ====================================================
 
         total_xp = (
 
@@ -354,11 +528,11 @@ class RewardSystem:
 
         )
 
-        # ----------------------------------------------------
-        # TOTAL CREDITS
-        # ----------------------------------------------------
+        # ====================================================
+        # FINAL CREDIT CHANGE
+        # ====================================================
 
-        total_credits = (
+        net_credits = (
 
             base_credits
 
@@ -366,23 +540,38 @@ class RewardSystem:
 
             + speed_bonus_credits
 
+            - credit_penalty
+
         )
 
-        # ----------------------------------------------------
-        # SESSION TOTALS
-        # ----------------------------------------------------
+        # ====================================================
+        # SESSION STATISTICS
+        # ====================================================
 
         self.total_xp_earned += (
             total_xp
         )
 
-        self.total_credits_earned += (
-            total_credits
+        # Only count actual earned credits here.
+        #
+        # A negative net result is not added as
+        # "credits earned."
+
+        if net_credits > 0:
+
+            self.total_credits_earned += (
+                net_credits
+            )
+
+        # Store penalty statistics.
+
+        self.total_credit_penalties += (
+            credit_penalty
         )
 
-        # ----------------------------------------------------
-        # RESULT
-        # ----------------------------------------------------
+        # ====================================================
+        # RETURN RESULT
+        # ====================================================
 
         return RewardResult(
 
@@ -390,7 +579,8 @@ class RewardSystem:
 
             base_credits=base_credits,
 
-            combo_bonus_xp=combo_bonus_xp,
+            combo_bonus_xp=
+                combo_bonus_xp,
 
             combo_bonus_credits=
                 combo_bonus_credits,
@@ -401,12 +591,17 @@ class RewardSystem:
             speed_bonus_credits=
                 speed_bonus_credits,
 
-            total_xp=total_xp,
+            credit_penalty=
+                credit_penalty,
 
-            total_credits=
-                total_credits,
+            total_xp=
+                total_xp,
 
-            combo_count=combo_count,
+            net_credits=
+                net_credits,
+
+            combo_count=
+                combo_count,
         )
 
     # ========================================================
@@ -418,17 +613,7 @@ class RewardSystem:
         return self.combo
 
     # ========================================================
-    # TOTAL CREDITS
-    # ========================================================
-
-    def get_total_credits(self):
-
-        return (
-            self.total_credits_earned
-        )
-
-    # ========================================================
-    # TOTAL XP
+    # TOTAL XP EARNED
     # ========================================================
 
     def get_total_xp(self):
@@ -438,7 +623,27 @@ class RewardSystem:
         )
 
     # ========================================================
-    # DATA
+    # TOTAL CREDITS EARNED
+    # ========================================================
+
+    def get_total_credits(self):
+
+        return (
+            self.total_credits_earned
+        )
+
+    # ========================================================
+    # TOTAL PENALTIES
+    # ========================================================
+
+    def get_total_credit_penalties(self):
+
+        return (
+            self.total_credit_penalties
+        )
+
+    # ========================================================
+    # SESSION DATA
     # ========================================================
 
     def get_data(self):
@@ -448,11 +653,14 @@ class RewardSystem:
             "combo":
                 self.combo,
 
+            "total_xp_earned":
+                self.total_xp_earned,
+
             "total_credits_earned":
                 self.total_credits_earned,
 
-            "total_xp_earned":
-                self.total_xp_earned,
+            "total_credit_penalties":
+                self.total_credit_penalties,
         }
 
     # ========================================================
@@ -460,9 +668,14 @@ class RewardSystem:
     # ========================================================
 
     def reset(self):
+        """
+        Reset temporary/session reward information.
+        """
 
         self.combo = 0
 
         self.total_credits_earned = 0
 
         self.total_xp_earned = 0
+
+        self.total_credit_penalties = 0
