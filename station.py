@@ -19,30 +19,6 @@ from game_state import MixingGameState, GameState
 
 
 class MixingStation:
-    """
-    Cyberpunk Café - Drink Mixing Station
-
-    Student B responsibilities:
-        - Drink selection
-        - Temperature selection
-        - Caffeine selection
-        - Sweetness selection
-        - Blending
-        - Place into cup
-        - Serve
-        - Current order display
-        - Drink preview
-        - Locked/unlocked drink display
-
-    The station does NOT:
-        - Control the customer
-        - Control the map
-        - Calculate rewards
-        - Decide level-ups
-        - Draw the old economy HUD
-
-    Those responsibilities belong to the other systems.
-    """
 
     # ============================================================
     # MASTER GAME SIZE
@@ -52,16 +28,19 @@ class MixingStation:
     HEIGHT = 720
 
     # ============================================================
-    # COLOURS
+    # UNIFIED PANEL COLOUR
     # ============================================================
 
-    # Main background / panel colours
-    DARK = (6, 8, 20)
-
+    # ALL normal panels now use this same colour.
     PANEL = (8, 13, 31, 235)
-    PANEL_DARK = (5, 8, 20, 235)
 
-    # Cyberpunk accent colours
+    # Darker colour used only inside certain button states.
+    BUTTON_DARK = (7, 11, 25)
+
+    # ============================================================
+    # ACCENT COLOURS
+    # ============================================================
+
     CYAN = (70, 225, 255)
     CYAN_BRIGHT = (145, 245, 255)
 
@@ -96,38 +75,39 @@ class MixingStation:
         level=1,
         progression=None,
         rewards=None,
+        economy=None,
     ):
+
         # --------------------------------------------------------
-        # LEGACY DRINK OBJECT
+        # LEGACY DRINK
         # --------------------------------------------------------
 
-        # Kept temporarily so older main.py code can still create:
-        #
-        #     MixingStation(drink)
-        #
-        # without breaking.
         self.drink = drink
 
         # --------------------------------------------------------
-        # NEW PLAYER DRINK SYSTEM
+        # PLAYER DRINK
         # --------------------------------------------------------
 
         self.player_drink = PlayerDrink()
 
         # --------------------------------------------------------
-        # MIXING STATE MACHINE
+        # MIXING STATE
         # --------------------------------------------------------
 
         self.game_state = MixingGameState()
 
         # --------------------------------------------------------
-        # PROGRESSION / REWARD REFERENCES
+        # GAME SYSTEM REFERENCES
         # --------------------------------------------------------
 
         self.progression = progression
         self.rewards = rewards
+        self.economy = economy
 
-        self.level = max(1, int(level))
+        self.level = max(
+            1,
+            int(level),
+        )
 
         # --------------------------------------------------------
         # CUSTOMER ORDER
@@ -136,14 +116,9 @@ class MixingStation:
         self.customer_order = None
 
         # --------------------------------------------------------
-        # SERVED FLAG
+        # SERVED
         # --------------------------------------------------------
 
-        # main.py can check:
-        #
-        #     if mixing_station.served:
-        #
-        # This becomes True only after a valid serve action.
         self.served = False
 
         # --------------------------------------------------------
@@ -151,6 +126,7 @@ class MixingStation:
         # --------------------------------------------------------
 
         self.blend_start_time = 0.0
+
         self.blend_duration = 1.2
 
         # ========================================================
@@ -203,7 +179,7 @@ class MixingStation:
         )
 
         # ========================================================
-        # LOAD DRINK IMAGES
+        # DRINK IMAGES
         # ========================================================
 
         self.drink_images = {}
@@ -211,45 +187,55 @@ class MixingStation:
         self._load_drink_images()
 
         # ========================================================
-        # MASTER 1280 x 720 LAYOUT
+        # HUD
         # ========================================================
-
-        # --------------------------------------------------------
-        # TOP HUD
-        # --------------------------------------------------------
+        #
+        # NOW STARTS FROM TOP LEFT.
+        #
 
         self.hud_rect = pygame.Rect(
-            398,
-            12,
-            860,
-            55,
+            20,
+            15,
+            510,
+            50,
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # DRINK MENU
-        # --------------------------------------------------------
+        # ========================================================
+        #
+        # Reduced approximately 10%.
+        #
+        # It is aligned to the TOP RIGHT.
+        #
 
         self.menu_rect = pygame.Rect(
-            275,
-            82,
-            970,
-            220,
+            400,
+            80,
+            860,
+            195,
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # CURRENT ORDER
-        # --------------------------------------------------------
+        # ========================================================
+        #
+        # Original width = 430
+        #
+        # New width:
+        # 430 × 0.70 = 301
+        #
 
         self.order_rect = pygame.Rect(
             35,
             560,
-            430,
+            300,
             135,
         )
 
-        # --------------------------------------------------------
-        # CUSTOMISATION PANEL
-        # --------------------------------------------------------
+        # ========================================================
+        # CUSTOMISATION
+        # ========================================================
 
         self.customise_rect = pygame.Rect(
             490,
@@ -258,9 +244,9 @@ class MixingStation:
             295,
         )
 
-        # --------------------------------------------------------
-        # BLENDER PANEL
-        # --------------------------------------------------------
+        # ========================================================
+        # BLENDER
+        # ========================================================
 
         self.blender_rect = pygame.Rect(
             800,
@@ -269,9 +255,9 @@ class MixingStation:
             295,
         )
 
-        # --------------------------------------------------------
-        # FINAL PREVIEW PANEL
-        # --------------------------------------------------------
+        # ========================================================
+        # PREVIEW
+        # ========================================================
 
         self.preview_rect = pygame.Rect(
             1110,
@@ -280,9 +266,9 @@ class MixingStation:
             295,
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # BLENDER JUG
-        # --------------------------------------------------------
+        # ========================================================
 
         self.blender_jug_rect = pygame.Rect(
             855,
@@ -291,9 +277,9 @@ class MixingStation:
             150,
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # BLEND BUTTON
-        # --------------------------------------------------------
+        # ========================================================
 
         self.blend_button = pygame.Rect(
             850,
@@ -302,9 +288,9 @@ class MixingStation:
             75,
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # PREVIEW IMAGE
-        # --------------------------------------------------------
+        # ========================================================
 
         self.preview_image_rect = pygame.Rect(
             1125,
@@ -313,31 +299,23 @@ class MixingStation:
             125,
         )
 
-        # --------------------------------------------------------
-        # PLACE INTO CUP
-        # --------------------------------------------------------
-
-        self.place_button = pygame.Rect(
-            1120,
-            580,
-            125,
-            45,
-        )
-
-        # --------------------------------------------------------
-        # SERVE
-        # --------------------------------------------------------
+        # ========================================================
+        # SERVE BUTTON
+        # ========================================================
+        #
+        # PLACE BUTTON HAS BEEN REMOVED.
+        #
 
         self.serve_button = pygame.Rect(
             1120,
-            635,
+            600,
             125,
-            45,
+            60,
         )
 
-        # --------------------------------------------------------
-        # TOPPING INFORMATION
-        # --------------------------------------------------------
+        # ========================================================
+        # TOPPINGS
+        # ========================================================
 
         self.toppings_rect = pygame.Rect(
             800,
@@ -365,7 +343,7 @@ class MixingStation:
         self._create_option_buttons()
 
         # ========================================================
-        # LEGACY COMPATIBILITY
+        # LEGACY BRIDGE
         # ========================================================
 
         self._attach_legacy_bridge()
@@ -375,16 +353,6 @@ class MixingStation:
     # ============================================================
 
     def _load_drink_images(self):
-        """
-        Loads all 9 official drink images.
-
-        Expected folder:
-
-            assets/
-                mahirah/
-                    drinks/
-
-        """
 
         filenames = {
             "Neon Latte": "neon_latte.png",
@@ -406,6 +374,7 @@ class MixingStation:
             )
 
             try:
+
                 image = pygame.image.load(
                     path
                 ).convert_alpha()
@@ -416,43 +385,43 @@ class MixingStation:
                 pygame.error,
                 FileNotFoundError,
             ):
+
                 print(
-                    f"[STATION] Could not load drink image: {path}"
+                    f"[STATION] Could not load: {path}"
                 )
 
                 self.drink_images[drink_name] = None
 
     # ============================================================
-    # MENU
+    # MENU SLOTS
     # ============================================================
 
     def _create_menu_slots(self):
-        """
-        Creates the 9 drink buttons.
-
-        All 9 drinks are always displayed.
-
-        Locked drinks:
-            - remain visible
-            - become dimmed
-            - cannot be clicked
-
-        """
 
         self.menu_slots.clear()
 
-        # Nine drink cards across the menu.
-        left = 285
-        top = 94
+        # --------------------------------------------------------
+        # 10% SMALLER THAN ORIGINAL
+        # --------------------------------------------------------
 
-        width = 102
-        height = 192
+        left = 405
+        top = 88
+
+        width = 92
+        height = 173
 
         gap = 5
 
-        for index, drink_name in enumerate(DRINK_MENU):
+        for index, drink_name in enumerate(
+            DRINK_MENU
+        ):
 
-            x = left + index * (width + gap)
+            x = (
+                left
+                + index * (
+                    width + gap
+                )
+            )
 
             rect = pygame.Rect(
                 x,
@@ -488,6 +457,7 @@ class MixingStation:
             x_positions,
             TEMPERATURE_OPTIONS,
         ):
+
             self.temperature_buttons[value] = pygame.Rect(
                 x,
                 465,
@@ -503,6 +473,7 @@ class MixingStation:
             x_positions,
             CAFFEINE_OPTIONS,
         ):
+
             self.caffeine_buttons[value] = pygame.Rect(
                 x,
                 535,
@@ -518,6 +489,7 @@ class MixingStation:
             x_positions,
             SWEETNESS_OPTIONS,
         ):
+
             self.sweetness_buttons[value] = pygame.Rect(
                 x,
                 605,
@@ -530,11 +502,6 @@ class MixingStation:
     # ============================================================
 
     def set_customer_order(self, order):
-        """
-        Gives the station the order generated by Customer.
-
-        The customer object itself remains controlled by main.py.
-        """
 
         self.customer_order = order
 
@@ -547,9 +514,6 @@ class MixingStation:
         self.served = False
 
     def update_customer_order(self, order):
-        """
-        Compatibility alias.
-        """
 
         self.set_customer_order(
             order
@@ -560,11 +524,6 @@ class MixingStation:
     # ============================================================
 
     def set_level(self, level):
-        """
-        Updates the level used by the drink menu.
-
-        This controls which drinks are unlocked.
-        """
 
         try:
             level = int(level)
@@ -581,9 +540,6 @@ class MixingStation:
     # ============================================================
 
     def set_progression(self, progression):
-        """
-        Connects the station to the Progression object.
-        """
 
         self.progression = progression
 
@@ -602,29 +558,26 @@ class MixingStation:
     # ============================================================
 
     def set_rewards(self, rewards):
-        """
-        Connects the station to RewardSystem.
-
-        The station does not calculate rewards.
-        """
 
         self.rewards = rewards
+
+    # ============================================================
+    # ECONOMY
+    # ============================================================
+
+    def set_economy(self, economy):
+
+        self.economy = economy
 
     # ============================================================
     # PLAYER DRINK DATA
     # ============================================================
 
     def get_player_drink_data(self):
-        """
-        Returns the drink currently created by the player.
-        """
 
         return self.game_state.get_player_drink_data()
 
     def get_data(self):
-        """
-        Compatibility alias.
-        """
 
         return self.get_player_drink_data()
 
@@ -633,17 +586,16 @@ class MixingStation:
     # ============================================================
 
     def _attach_legacy_bridge(self):
-        """
-        Keeps older Drink-based code working.
-
-        New code should use PlayerDrink and GameState.
-        """
 
         if self.drink is None:
             return
 
         try:
-            self.drink.get_data = self.get_data
+
+            self.drink.get_data = (
+                self.get_data
+            )
+
         except Exception:
             pass
 
@@ -652,18 +604,6 @@ class MixingStation:
     # ============================================================
 
     def _sync_legacy_values(self):
-        """
-        Converts the new text-based options into the old
-        0-100 numerical format.
-
-        This exists only for compatibility with older code.
-
-        Example:
-
-            Cold   -> 25
-            Normal -> 50
-            Hot    -> 75
-        """
 
         if self.drink is None:
             return
@@ -688,36 +628,40 @@ class MixingStation:
 
         try:
 
-            self.drink.temperature = temperature_map.get(
-                self.player_drink.temperature,
-                50,
+            self.drink.temperature = (
+                temperature_map.get(
+                    self.player_drink.temperature,
+                    50,
+                )
             )
 
-            self.drink.caffeine = caffeine_map.get(
-                self.player_drink.caffeine,
-                50,
+            self.drink.caffeine = (
+                caffeine_map.get(
+                    self.player_drink.caffeine,
+                    50,
+                )
             )
 
-            self.drink.sweetness = sweetness_map.get(
-                self.player_drink.sweetness,
-                50,
+            self.drink.sweetness = (
+                sweetness_map.get(
+                    self.player_drink.sweetness,
+                    50,
+                )
             )
 
         except Exception:
             pass
 
     # ============================================================
-    # BLENDING UPDATE
+    # BLENDING
     # ============================================================
 
     def _update_blending(self):
-        """
-        Checks whether the blender has finished.
 
-        Blending takes self.blend_duration seconds.
-        """
-
-        if self.game_state.state != GameState.BLENDING:
+        if (
+            self.game_state.state
+            != GameState.BLENDING
+        ):
             return
 
         elapsed = (
@@ -727,18 +671,33 @@ class MixingStation:
 
         if elapsed >= self.blend_duration:
 
+            # ----------------------------------------------------
+            # FINISH BLENDING
+            # ----------------------------------------------------
+
             self.game_state.finish_blending()
 
             self._sync_legacy_values()
+
+            # ----------------------------------------------------
+            # AUTOMATICALLY PLACE INTO CUP
+            # ----------------------------------------------------
+            #
+            # The PLACE button has been removed.
+            #
+            # Therefore, once blending is finished, the drink
+            # automatically moves to READY_TO_SERVE.
+            #
+
+            if self.game_state.can_place_into_cup():
+
+                self.game_state.place_into_cup()
 
     # ============================================================
     # INPUT
     # ============================================================
 
     def handle_event(self, event):
-        """
-        Handles all mouse interaction for the mixing station.
-        """
 
         if event.type != pygame.MOUSEBUTTONDOWN:
             return
@@ -748,7 +707,6 @@ class MixingStation:
 
         mouse = event.pos
 
-        # Update blender before processing new clicks.
         self._update_blending()
 
         # ========================================================
@@ -760,19 +718,15 @@ class MixingStation:
             if not rect.collidepoint(mouse):
                 continue
 
-            # Invalid drink name.
             if not is_valid_drink(drink_name):
                 return
 
-            # Locked drinks cannot be selected.
             if not is_drink_unlocked(
                 drink_name,
                 self.level,
             ):
                 return
 
-            # Cannot change the drink while the current drink
-            # is already being blended or prepared for serving.
             if self.game_state.state in (
                 GameState.BLENDING,
                 GameState.BLENDED,
@@ -781,17 +735,13 @@ class MixingStation:
             ):
                 return
 
-            # Move state into drink selection.
             self.game_state.state = (
                 GameState.SELECT_DRINK
             )
 
-            # Select drink through the state machine.
-            selected = self.game_state.select_drink(
+            if self.game_state.select_drink(
                 drink_name
-            )
-
-            if selected:
+            ):
 
                 self.player_drink.drink_name = (
                     drink_name
@@ -888,18 +838,6 @@ class MixingStation:
             return
 
         # ========================================================
-        # PLACE INTO CUP
-        # ========================================================
-
-        if self.place_button.collidepoint(mouse):
-
-            if self.game_state.can_place_into_cup():
-
-                self.game_state.place_into_cup()
-
-            return
-
-        # ========================================================
         # SERVE
         # ========================================================
 
@@ -920,16 +858,6 @@ class MixingStation:
     # ============================================================
 
     def update(self, dt=0):
-        """
-        Optional update method.
-
-        main.py can call:
-
-            mixing_station.update(dt)
-
-        The blender uses real time internally, so dt is currently
-        kept for compatibility/future expansion.
-        """
 
         self._update_blending()
 
@@ -938,9 +866,6 @@ class MixingStation:
     # ============================================================
 
     def draw(self, screen):
-        """
-        Draws the complete mixing station interface.
-        """
 
         self._update_blending()
 
@@ -963,39 +888,21 @@ class MixingStation:
     # ============================================================
 
     def _draw_hud(self, screen):
-        """
-        Compact Level / XP / Credits / Combo HUD.
-
-        Progression owns level and XP.
-
-        Rewards owns combo.
-
-        UIEconomy owns credits.
-
-        This method only READS those values.
-        """
 
         rect = self.hud_rect
 
+        # ALL NORMAL PANELS USE THE SAME PANEL STYLE.
         self._panel(
             screen,
             rect,
             self.CYAN,
-            self.PANEL_DARK,
+            self.PANEL,
         )
 
-        # --------------------------------------------------------
-        # DEFAULT VALUES
-        # --------------------------------------------------------
-
         level = self.level
-
         xp = 0
-
         max_xp = 100
-
         credits = 0
-
         combo = 0
 
         # --------------------------------------------------------
@@ -1016,12 +923,6 @@ class MixingStation:
                 xp,
             )
 
-            # Our cleaned Progression class provides:
-            #
-            # get_xp_required()
-            #
-            # instead of requiring a public xp_required field.
-
             if hasattr(
                 self.progression,
                 "get_xp_required",
@@ -1029,64 +930,63 @@ class MixingStation:
 
                 try:
 
-                    max_xp = self.progression.get_xp_required()
+                    max_xp = (
+                        self.progression
+                        .get_xp_required()
+                    )
 
                 except Exception:
 
                     max_xp = 100
 
-            else:
+        # --------------------------------------------------------
+        # ECONOMY
+        # --------------------------------------------------------
 
-                max_xp = getattr(
-                    self.progression,
-                    "xp_required",
-                    100,
-                )
+        if self.economy is not None:
 
-                if callable(max_xp):
-
-                    try:
-                        max_xp = max_xp()
-                    except Exception:
-                        max_xp = 100
+            credits = getattr(
+                self.economy,
+                "credits",
+                0,
+            )
 
         # --------------------------------------------------------
-        # REWARD SYSTEM
+        # COMBO
         # --------------------------------------------------------
 
         if self.rewards is not None:
 
-            # New RewardSystem uses combo_count.
             combo = getattr(
                 self.rewards,
                 "combo_count",
                 getattr(
                     self.rewards,
                     "combo",
-                    combo,
+                    0,
                 ),
             )
 
-        # --------------------------------------------------------
+        # ========================================================
         # LEVEL
-        # --------------------------------------------------------
+        # ========================================================
 
-        level_text = self.font_large.render(
-            f"★  LEVEL {level}",
+        level_text = self.font_medium.render(
+            f"★ LEVEL {level}",
             True,
             self.WHITE,
         )
 
         screen.blit(
             level_text,
-            (420, 25),
+            (35, 31),
         )
 
-        # --------------------------------------------------------
-        # XP LABEL
-        # --------------------------------------------------------
+        # ========================================================
+        # XP
+        # ========================================================
 
-        xp_label = self.font_large.render(
+        xp_label = self.font_medium.render(
             "XP",
             True,
             self.PINK_BRIGHT,
@@ -1094,25 +994,25 @@ class MixingStation:
 
         screen.blit(
             xp_label,
-            (595, 25),
+            (150, 31),
         )
 
         # --------------------------------------------------------
-        # XP BAR
+        # SMALLER XP BAR
         # --------------------------------------------------------
 
         xp_bar = pygame.Rect(
-            650,
-            27,
-            205,
-            22,
+            180,
+            28,
+            145,
+            18,
         )
 
         pygame.draw.rect(
             screen,
             (18, 24, 48),
             xp_bar,
-            border_radius=11,
+            border_radius=9,
         )
 
         pygame.draw.rect(
@@ -1120,7 +1020,7 @@ class MixingStation:
             self.CYAN,
             xp_bar,
             width=2,
-            border_radius=11,
+            border_radius=9,
         )
 
         ratio = 0.0
@@ -1151,11 +1051,11 @@ class MixingStation:
                     fill_width,
                     xp_bar.height - 6,
                 ),
-                border_radius=8,
+                border_radius=7,
             )
 
         xp_number = self.font_small.render(
-            f"{xp} / {max_xp}",
+            f"{xp}/{max_xp}",
             True,
             self.WHITE,
         )
@@ -1167,63 +1067,48 @@ class MixingStation:
             ),
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # CREDITS
-        # --------------------------------------------------------
+        # ========================================================
 
-        # UIEconomy stores credits.
-        #
-        # The station can receive either the economy object
-        # through rewards/economy integration later, or a reward
-        # object.
-        #
-        # For now, safely look for credits.
-
-        if self.rewards is not None:
-
-            credits = getattr(
-                self.rewards,
-                "credits",
-                credits,
-            )
-
-        credit_text = self.font_large.render(
-            f"☕ CREDITS   ${credits}",
+        credit_text = self.font_medium.render(
+            f"☕ ${credits}",
             True,
             self.YELLOW,
         )
 
         screen.blit(
             credit_text,
-            (875, 25),
+            (350, 31),
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # COMBO
-        # --------------------------------------------------------
+        # ========================================================
 
-        combo_text = self.font_large.render(
-            f"🔥 COMBO × {combo}",
+        combo_text = self.font_medium.render(
+            f"🔥 × {combo}",
             True,
             self.CYAN_BRIGHT,
         )
 
         screen.blit(
             combo_text,
-            (1070, 25),
+            (435, 31),
         )
 
     # ============================================================
-    # DRINK MENU DRAW
+    # DRINK MENU
     # ============================================================
 
     def _draw_menu(self, screen):
 
+        # Unified panel colour.
         self._panel(
             screen,
             self.menu_rect,
             self.CYAN,
-            self.PANEL_DARK,
+            self.PANEL,
         )
 
         for drink_name, rect in self.menu_slots:
@@ -1239,45 +1124,23 @@ class MixingStation:
             )
 
             # ----------------------------------------------------
-            # CARD STYLE
+            # CARD
             # ----------------------------------------------------
 
             if selected:
 
                 border = self.PINK_BRIGHT
 
-                fill = (
-                    45,
-                    14,
-                    52,
-                    245,
-                )
-
             elif unlocked:
 
                 border = self.CYAN
 
-                fill = (
-                    10,
-                    16,
-                    34,
-                    245,
-                )
-
             else:
 
-                border = (
-                    50,
-                    55,
-                    80,
-                )
+                border = self.LOCKED
 
-                fill = (
-                    8,
-                    10,
-                    22,
-                    235,
-                )
+            # Same panel fill for every card.
+            fill = self.PANEL
 
             self._panel(
                 screen,
@@ -1287,7 +1150,7 @@ class MixingStation:
             )
 
             # ----------------------------------------------------
-            # DRINK IMAGE
+            # IMAGE
             # ----------------------------------------------------
 
             image = self.drink_images.get(
@@ -1295,10 +1158,10 @@ class MixingStation:
             )
 
             image_area = pygame.Rect(
-                rect.x + 8,
-                rect.y + 10,
-                rect.width - 16,
-                135,
+                rect.x + 6,
+                rect.y + 8,
+                rect.width - 12,
+                120,
             )
 
             if image is not None:
@@ -1311,7 +1174,7 @@ class MixingStation:
                 )
 
             # ----------------------------------------------------
-            # LOCK ICON
+            # LOCK
             # ----------------------------------------------------
 
             if not unlocked:
@@ -1319,11 +1182,11 @@ class MixingStation:
                 self._draw_lock(
                     screen,
                     rect.centerx,
-                    rect.y + 80,
+                    rect.y + 70,
                 )
 
             # ----------------------------------------------------
-            # DRINK NAME
+            # NAME
             # ----------------------------------------------------
 
             name = self.font_small.render(
@@ -1341,7 +1204,7 @@ class MixingStation:
                 name.get_rect(
                     center=(
                         rect.centerx,
-                        rect.bottom - 27,
+                        rect.bottom - 20,
                     )
                 ),
             )
@@ -1351,37 +1214,32 @@ class MixingStation:
     # ============================================================
 
     def _draw_order(self, screen):
-        """
-        Draws the customer's order underneath the customer.
-
-        The customer itself is NOT drawn here.
-        """
 
         self._panel(
             screen,
             self.order_rect,
-            self.PINK,
+            self.CYAN,
             self.PANEL,
         )
 
         title = self.font_medium.render(
-            "☕  CURRENT ORDER",
+            "☕ CURRENT ORDER",
             True,
             self.PINK_BRIGHT,
         )
 
         screen.blit(
             title,
-            (55, 572),
+            (50, 572),
         )
 
         # --------------------------------------------------------
-        # NO ORDER
+        # NO CUSTOMER
         # --------------------------------------------------------
 
         if self.customer_order is None:
 
-            text = self.font_medium.render(
+            text = self.font_small.render(
                 "WAITING FOR CUSTOMER...",
                 True,
                 self.MUTED,
@@ -1389,16 +1247,12 @@ class MixingStation:
 
             screen.blit(
                 text,
-                (55, 625),
+                (50, 625),
             )
 
             return
 
         order = self.customer_order
-
-        # --------------------------------------------------------
-        # ORDER VALUES
-        # --------------------------------------------------------
 
         drink_name = getattr(
             order,
@@ -1425,7 +1279,7 @@ class MixingStation:
         )
 
         # --------------------------------------------------------
-        # DRINK IMAGE
+        # IMAGE
         # --------------------------------------------------------
 
         image = self.drink_images.get(
@@ -1438,10 +1292,10 @@ class MixingStation:
                 screen,
                 image,
                 pygame.Rect(
-                    55,
+                    50,
                     600,
-                    65,
-                    80,
+                    55,
+                    75,
                 ),
                 True,
             )
@@ -1450,7 +1304,7 @@ class MixingStation:
         # DRINK NAME
         # --------------------------------------------------------
 
-        drink_text = self.font_medium.render(
+        drink_text = self.font_small.render(
             str(drink_name),
             True,
             self.PINK_BRIGHT,
@@ -1458,11 +1312,11 @@ class MixingStation:
 
         screen.blit(
             drink_text,
-            (135, 600),
+            (115, 600),
         )
 
         # --------------------------------------------------------
-        # CUSTOMISATION VALUES
+        # VALUES
         # --------------------------------------------------------
 
         values = (
@@ -1472,12 +1326,15 @@ class MixingStation:
         )
 
         labels = (
-            "Temperature",
+            "Temp",
             "Caffeine",
-            "Sweetness",
+            "Sweet",
         )
 
-        for index, (label, value) in enumerate(
+        for index, (
+            label,
+            value,
+        ) in enumerate(
             zip(
                 labels,
                 values,
@@ -1493,13 +1350,13 @@ class MixingStation:
             screen.blit(
                 text,
                 (
-                    135,
-                    625 + index * 19,
+                    115,
+                    620 + index * 18,
                 ),
             )
 
     # ============================================================
-    # CUSTOMISE PANEL
+    # CUSTOMISE
     # ============================================================
 
     def _draw_customise(self, screen):
@@ -1527,10 +1384,6 @@ class MixingStation:
             ),
         )
 
-        # --------------------------------------------------------
-        # TEMPERATURE
-        # --------------------------------------------------------
-
         self._draw_option_row(
             screen,
             "TEMPERATURE",
@@ -1538,20 +1391,12 @@ class MixingStation:
             self.player_drink.temperature,
         )
 
-        # --------------------------------------------------------
-        # CAFFEINE
-        # --------------------------------------------------------
-
         self._draw_option_row(
             screen,
             "CAFFEINE LEVEL",
             self.caffeine_buttons,
             self.player_drink.caffeine,
         )
-
-        # --------------------------------------------------------
-        # SWEETNESS
-        # --------------------------------------------------------
 
         self._draw_option_row(
             screen,
@@ -1581,10 +1426,6 @@ class MixingStation:
             )
         )
 
-        # --------------------------------------------------------
-        # LABEL
-        # --------------------------------------------------------
-
         label_surface = self.font_small.render(
             label,
             True,
@@ -1599,11 +1440,9 @@ class MixingStation:
             ),
         )
 
-        # --------------------------------------------------------
-        # BUTTONS
-        # --------------------------------------------------------
-
-        enabled = self.game_state.can_customize()
+        enabled = (
+            self.game_state.can_customize()
+        )
 
         for value, rect in buttons.items():
 
@@ -1614,20 +1453,16 @@ class MixingStation:
             if active:
 
                 fill = (
-                    50,
-                    18,
-                    62,
+                    45,
+                    15,
+                    55,
                 )
 
                 border = self.PINK_BRIGHT
 
             elif enabled:
 
-                fill = (
-                    10,
-                    18,
-                    38,
-                )
+                fill = self.BUTTON_DARK
 
                 border = self.CYAN
 
@@ -1639,11 +1474,7 @@ class MixingStation:
                     24,
                 )
 
-                border = (
-                    55,
-                    60,
-                    80,
-                )
+                border = self.LOCKED
 
             self._panel(
                 screen,
@@ -1676,13 +1507,9 @@ class MixingStation:
         self._panel(
             screen,
             self.blender_rect,
-            self.PURPLE,
-            self.PANEL_DARK,
+            self.CYAN,
+            self.PANEL,
         )
-
-        # --------------------------------------------------------
-        # TITLE
-        # --------------------------------------------------------
 
         title = self.font_large.render(
             "BLENDER",
@@ -1700,11 +1527,11 @@ class MixingStation:
             ),
         )
 
+        jug = self.blender_jug_rect
+
         # --------------------------------------------------------
         # JUG
         # --------------------------------------------------------
-
-        jug = self.blender_jug_rect
 
         pygame.draw.rect(
             screen,
@@ -1719,32 +1546,6 @@ class MixingStation:
             jug,
             width=2,
             border_radius=22,
-        )
-
-        # --------------------------------------------------------
-        # HANDLE
-        # --------------------------------------------------------
-
-        handle = pygame.Rect(
-            jug.right - 4,
-            jug.y + 40,
-            25,
-            65,
-        )
-
-        pygame.draw.rect(
-            screen,
-            (18, 22, 45),
-            handle,
-            border_radius=10,
-        )
-
-        pygame.draw.rect(
-            screen,
-            self.CYAN,
-            handle,
-            width=2,
-            border_radius=10,
         )
 
         # --------------------------------------------------------
@@ -1771,28 +1572,24 @@ class MixingStation:
                 )
             )
 
-            liquid_height = 90
+            height = 90
 
-            # Animated liquid while blending.
             if (
                 self.game_state.state
                 == GameState.BLENDING
             ):
 
-                liquid_height += (
+                height += (
                     int(
                         time.monotonic() * 10
-                    )
-                    % 10
+                    ) % 10
                 )
 
             liquid = pygame.Rect(
                 jug.x + 12,
-                jug.bottom
-                - liquid_height
-                - 10,
+                jug.bottom - height - 10,
                 jug.width - 24,
-                liquid_height,
+                height,
             )
 
             pygame.draw.rect(
@@ -1803,7 +1600,7 @@ class MixingStation:
             )
 
             # ----------------------------------------------------
-            # LIQUID SWIRL
+            # SWIRL
             # ----------------------------------------------------
 
             pygame.draw.arc(
@@ -1819,51 +1616,6 @@ class MixingStation:
                 5,
                 3,
             )
-
-            # ----------------------------------------------------
-            # BLENDING BUBBLES
-            # ----------------------------------------------------
-
-            if (
-                self.game_state.state
-                == GameState.BLENDING
-            ):
-
-                current_time = time.monotonic()
-
-                bubble_x = (
-                    liquid.x
-                    + 30
-                    + int(
-                        current_time * 50
-                    )
-                    % max(
-                        1,
-                        liquid.width - 60,
-                    )
-                )
-
-                bubble_y = (
-                    liquid.y
-                    + 25
-                    + int(
-                        current_time * 35
-                    )
-                    % max(
-                        1,
-                        liquid.height - 35,
-                    )
-                )
-
-                pygame.draw.circle(
-                    screen,
-                    self.WHITE,
-                    (
-                        bubble_x,
-                        bubble_y,
-                    ),
-                    4,
-                )
 
         else:
 
@@ -1881,7 +1633,7 @@ class MixingStation:
             )
 
         # --------------------------------------------------------
-        # BLENDER BASE
+        # BASE
         # --------------------------------------------------------
 
         base = pygame.Rect(
@@ -1900,7 +1652,7 @@ class MixingStation:
 
         pygame.draw.rect(
             screen,
-            self.PINK,
+            self.CYAN,
             base,
             width=2,
             border_radius=12,
@@ -1923,16 +1675,9 @@ class MixingStation:
     # ============================================================
 
     def _draw_toppings(self, screen):
-        """
-        Toppings are visual only.
-
-        The player does NOT click a topping menu.
-
-        Recipes determine which toppings belong to each drink.
-        """
 
         title = self.font_small.render(
-            "TOPPINGS  •  AUTOMATIC  •  VISUAL ONLY",
+            "TOPPINGS • AUTOMATIC • VISUAL ONLY",
             True,
             self.MUTED,
         )
@@ -1946,7 +1691,7 @@ class MixingStation:
         )
 
     # ============================================================
-    # FINAL PREVIEW
+    # PREVIEW
     # ============================================================
 
     def _draw_preview(self, screen):
@@ -1954,13 +1699,9 @@ class MixingStation:
         self._panel(
             screen,
             self.preview_rect,
-            self.PINK,
+            self.CYAN,
             self.PANEL,
         )
-
-        # --------------------------------------------------------
-        # TITLE
-        # --------------------------------------------------------
 
         title = self.font_medium.render(
             "PREVIEW",
@@ -1977,10 +1718,6 @@ class MixingStation:
                 )
             ),
         )
-
-        # --------------------------------------------------------
-        # IMAGE
-        # --------------------------------------------------------
 
         image = self.drink_images.get(
             self.player_drink.drink_name
@@ -2011,20 +1748,11 @@ class MixingStation:
             )
 
         # --------------------------------------------------------
-        # PLACE INTO CUP
+        # SERVE ONLY
         # --------------------------------------------------------
-
-        self._action_button(
-            screen,
-            self.place_button,
-            "PLACE",
-            self.PINK,
-            self.game_state.can_place_into_cup(),
-        )
-
-        # --------------------------------------------------------
-        # SERVE
-        # --------------------------------------------------------
+        #
+        # PLACE BUTTON HAS BEEN COMPLETELY REMOVED.
+        #
 
         self._action_button(
             screen,
@@ -2035,7 +1763,7 @@ class MixingStation:
         )
 
     # ============================================================
-    # GENERIC PANEL
+    # PANEL
     # ============================================================
 
     def _panel(
@@ -2045,9 +1773,6 @@ class MixingStation:
         border,
         fill,
     ):
-        """
-        Draws a rounded cyberpunk panel.
-        """
 
         surface = pygame.Surface(
             rect.size,
@@ -2086,14 +1811,6 @@ class MixingStation:
         accent,
         enabled,
     ):
-        """
-        Draws an interactive-looking action button.
-
-        It changes appearance when:
-            - enabled
-            - hovered
-            - disabled
-        """
 
         mouse = pygame.mouse.get_pos()
 
@@ -2120,11 +1837,7 @@ class MixingStation:
 
         else:
 
-            border = (
-                55,
-                60,
-                80,
-            )
+            border = self.LOCKED
 
             fill = (
                 9,
@@ -2155,7 +1868,7 @@ class MixingStation:
         )
 
     # ============================================================
-    # IMAGE SCALING
+    # IMAGE FIT
     # ============================================================
 
     def _image_fit(
@@ -2165,9 +1878,6 @@ class MixingStation:
         target,
         bright=True,
     ):
-        """
-        Scales an image while preserving its aspect ratio.
-        """
 
         width, height = image.get_size()
 
@@ -2195,10 +1905,6 @@ class MixingStation:
             size,
         )
 
-        # --------------------------------------------------------
-        # LOCKED IMAGE EFFECT
-        # --------------------------------------------------------
-
         if not bright:
 
             scaled = scaled.copy()
@@ -2214,7 +1920,7 @@ class MixingStation:
             )
 
         destination = scaled.get_rect(
-            center=target.center,
+            center=target.center
         )
 
         screen.blit(
@@ -2223,7 +1929,7 @@ class MixingStation:
         )
 
     # ============================================================
-    # LOCK ICON
+    # LOCK
     # ============================================================
 
     def _draw_lock(
@@ -2232,9 +1938,6 @@ class MixingStation:
         x,
         y,
     ):
-        """
-        Draws a simple lock symbol over locked drinks.
-        """
 
         body = pygame.Rect(
             x - 10,
@@ -2269,9 +1972,6 @@ class MixingStation:
     # ============================================================
 
     def reset(self):
-        """
-        Completely resets the mixing station for a new customer.
-        """
 
         self.player_drink.reset()
 
