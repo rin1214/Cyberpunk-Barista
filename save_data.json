@@ -114,8 +114,38 @@
         "location": "BACK ALLEY KIOSK"
     },
     "rob": {
-        "credits": 191,
-        "xp": 95,
+        "credits": 246,
+        "xp": 200,
+        "level": 2,
+        "location": "Cyber District"
+    },
+    "caleb": {
+        "credits": 109,
+        "xp": 35,
+        "level": 1,
+        "location": "Neon Alley"
+    },
+    "alex": {
+        "credits": 130,
+        "xp": 40,
+        "level": 1,
+        "location": "Neon Alley"
+    },
+    "fcv": {
+        "credits": 238,
+        "xp": 100,
+        "level": 2,
+        "location": "Cyber District"
+    },
+    "wayi": {
+        "credits": 179,
+        "xp": 25,
+        "level": 2,
+        "location": "Cyber District"
+    },
+    "kay": {
+        "credits": 163,
+        "xp": 5,
         "level": 2,
         "location": "Cyber District"
     }
