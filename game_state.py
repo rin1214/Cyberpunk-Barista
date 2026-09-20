@@ -6,25 +6,17 @@ from enum import Enum, auto
 # GAME STATE SYSTEM
 # ============================================================
 #
-# This file controls the LOGICAL stages of making a drink.
+# This file controls the LOGICAL stage of making a drink.
 #
 # It does NOT draw anything.
+# It does NOT handle images.
+# It does NOT handle buttons visually.
 #
-# It does NOT control:
-#   - graphics
-#   - blender animation
-#   - customer graphics
-#   - XP
-#   - credits
-#   - rewards
+# The MixingStation asks this class:
 #
-# Those responsibilities belong to other files.
+#     "Can I do this action right now?"
 #
-# The MixingStation asks this system:
-#
-#   "Can I do this action right now?"
-#
-# and this class returns True or False.
+# This keeps the gameplay rules separate from the graphics.
 #
 # ============================================================
 
@@ -35,23 +27,23 @@ class GameState(Enum):
     """
 
     # --------------------------------------------------------
-    # NO ACTIVE ORDER
+    # No active order is currently being processed.
     # --------------------------------------------------------
 
     WAITING_FOR_ORDER = auto()
 
     # --------------------------------------------------------
-    # CUSTOMER HAS AN ORDER
+    # A customer has an order.
     #
-    # Player must select the requested drink.
+    # The player must choose the drink.
     # --------------------------------------------------------
 
     SELECT_DRINK = auto()
 
     # --------------------------------------------------------
-    # DRINK SELECTED
+    # The drink has been selected.
     #
-    # Player must choose:
+    # The player must choose:
     #
     #   Temperature
     #   Caffeine
@@ -61,40 +53,38 @@ class GameState(Enum):
     CUSTOMISE = auto()
 
     # --------------------------------------------------------
-    # ALL CUSTOMISATION COMPLETE
+    # All three customisation choices are complete.
     #
-    # Player can now press BLEND.
+    # The player can now press BLEND.
     # --------------------------------------------------------
 
     READY_TO_BLEND = auto()
 
     # --------------------------------------------------------
-    # BLENDER IS RUNNING
-    #
-    # station.py controls the actual animation.
+    # Blender is currently running.
     # --------------------------------------------------------
 
     BLENDING = auto()
 
     # --------------------------------------------------------
-    # BLENDING FINISHED
+    # Blender has finished.
     #
-    # Drink is automatically ready to serve.
+    # There is NO PLACE INTO CUP step anymore.
     #
-    # There is NO PLACE INTO CUP state anymore.
+    # The drink automatically becomes ready to serve.
     # --------------------------------------------------------
 
     READY_TO_SERVE = auto()
 
     # --------------------------------------------------------
-    # DRINK HAS BEEN SERVED
+    # The drink has been served.
     # --------------------------------------------------------
 
     SERVED = auto()
 
 
 # ============================================================
-# MIXING STATION CONTROLLER
+# MIXING GAME STATE
 # ============================================================
 
 
@@ -102,9 +92,44 @@ class MixingGameState:
     """
     Controls the logical state of the Mixing Station.
 
-    This class does NOT draw anything.
+    This class does not draw anything.
 
-    It only controls what the player is allowed to do.
+    It only manages:
+
+        - customer order
+        - drink selection
+        - customisation
+        - blending
+        - serving
+
+    ========================================================
+    NEW GAMEPLAY FLOW
+    ========================================================
+
+        WAITING_FOR_ORDER
+                ↓
+        SELECT_DRINK
+                ↓
+        CUSTOMISE
+                ↓
+        READY_TO_BLEND
+                ↓
+        BLENDING
+                ↓
+        READY_TO_SERVE
+                ↓
+        SERVED
+
+    ========================================================
+
+    There is deliberately NO:
+
+        BLENDED
+        CUP_READY
+        PLACE INTO CUP
+
+    because the player should not have to press a
+    separate Place button anymore.
     """
 
     def __init__(self):
@@ -155,22 +180,18 @@ class MixingGameState:
         """
         Give the Mixing Station a new customer order.
 
-        A new order starts a completely fresh drink-making
-        process.
+        Starting a new order clears all previous
+        drink-making selections.
         """
 
         self.current_order = order
 
-        # Clear previous drink.
         self.clear_player_selections()
 
-        # Reset blender.
         self.blend_finished = False
 
-        # Reset serving.
         self.served = False
 
-        # The player now needs to choose a drink.
         self.state = (
             GameState.SELECT_DRINK
         )
@@ -181,7 +202,7 @@ class MixingGameState:
 
     def clear_player_selections(self):
         """
-        Clears all current drink selections.
+        Remove all current player selections.
         """
 
         self.selected_drink = None
@@ -198,8 +219,8 @@ class MixingGameState:
 
     def can_select_drink(self):
         """
-        Returns True when the player is allowed to select
-        a drink from the menu.
+        Returns True when the player is allowed
+        to select a drink.
         """
 
         return (
@@ -207,23 +228,23 @@ class MixingGameState:
             == GameState.SELECT_DRINK
         )
 
-    def select_drink(self, drink_name):
+    def select_drink(
+        self,
+        drink_name,
+    ):
         """
-        Selects the player's drink.
+        Select a drink.
 
-        Once a drink is selected, the state changes to
-        CUSTOMISE.
+        Once selected, the game moves to CUSTOMISE.
         """
 
         if not self.can_select_drink():
 
             return False
 
-        if not drink_name:
-
-            return False
-
-        self.selected_drink = drink_name
+        self.selected_drink = (
+            drink_name
+        )
 
         self.state = (
             GameState.CUSTOMISE
@@ -237,11 +258,8 @@ class MixingGameState:
 
     def can_customize(self):
         """
-        Returns True when the player can change:
-
-            Temperature
-            Caffeine
-            Sweetness
+        Returns True when the player is allowed
+        to change the drink customisation.
         """
 
         return (
@@ -254,19 +272,21 @@ class MixingGameState:
     # ========================================================
 
     def can_select_temperature(self):
+        """
+        Returns True if temperature can be selected.
+        """
 
         return self.can_customize()
 
-    def select_temperature(self, temperature):
+    def select_temperature(
+        self,
+        temperature,
+    ):
         """
-        Selects temperature.
+        Select the drink temperature.
         """
 
         if not self.can_select_temperature():
-
-            return False
-
-        if not temperature:
 
             return False
 
@@ -283,19 +303,21 @@ class MixingGameState:
     # ========================================================
 
     def can_select_caffeine(self):
+        """
+        Returns True if caffeine can be selected.
+        """
 
         return self.can_customize()
 
-    def select_caffeine(self, caffeine):
+    def select_caffeine(
+        self,
+        caffeine,
+    ):
         """
-        Selects caffeine level.
+        Select the drink caffeine level.
         """
 
         if not self.can_select_caffeine():
-
-            return False
-
-        if not caffeine:
 
             return False
 
@@ -312,19 +334,21 @@ class MixingGameState:
     # ========================================================
 
     def can_select_sweetness(self):
+        """
+        Returns True if sweetness can be selected.
+        """
 
         return self.can_customize()
 
-    def select_sweetness(self, sweetness):
+    def select_sweetness(
+        self,
+        sweetness,
+    ):
         """
-        Selects sweetness level.
+        Select the drink sweetness level.
         """
 
         if not self.can_select_sweetness():
-
-            return False
-
-        if not sweetness:
 
             return False
 
@@ -342,18 +366,25 @@ class MixingGameState:
 
     def _check_customisation_complete(self):
         """
-        Checks whether all three customisation choices
-        have been selected.
+        Check whether all three customisation
+        categories have been selected.
+
+        Required:
+
+            Temperature
+            Caffeine
+            Sweetness
         """
 
         complete = (
-            self.selected_drink is not None
+            self.selected_temperature
+            is not None
             and
-            self.selected_temperature is not None
+            self.selected_caffeine
+            is not None
             and
-            self.selected_caffeine is not None
-            and
-            self.selected_sweetness is not None
+            self.selected_sweetness
+            is not None
         )
 
         if complete:
@@ -368,7 +399,7 @@ class MixingGameState:
 
     def can_blend(self):
         """
-        Returns True only when all drink choices are complete.
+        Returns True when the player can press BLEND.
         """
 
         return (
@@ -378,9 +409,11 @@ class MixingGameState:
 
     def start_blending(self):
         """
-        Starts the logical blender state.
+        Start the blender.
 
-        station.py will handle the visual animation.
+        READY_TO_BLEND
+                ↓
+           BLENDING
         """
 
         if not self.can_blend():
@@ -401,12 +434,14 @@ class MixingGameState:
 
     def finish_blending(self):
         """
-        Called by station.py when the blender animation
-        has actually finished.
+        Finish the blender animation.
 
-        The drink immediately becomes ready to serve.
+        BLENDING
+             ↓
+        READY_TO_SERVE
 
-        There is no CUP_READY state anymore.
+        There is deliberately no intermediate
+        BLENDED or CUP_READY state.
         """
 
         if (
@@ -425,12 +460,13 @@ class MixingGameState:
         return True
 
     # ========================================================
-    # READY TO SERVE
+    # SERVING
     # ========================================================
 
     def can_serve(self):
         """
-        Returns True when the completed drink can be served.
+        Returns True when the finished drink
+        can be served.
         """
 
         return (
@@ -440,13 +476,13 @@ class MixingGameState:
             self.blend_finished
         )
 
-    # ========================================================
-    # SERVE
-    # ========================================================
-
     def serve(self):
         """
-        Marks the drink as served.
+        Serve the completed drink.
+
+        READY_TO_SERVE
+                ↓
+             SERVED
         """
 
         if not self.can_serve():
@@ -467,50 +503,33 @@ class MixingGameState:
 
     def get_player_drink_data(self):
         """
-        Returns the player's current drink data.
+        Return the completed player drink.
 
-        The result is a dictionary containing:
-
-            drink
-            temperature
-            caffeine
-            sweetness
-
-        This is passed to OrderAccuracy.
+        The result is a dictionary because the existing
+        accuracy/reward systems use this format.
         """
 
         return {
             "drink": self.selected_drink,
 
-            "temperature": (
-                self.selected_temperature
-            ),
+            "temperature":
+                self.selected_temperature,
 
-            "caffeine": (
-                self.selected_caffeine
-            ),
+            "caffeine":
+                self.selected_caffeine,
 
-            "sweetness": (
-                self.selected_sweetness
-            ),
+            "sweetness":
+                self.selected_sweetness,
         }
-
-    # ========================================================
-    # CURRENT ORDER
-    # ========================================================
-
-    def get_current_order(self):
-        """
-        Returns the customer's current order.
-        """
-
-        return self.current_order
 
     # ========================================================
     # STATE CHECK HELPERS
     # ========================================================
 
-    def is_waiting(self):
+    def is_waiting_for_order(self):
+        """
+        Check whether there is no active order.
+        """
 
         return (
             self.state
@@ -518,6 +537,10 @@ class MixingGameState:
         )
 
     def is_selecting_drink(self):
+        """
+        Check whether the player is selecting
+        the drink.
+        """
 
         return (
             self.state
@@ -525,6 +548,10 @@ class MixingGameState:
         )
 
     def is_customising(self):
+        """
+        Check whether the player is customising
+        the drink.
+        """
 
         return (
             self.state
@@ -532,6 +559,9 @@ class MixingGameState:
         )
 
     def is_ready_to_blend(self):
+        """
+        Check whether BLEND can be pressed.
+        """
 
         return (
             self.state
@@ -539,6 +569,9 @@ class MixingGameState:
         )
 
     def is_blending(self):
+        """
+        Check whether the blender is running.
+        """
 
         return (
             self.state
@@ -546,6 +579,9 @@ class MixingGameState:
         )
 
     def is_ready_to_serve(self):
+        """
+        Check whether the drink is ready to serve.
+        """
 
         return (
             self.state
@@ -553,6 +589,9 @@ class MixingGameState:
         )
 
     def is_served(self):
+        """
+        Check whether the drink has already been served.
+        """
 
         return (
             self.state
@@ -565,7 +604,7 @@ class MixingGameState:
 
     def reset(self):
         """
-        Completely resets the Mixing Station state.
+        Completely reset the mixing station state.
         """
 
         self.state = (
@@ -579,3 +618,8 @@ class MixingGameState:
         self.blend_finished = False
 
         self.served = False
+
+
+# ============================================================
+# END OF GAME_STATE.PY
+# ============================================================
