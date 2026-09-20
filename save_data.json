@@ -54,16 +54,16 @@
         "location": "BACK ALLEY KIOSK"
     },
     "kale": {
-        "credits": 0,
-        "xp": 0,
-        "level": 1,
-        "location": "BACK ALLEY KIOSK"
+        "credits": 112,
+        "xp": 130,
+        "level": 2,
+        "location": "Cyber District"
     },
     "lolo": {
-        "credits": 80,
-        "xp": 0,
-        "level": 1,
-        "location": "BACK ALLEY KIOSK"
+        "credits": 652,
+        "xp": 30,
+        "level": 4,
+        "location": "Penthouse Caf\u00e9"
     },
     "debu": {
         "credits": 90,
@@ -80,6 +80,12 @@
     "hell": {
         "credits": 209,
         "xp": 65,
+        "level": 2,
+        "location": "Cyber District"
+    },
+    "adely": {
+        "credits": 238,
+        "xp": 120,
         "level": 2,
         "location": "Cyber District"
     }
