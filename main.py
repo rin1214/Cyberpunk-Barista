@@ -445,8 +445,16 @@ def switch_level(
     mixing_station,
 ):
     """
-    Switch the active game to a requested unlocked level.
+    Switch the active game to one of the three playable levels.
     """
+
+    level = max(
+        1,
+        min(
+            int(level),
+            3,
+        ),
+    )
 
     economy.set_level(
         level
@@ -1177,15 +1185,46 @@ while running:
                     f"{served_quickly}"
                 )
 
-                print(
-                    f"XP Earned: "
-                    f"+{reward_result.total_xp}"
-                )
+                if reward_result.total_xp >= 0:
+
+                    print(
+                        f"XP Earned: "
+                        f"+{reward_result.total_xp}"
+                    )
+
+                else:
+
+                    print(
+                        f"XP Penalty: "
+                        f"{reward_result.total_xp}"
+                    )
 
                 print(
                     f"Credits Change: "
                     f"{reward_result.net_credits:+}"
                 )
+
+                if getattr(
+                    reward_result,
+                    "xp_penalty",
+                    0,
+                ) > 0:
+
+                    print(
+                        f"XP Penalty Applied: "
+                        f"-{reward_result.xp_penalty}"
+                    )
+
+                if getattr(
+                    reward_result,
+                    "credit_penalty",
+                    0,
+                ) > 0:
+
+                    print(
+                        f"Credit Penalty Applied: "
+                        f"-{reward_result.credit_penalty}"
+                    )
 
                 print(
                     f"Combo: "

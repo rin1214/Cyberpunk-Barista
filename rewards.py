@@ -73,8 +73,10 @@ class RewardResult:
     speed_bonus_credits: int
 
     # --------------------------------------------------------
-    # MISTAKE PENALTY
+    # MISTAKE PENALTIES
     # --------------------------------------------------------
+
+    xp_penalty: int
 
     credit_penalty: int
 
@@ -157,7 +159,7 @@ class RewardSystem:
     BASE_REWARDS = {
 
         # ----------------------------------------------------
-        # PERFECT ORDER
+        # ONLY A PERFECT 4/4 ORDER EARNS POSITIVE PROGRESSION
         # ----------------------------------------------------
 
         4: (
@@ -166,47 +168,40 @@ class RewardSystem:
         ),
 
         # ----------------------------------------------------
-        # 3 / 4
+        # IMPERFECT ORDERS DO NOT EARN XP OR CREDITS
+        # ----------------------------------------------------
+        #
+        # They receive the mistake penalties below instead.
         # ----------------------------------------------------
 
         3: (
-            30,
-            24,
+            0,
+            0,
         ),
-
-        # ----------------------------------------------------
-        # 2 / 4
-        # ----------------------------------------------------
 
         2: (
-            20,
-            18,
+            0,
+            0,
         ),
-
-        # ----------------------------------------------------
-        # 1 / 4
-        # ----------------------------------------------------
 
         1: (
-            10,
-            10,
+            0,
+            0,
         ),
 
-        # ----------------------------------------------------
-        # 0 / 4
-        # ----------------------------------------------------
-
         0: (
-            5,
-            5,
+            0,
+            0,
         ),
     }
 
     # ========================================================
-    # MISTAKE PENALTY
+    # MISTAKE PENALTIES
     # ========================================================
 
-    # Every imperfect order receives a $10 penalty.
+    # Every imperfect order loses 10 XP and $10.
+
+    MISTAKE_XP_PENALTY = 10
 
     MISTAKE_CREDIT_PENALTY = 10
 
@@ -313,6 +308,30 @@ class RewardSystem:
     # GET MISTAKE PENALTY
     # ========================================================
 
+    def get_mistake_xp_penalty(
+        self,
+        correct_count,
+    ):
+        """
+        Returns the XP penalty for an imperfect order.
+
+        4/4 → 0 XP penalty
+        3/4 → -10 XP
+        2/4 → -10 XP
+        1/4 → -10 XP
+        0/4 → -10 XP
+        """
+
+        try:
+            correct_count = int(correct_count)
+        except (TypeError, ValueError):
+            correct_count = 0
+
+        if correct_count == 4:
+            return 0
+
+        return self.MISTAKE_XP_PENALTY
+
     def get_mistake_penalty(
         self,
         correct_count,
@@ -320,31 +339,16 @@ class RewardSystem:
         """
         Returns the credit penalty.
 
-        Perfect order:
-            4/4 → $0 penalty
-
-        Any imperfect order:
-            3/4 → $10 penalty
-            2/4 → $10 penalty
-            1/4 → $10 penalty
-            0/4 → $10 penalty
+        4/4 → $0 penalty
+        Any imperfect order → $10 penalty
         """
 
         try:
-
-            correct_count = int(
-                correct_count
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
+            correct_count = int(correct_count)
+        except (TypeError, ValueError):
             correct_count = 0
 
         if correct_count == 4:
-
             return 0
 
         return self.MISTAKE_CREDIT_PENALTY
@@ -494,7 +498,13 @@ class RewardSystem:
 
         speed_bonus_credits = 0
 
-        if served_quickly:
+        # Speed bonuses are only available on a perfect order.
+        # A fast mistake must never generate a positive bonus.
+
+        if (
+            served_quickly
+            and correct_count == 4
+        ):
 
             speed_bonus_xp = (
                 self.SPEED_XP_BONUS
@@ -515,42 +525,70 @@ class RewardSystem:
         )
 
         # ====================================================
+        # MISTAKE XP PENALTY
+        # ====================================================
+
+        xp_penalty = (
+            self.get_mistake_xp_penalty(
+                correct_count
+            )
+        )
+
+        # ====================================================
         # FINAL XP
         # ====================================================
 
-        total_xp = (
+        # Perfect order:
+        #   positive XP
+        #
+        # Imperfect order:
+        #   exactly -10 XP
+        #
+        # Combo and speed bonuses only exist for perfect
+        # orders, so mistakes can never accidentally create
+        # positive progression.
 
-            base_xp
+        if correct_count == 4:
 
-            + combo_bonus_xp
+            total_xp = (
+                base_xp
+                + combo_bonus_xp
+                + speed_bonus_xp
+            )
 
-            + speed_bonus_xp
+        else:
 
-        )
+            total_xp = -xp_penalty
 
         # ====================================================
         # FINAL CREDIT CHANGE
         # ====================================================
 
-        net_credits = (
+        if correct_count == 4:
 
-            base_credits
+            net_credits = (
+                base_credits
+                + combo_bonus_credits
+                + speed_bonus_credits
+            )
 
-            + combo_bonus_credits
+        else:
 
-            + speed_bonus_credits
-
-            - credit_penalty
-
-        )
+            net_credits = -credit_penalty
 
         # ====================================================
         # SESSION STATISTICS
         # ====================================================
 
-        self.total_xp_earned += (
-            total_xp
-        )
+        # Session "earned XP" tracks positive XP earned.
+        # Negative mistake XP is tracked separately by the
+        # final reward result and applied to progression.
+
+        if total_xp > 0:
+
+            self.total_xp_earned += (
+                total_xp
+            )
 
         # Only count actual earned credits here.
         #
@@ -590,6 +628,9 @@ class RewardSystem:
 
             speed_bonus_credits=
                 speed_bonus_credits,
+
+            xp_penalty=
+                xp_penalty,
 
             credit_penalty=
                 credit_penalty,
