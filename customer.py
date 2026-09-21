@@ -40,7 +40,7 @@ def sy(value):
 
 class CustomerState:
     """
-    These are the different stages of a customer's life.
+    The different stages of a customer's life.
     """
 
     SPAWNING = "spawning"
@@ -81,8 +81,6 @@ class CustomerOrder:
     def get_data(self):
         """
         Convert the order into a dictionary.
-
-        This makes it easy for other systems to read.
         """
 
         return {
@@ -120,14 +118,18 @@ class Customer:
         - patience
         - order verification
         - feedback
-        - speech UI
+        - speech/order UI
     """
 
-    def __init__(self, x=360, y_counter=405, current_level=1):
+    def __init__(self, x=180, y_counter=500, current_level=1):
 
         # ----------------------------------------------------
         # POSITION
         # ----------------------------------------------------
+        #
+        # The customer is intentionally placed lower on the
+        # left side of the café.
+        #
 
         self.x = sx(x)
         self.y_counter = sy(y_counter)
@@ -166,6 +168,9 @@ class Customer:
         # MOVEMENT
         # ----------------------------------------------------
 
+        # Customer enters from slightly below the final
+        # position.
+
         self.spawn_y = (
             self.y_counter + sy(120)
         )
@@ -186,15 +191,6 @@ class Customer:
         # ----------------------------------------------------
         # BACKWARD-COMPATIBILITY VALUES
         # ----------------------------------------------------
-        #
-        # These will eventually be removed.
-        #
-        # The old main.py / station.py may still refer to
-        # target_sweetness, target_caffeine and
-        # target_temperature.
-        #
-        # We temporarily keep them so the migration is safe.
-        #
 
         self.target_sweetness = self._sweetness_to_number(
             self.order.sweetness
@@ -211,21 +207,70 @@ class Customer:
         # ----------------------------------------------------
         # PATIENCE
         # ----------------------------------------------------
+        #
+        # Original:
+        #     20 seconds
+        #
+        # New:
+        #     20 + 1.5 = 21.5 seconds
+        #
+        # IMPORTANT:
+        # This is +1.5 seconds, NOT x1.5.
+        #
 
-        self.max_patience = 20.0
+        self.max_patience = 21.5
         self.current_patience = self.max_patience
 
         # ----------------------------------------------------
-        # UI
+        # SPEED REWARD THRESHOLD
+        # ----------------------------------------------------
+        #
+        # A customer is considered "served quickly" when
+        # at least 50% of their patience remains.
+        #
+        # This can be changed later without changing the
+        # rest of the game.
+        #
+
+        self.quick_service_ratio = 0.50
+
+        # ----------------------------------------------------
+        # UI FONTS
         # ----------------------------------------------------
 
-        self.font = pygame.font.SysFont(
+        self.font_small = pygame.font.SysFont(
+            "Consolas",
+            sy(11),
+            bold=True
+        )
+
+        self.font_order = pygame.font.SysFont(
             "Consolas",
             sy(12),
             bold=True
         )
 
+        self.font_timer = pygame.font.SysFont(
+            "Consolas",
+            sy(11),
+            bold=True
+        )
+
+        self.font_feedback = pygame.font.SysFont(
+            "Consolas",
+            sy(18),
+            bold=True
+        )
+
+        # ----------------------------------------------------
+        # DIALOGUE
+        # ----------------------------------------------------
+
         self.dialogue = self._generate_dialogue()
+
+        # ----------------------------------------------------
+        # FEEDBACK
+        # ----------------------------------------------------
 
         self.feedback_text = ""
 
@@ -249,10 +294,6 @@ class Customer:
             self.level
         )
 
-        # Safety check.
-        #
-        # There should always be at least the three
-        # Level 1 drinks available.
         if not unlocked_drinks:
             unlocked_drinks = get_unlocked_drinks(1)
 
@@ -287,10 +328,9 @@ class Customer:
         """
         Temporary conversion for the old system.
 
-        New system:
-            Less = 25
-            Normal = 50
-            Extra = 75
+        Less = 25
+        Normal = 50
+        Extra = 75
         """
 
         values = {
@@ -308,10 +348,9 @@ class Customer:
         """
         Temporary conversion for the old system.
 
-        New system:
-            Low = 25
-            Normal = 50
-            High = 75
+        Low = 25
+        Normal = 50
+        High = 75
         """
 
         values = {
@@ -329,10 +368,9 @@ class Customer:
         """
         Temporary conversion for the old system.
 
-        New system:
-            Cold = 25
-            Normal = 50
-            Hot = 75
+        Cold = 25
+        Normal = 50
+        Hot = 75
         """
 
         values = {
@@ -417,6 +455,57 @@ class Customer:
         )
 
     # ========================================================
+    # PATIENCE RATIO
+    # ========================================================
+
+    def get_remaining_patience_ratio(self):
+        """
+        Return the percentage of patience remaining.
+
+        Example:
+
+            21.5 / 21.5 = 1.0
+            10.75 / 21.5 = 0.5
+            0 / 21.5 = 0.0
+        """
+
+        if self.max_patience <= 0:
+            return 0.0
+
+        ratio = (
+            self.current_patience
+            / self.max_patience
+        )
+
+        return max(
+            0.0,
+            min(
+                1.0,
+                ratio
+            )
+        )
+
+    # ========================================================
+    # QUICK SERVICE
+    # ========================================================
+
+    def served_quickly(self):
+        """
+        Return True when the customer was served while
+        at least 50% of their patience remained.
+
+        This is intended for the speed reward system.
+        """
+
+        if self.state != CustomerState.SERVED:
+            return False
+
+        return (
+            self.get_remaining_patience_ratio()
+            >= self.quick_service_ratio
+        )
+
+    # ========================================================
     # UPDATE
     # ========================================================
 
@@ -498,6 +587,9 @@ class Customer:
                     sy(150) * dt
                 )
 
+                if self.current_y > self.spawn_y:
+                    self.current_y = self.spawn_y
+
             self.rect.bottom = int(
                 self.current_y
             )
@@ -511,6 +603,7 @@ class Customer:
         Evaluate the player's completed drink.
 
         Returns:
+
             True  = correct order
             False = incorrect order
         """
@@ -563,9 +656,7 @@ class Customer:
         Compare the customer's exact order with the
         player's completed drink.
 
-        The new system uses exact matching.
-
-        There is NO +/-20 tolerance anymore.
+        All four values must match exactly.
         """
 
         if not isinstance(
@@ -591,45 +682,25 @@ class Customer:
             "sweetness"
         )
 
-        # ----------------------------------------------------
-        # DRINK
-        # ----------------------------------------------------
-
         drink_ok = (
             player_drink
             == self.order.drink
         )
-
-        # ----------------------------------------------------
-        # TEMPERATURE
-        # ----------------------------------------------------
 
         temperature_ok = (
             player_temperature
             == self.order.temperature
         )
 
-        # ----------------------------------------------------
-        # CAFFEINE
-        # ----------------------------------------------------
-
         caffeine_ok = (
             player_caffeine
             == self.order.caffeine
         )
 
-        # ----------------------------------------------------
-        # SWEETNESS
-        # ----------------------------------------------------
-
         sweetness_ok = (
             player_sweetness
             == self.order.sweetness
         )
-
-        # ----------------------------------------------------
-        # ALL FOUR MUST MATCH
-        # ----------------------------------------------------
 
         return (
             drink_ok
@@ -645,10 +716,6 @@ class Customer:
     def get_order_accuracy(self, drink_data):
         """
         Return detailed accuracy information.
-
-        This will later be moved into accuracy.py,
-        but keeping it here temporarily makes the
-        migration easier.
         """
 
         if not isinstance(
@@ -723,8 +790,21 @@ class Customer:
 
     def draw(self, screen):
         """
-        Draw customer and relevant UI.
+        Draw the customer and their UI.
         """
+
+        # ----------------------------------------------------
+        # ACTIVE CUSTOMER UI
+        # ----------------------------------------------------
+
+        if self.state in (
+            CustomerState.ORDERING,
+            CustomerState.WAITING,
+        ):
+
+            self._draw_speech_bubble(
+                screen
+            )
 
         # ----------------------------------------------------
         # CUSTOMER SPRITE
@@ -736,149 +816,48 @@ class Customer:
         )
 
         # ----------------------------------------------------
-        # ACTIVE CUSTOMER UI
-        # ----------------------------------------------------
-
-        if self.state in (
-            CustomerState.ORDERING,
-            CustomerState.WAITING,
-        ):
-
-            self._draw_patience_bar(
-                screen
-            )
-
-            self._draw_speech_bubble(
-                screen
-            )
-
-        # ----------------------------------------------------
         # FEEDBACK
         # ----------------------------------------------------
 
-        elif self.feedback_text:
+        if self.feedback_text:
 
-            self._draw_feedback(
-                screen
-            )
+            if self.state in (
+                CustomerState.SERVED,
+                CustomerState.LEAVING,
+            ):
 
-    # ========================================================
-    # PATIENCE BAR
-    # ========================================================
-
-    def _draw_patience_bar(self, screen):
-
-        bar_w = sx(120)
-        bar_h = sy(10)
-
-        bar_x = (
-            self.rect.centerx
-            - (bar_w // 2)
-        )
-
-        bar_y = (
-            self.rect.top
-            - sy(20)
-        )
-
-        pygame.draw.rect(
-            screen,
-            (30, 30, 40),
-            (
-                bar_x,
-                bar_y,
-                bar_w,
-                bar_h,
-            ),
-            border_radius=sy(4),
-        )
-
-        ratio = max(
-            0.0,
-            self.current_patience
-            / self.max_patience
-        )
-
-        fill_w = int(
-            (bar_w - 2)
-            * ratio
-        )
-
-        if ratio > 0.5:
-
-            color = (
-                0,
-                230,
-                120
-            )
-
-        elif ratio > 0.25:
-
-            color = (
-                255,
-                200,
-                0
-            )
-
-        else:
-
-            color = (
-                255,
-                50,
-                80
-            )
-
-        if fill_w > 0:
-
-            pygame.draw.rect(
-                screen,
-                color,
-                (
-                    bar_x + sx(1),
-                    bar_y + sy(1),
-                    fill_w,
-                    bar_h - sy(2),
-                ),
-                border_radius=sy(3),
-            )
-
-        pygame.draw.rect(
-            screen,
-            (100, 110, 130),
-            (
-                bar_x,
-                bar_y,
-                bar_w,
-                bar_h,
-            ),
-            width=1,
-            border_radius=sy(4),
-        )
+                self._draw_feedback(
+                    screen
+                )
 
     # ========================================================
-    # SPEECH BUBBLE
+    # SPEECH / ORDER BUBBLE
     # ========================================================
 
     def _draw_speech_bubble(self, screen):
+        """
+        Draw one combined order + patience bubble.
 
-        txt_surf = self.font.render(
-            self.dialogue,
-            True,
-            (0, 240, 255)
-        )
+        The bubble contains:
 
-        pad_x = sx(10)
-        pad_y = sy(10)
+            Customer Order
+            ----------------
+            Drink
+            Temperature
+            Caffeine
+            Sweetness
+            ----------------
+            PATIENCE
+            Timer Bar
+            Seconds Remaining
+        """
 
-        bubble_w = (
-            txt_surf.get_width()
-            + (pad_x * 2)
-        )
+        # ----------------------------------------------------
+        # BUBBLE DIMENSIONS
+        # ----------------------------------------------------
 
-        bubble_h = (
-            txt_surf.get_height()
-            + (pad_y * 2)
-        )
+        bubble_w = sx(255)
+        bubble_h = sy(142)
 
         bubble_x = (
             self.rect.centerx
@@ -887,7 +866,7 @@ class Customer:
 
         bubble_y = (
             self.rect.top
-            - sy(60)
+            - sy(158)
         )
 
         bubble_rect = pygame.Rect(
@@ -897,24 +876,48 @@ class Customer:
             bubble_h
         )
 
+        # Keep the bubble on-screen horizontally.
+
+        if bubble_rect.left < sx(12):
+            bubble_rect.left = sx(12)
+
+        if bubble_rect.right > GAME_WIDTH - sx(12):
+            bubble_rect.right = GAME_WIDTH - sx(12)
+
+        # ----------------------------------------------------
+        # SHADOW
+        # ----------------------------------------------------
+
+        shadow_rect = bubble_rect.move(
+            sx(3),
+            sy(4)
+        )
+
+        pygame.draw.rect(
+            screen,
+            (0, 0, 0, 120),
+            shadow_rect,
+            border_radius=sy(12)
+        )
+
         # ----------------------------------------------------
         # BACKGROUND
         # ----------------------------------------------------
 
         bg_surf = pygame.Surface(
             (
-                bubble_w,
-                bubble_h
+                bubble_rect.width,
+                bubble_rect.height
             ),
             pygame.SRCALPHA
         )
 
         bg_surf.fill(
             (
-                10,
-                14,
+                8,
+                12,
                 25,
-                220
+                235
             )
         )
 
@@ -929,66 +932,373 @@ class Customer:
 
         pygame.draw.rect(
             screen,
-            (0, 220, 255),
+            (0, 225, 255),
             bubble_rect,
             width=2,
-            border_radius=sy(8)
+            border_radius=sy(12)
         )
 
         # ----------------------------------------------------
-        # POINTER
+        # HEADER
         # ----------------------------------------------------
 
-        pointer_pts = [
+        header_text = self.font_order.render(
+            "CUSTOMER ORDER",
+            True,
+            (255, 110, 220)
+        )
+
+        screen.blit(
+            header_text,
             (
-                self.rect.centerx - sx(6),
-                bubble_y + bubble_h
+                bubble_rect.x + sx(12),
+                bubble_rect.y + sy(8)
+            )
+        )
+
+        # ----------------------------------------------------
+        # SMALL HEADER LINE
+        # ----------------------------------------------------
+
+        pygame.draw.line(
+            screen,
+            (55, 90, 120),
+            (
+                bubble_rect.x + sx(12),
+                bubble_rect.y + sy(27)
             ),
             (
-                self.rect.centerx + sx(6),
-                bubble_y + bubble_h
+                bubble_rect.right - sx(12),
+                bubble_rect.y + sy(27)
+            ),
+            width=1
+        )
+
+        # ----------------------------------------------------
+        # ORDER TEXT
+        # ----------------------------------------------------
+
+        order_lines = [
+            (
+                "DRINK",
+                self.order.drink
             ),
             (
-                self.rect.centerx,
-                bubble_y + bubble_h + sy(8)
+                "TEMP",
+                self.order.temperature
+            ),
+            (
+                "CAFFEINE",
+                self.order.caffeine
+            ),
+            (
+                "SWEETNESS",
+                self.order.sweetness
+            ),
+        ]
+
+        text_y = bubble_rect.y + sy(34)
+
+        for label, value in order_lines:
+
+            label_surface = self.font_small.render(
+                label,
+                True,
+                (120, 145, 170)
+            )
+
+            value_surface = self.font_small.render(
+                str(value),
+                True,
+                (225, 245, 255)
+            )
+
+            screen.blit(
+                label_surface,
+                (
+                    bubble_rect.x + sx(12),
+                    text_y
+                )
+            )
+
+            screen.blit(
+                value_surface,
+                (
+                    bubble_rect.x + sx(82),
+                    text_y
+                )
+            )
+
+            text_y += sy(17)
+
+        # ----------------------------------------------------
+        # PATIENCE HEADER
+        # ----------------------------------------------------
+
+        patience_y = (
+            bubble_rect.bottom
+            - sy(45)
+        )
+
+        patience_text = self.font_small.render(
+            "PATIENCE",
+            True,
+            (255, 200, 100)
+        )
+
+        screen.blit(
+            patience_text,
+            (
+                bubble_rect.x + sx(12),
+                patience_y
+            )
+        )
+
+        # ----------------------------------------------------
+        # TIMER NUMBER
+        # ----------------------------------------------------
+
+        seconds_left = max(
+            0.0,
+            self.current_patience
+        )
+
+        timer_text = self.font_timer.render(
+            f"{seconds_left:04.1f}s",
+            True,
+            self._get_patience_color()
+        )
+
+        screen.blit(
+            timer_text,
+            (
+                bubble_rect.right
+                - sx(58),
+                patience_y
+            )
+        )
+
+        # ----------------------------------------------------
+        # TIMER BAR
+        # ----------------------------------------------------
+
+        bar_x = (
+            bubble_rect.x
+            + sx(12)
+        )
+
+        bar_y = (
+            bubble_rect.bottom
+            - sy(23)
+        )
+
+        bar_w = (
+            bubble_rect.width
+            - sx(24)
+        )
+
+        bar_h = sy(10)
+
+        # Outer bar
+
+        pygame.draw.rect(
+            screen,
+            (25, 30, 45),
+            (
+                bar_x,
+                bar_y,
+                bar_w,
+                bar_h
+            ),
+            border_radius=sy(5)
+        )
+
+        # Filled amount
+
+        ratio = self.get_remaining_patience_ratio()
+
+        fill_w = int(
+            bar_w * ratio
+        )
+
+        if fill_w > 0:
+
+            pygame.draw.rect(
+                screen,
+                self._get_patience_color(),
+                (
+                    bar_x,
+                    bar_y,
+                    fill_w,
+                    bar_h
+                ),
+                border_radius=sy(5)
+            )
+
+        # Bar outline
+
+        pygame.draw.rect(
+            screen,
+            (80, 110, 140),
+            (
+                bar_x,
+                bar_y,
+                bar_w,
+                bar_h
+            ),
+            width=1,
+            border_radius=sy(5)
+        )
+
+        # ----------------------------------------------------
+        # BUBBLE POINTER
+        # ----------------------------------------------------
+
+        pointer_x = self.rect.centerx
+
+        # Keep pointer aligned with bubble.
+
+        pointer_x = max(
+            bubble_rect.left + sx(25),
+            min(
+                pointer_x,
+                bubble_rect.right - sx(25)
+            )
+        )
+
+        pointer_top = bubble_rect.bottom
+
+        pointer_points = [
+            (
+                pointer_x - sx(9),
+                pointer_top
+            ),
+            (
+                pointer_x + sx(9),
+                pointer_top
+            ),
+            (
+                pointer_x,
+                pointer_top + sy(12)
             ),
         ]
 
         pygame.draw.polygon(
             screen,
-            (0, 220, 255),
-            pointer_pts
+            (8, 12, 25),
+            pointer_points
         )
 
-        # ----------------------------------------------------
-        # TEXT
-        # ----------------------------------------------------
-
-        screen.blit(
-            txt_surf,
+        pygame.draw.line(
+            screen,
+            (0, 225, 255),
             (
-                bubble_x + pad_x,
-                bubble_y + pad_y
-            )
+                pointer_x - sx(9),
+                pointer_top
+            ),
+            (
+                pointer_x,
+                pointer_top + sy(12)
+            ),
+            width=2
         )
+
+        pygame.draw.line(
+            screen,
+            (0, 225, 255),
+            (
+                pointer_x,
+                pointer_top + sy(12)
+            ),
+            (
+                pointer_x + sx(9),
+                pointer_top
+            ),
+            width=2
+        )
+
+    # ========================================================
+    # PATIENCE COLOR
+    # ========================================================
+
+    def _get_patience_color(self):
+        """
+        Choose timer color based on remaining patience.
+        """
+
+        ratio = self.get_remaining_patience_ratio()
+
+        if ratio > 0.50:
+
+            return (
+                0,
+                235,
+                150
+            )
+
+        elif ratio > 0.25:
+
+            return (
+                255,
+                205,
+                70
+            )
+
+        else:
+
+            return (
+                255,
+                60,
+                100
+            )
 
     # ========================================================
     # FEEDBACK
     # ========================================================
 
     def _draw_feedback(self, screen):
+        """
+        Draw feedback above the customer after serving.
+        """
 
-        txt = self.font.render(
+        txt = self.font_feedback.render(
             self.feedback_text,
             True,
             self.feedback_color
         )
 
+        # Put feedback above the customer's head.
+
+        feedback_x = (
+            self.rect.centerx
+            - (txt.get_width() // 2)
+        )
+
+        feedback_y = (
+            self.rect.top
+            - sy(42)
+        )
+
+        # Small glow/shadow.
+
+        shadow = self.font_feedback.render(
+            self.feedback_text,
+            True,
+            (0, 0, 0)
+        )
+
+        screen.blit(
+            shadow,
+            (
+                feedback_x + sx(2),
+                feedback_y + sy(2)
+            )
+        )
+
         screen.blit(
             txt,
             (
-                self.rect.centerx
-                - (txt.get_width() // 2),
-                self.rect.top - sy(40)
+                feedback_x,
+                feedback_y
             )
         )

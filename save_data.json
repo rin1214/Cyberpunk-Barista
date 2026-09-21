@@ -6,8 +6,8 @@
         "location": "CYBER DOCK COFFEE"
     },
     "lola": {
-        "credits": 927,
-        "xp": 1010,
+        "credits": 949,
+        "xp": 1070,
         "level": 6,
         "location": "Digital Garden"
     },
@@ -24,10 +24,10 @@
         "location": "CYBER DOCK COFFEE"
     },
     "mahi": {
-        "credits": 80,
-        "xp": 210,
+        "credits": 83,
+        "xp": 245,
         "level": 2,
-        "location": "CYBER DOCK COFFEE"
+        "location": "Cyber District"
     },
     "aisya": {
         "credits": 75,
@@ -148,5 +148,17 @@
         "xp": 5,
         "level": 2,
         "location": "Cyber District"
+    },
+    "sofi": {
+        "credits": 151,
+        "xp": 185,
+        "level": 2,
+        "location": "Cyber District"
+    },
+    "yiuu": {
+        "credits": 119,
+        "xp": 65,
+        "level": 1,
+        "location": "Neon Alley"
     }
 }
