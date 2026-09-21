@@ -1,40 +1,31 @@
+"""
+============================================================
+CYBERPUNK CAFÉ
+LOADING SCREEN
+============================================================
+
+Used for:
+
+    Start of game
+    Level 2 transition
+    Level 3 transition
+
+Music is deliberately NOT controlled here.
+
+Therefore the background music continues playing.
+============================================================
+"""
+
 import os
 import pygame
 
 
 class LoadingScreen:
-    """
-    Cyberpunk Café reusable 1280x720 loading screen.
-    """
 
     WIDTH = 1280
     HEIGHT = 720
 
     FPS = 60
-
-    # ========================================================
-    # PROJECT PATH
-    # ========================================================
-
-    PROJECT_ROOT = os.path.dirname(
-        os.path.abspath(__file__)
-    )
-
-    MAHIRAH_ROOT = os.path.join(
-        PROJECT_ROOT,
-        "assets",
-        "mahirah",
-    )
-
-    START_ROOT = os.path.join(
-        MAHIRAH_ROOT,
-        "start",
-    )
-
-    LOADING_ROOT = os.path.join(
-        MAHIRAH_ROOT,
-        "loading",
-    )
 
     # ========================================================
     # LEVEL INFORMATION
@@ -80,7 +71,7 @@ class LoadingScreen:
     ]
 
     # ========================================================
-    # INITIALISATION
+    # CONSTRUCTOR
     # ========================================================
 
     def __init__(
@@ -93,33 +84,50 @@ class LoadingScreen:
         self.clock = pygame.time.Clock()
 
         # ----------------------------------------------------
-        # LOAD BACKGROUND
+        # PROJECT ROOT
         # ----------------------------------------------------
 
-        self.background = self._load(
+        self.project_root = os.path.dirname(
+            os.path.abspath(__file__)
+        )
+
+        self.mahirah_root = os.path.join(
+            self.project_root,
+            "assets",
+            "mahirah",
+        )
+
+        self.start_root = os.path.join(
+            self.mahirah_root,
+            "start",
+        )
+
+        self.loading_root = os.path.join(
+            self.mahirah_root,
+            "loading",
+        )
+
+        # ----------------------------------------------------
+        # ASSETS
+        # ----------------------------------------------------
+
+        self.background = self._load_image(
             "loading_bg.png",
-            self.LOADING_ROOT,
+            self.loading_root,
         )
 
-        # ----------------------------------------------------
-        # LOAD LOGO
-        # ----------------------------------------------------
-
-        self.logo = self._load(
-            "logo_cyberpunk_cafe.png",
-            self.START_ROOT,
-        )
-
-        # ----------------------------------------------------
-        # FALLBACK BACKGROUND
-        # ----------------------------------------------------
-
+        # Fallback to start background if necessary.
         if self.background is None:
 
-            self.background = self._load(
+            self.background = self._load_image(
                 "start_bg.png",
-                self.START_ROOT,
+                self.start_root,
             )
+
+        self.logo = self._load_image(
+            "logo_cyberpunk_cafe.png",
+            self.start_root,
+        )
 
         # ----------------------------------------------------
         # FONTS
@@ -155,17 +163,14 @@ class LoadingScreen:
         )
 
     # ========================================================
-    # LOAD ASSET
+    # IMAGE LOADER
     # ========================================================
 
-    def _load(
+    def _load_image(
         self,
         filename,
         folder,
     ):
-        """
-        Load an image using an absolute project path.
-        """
 
         path = os.path.join(
             folder,
@@ -179,15 +184,8 @@ class LoadingScreen:
             ).convert_alpha()
 
             print(
-                "[LOADING ASSET] Loaded:"
-            )
-
-            print(
-                f"    {path}"
-            )
-
-            print(
-                f"    Size: {image.get_size()}"
+                f"[LOADING SCREEN] "
+                f"Loaded: {path}"
             )
 
             return image
@@ -198,15 +196,13 @@ class LoadingScreen:
         ) as error:
 
             print(
-                "[LOADING ASSET WARNING]"
+                f"[LOADING SCREEN WARNING] "
+                f"Could not load: {path}"
             )
 
             print(
-                f"    Could not load: {path}"
-            )
-
-            print(
-                f"    Reason: {error}"
+                f"[LOADING SCREEN WARNING] "
+                f"{error}"
             )
 
             return None
@@ -216,9 +212,6 @@ class LoadingScreen:
     # ========================================================
 
     def _draw_background(self):
-        """
-        Draw the loading background.
-        """
 
         if self.background is None:
 
@@ -232,70 +225,51 @@ class LoadingScreen:
 
             return
 
-        # ----------------------------------------------------
-        # ORIGINAL SIZE
-        # ----------------------------------------------------
-
         iw, ih = (
             self.background.get_size()
         )
 
-        # ----------------------------------------------------
-        # SCALE TO FILL SCREEN
-        # ----------------------------------------------------
-
         scale = max(
-
-            self.WIDTH / iw,
-
-            self.HEIGHT / ih,
+            self.WIDTH / float(iw),
+            self.HEIGHT / float(ih),
         )
 
-        size = (
-
+        new_size = (
             max(
                 1,
-                int(
-                    iw * scale
-                ),
+                int(iw * scale),
             ),
-
             max(
                 1,
-                int(
-                    ih * scale
-                ),
+                int(ih * scale),
             ),
         )
 
         image = pygame.transform.smoothscale(
             self.background,
-            size,
+            new_size,
         )
 
-        # ----------------------------------------------------
-        # CENTER
-        # ----------------------------------------------------
+        x = (
+            self.WIDTH
+            - new_size[0]
+        ) // 2
+
+        y = (
+            self.HEIGHT
+            - new_size[1]
+        ) // 2
 
         self.screen.blit(
-
             image,
-
             (
-                (
-                    self.WIDTH
-                    - size[0]
-                ) // 2,
-
-                (
-                    self.HEIGHT
-                    - size[1]
-                ) // 2,
+                x,
+                y,
             ),
         )
 
         # ----------------------------------------------------
-        # SUBTLE OVERLAY
+        # SOFT DARK OVERLAY
         # ----------------------------------------------------
 
         overlay = pygame.Surface(
@@ -338,26 +312,18 @@ class LoadingScreen:
         )
 
         scale = min(
-
-            430 / iw,
-
-            145 / ih,
+            430 / float(iw),
+            145 / float(ih),
         )
 
         size = (
-
             max(
                 1,
-                int(
-                    iw * scale
-                ),
+                int(iw * scale),
             ),
-
             max(
                 1,
-                int(
-                    ih * scale
-                ),
+                int(ih * scale),
             ),
         )
 
@@ -366,16 +332,16 @@ class LoadingScreen:
             size,
         )
 
+        rect = image.get_rect(
+            center=(
+                self.WIDTH // 2,
+                105,
+            )
+        )
+
         self.screen.blit(
-
             image,
-
-            image.get_rect(
-                center=(
-                    640,
-                    105,
-                )
-            ),
+            rect,
         )
 
     # ========================================================
@@ -411,40 +377,57 @@ class LoadingScreen:
         )
 
         pygame.draw.rect(
-
             self.screen,
-
             (
                 0,
                 220,
                 255,
             ),
-
             rect,
-
             width=2,
-
             border_radius=14,
         )
 
         pygame.draw.rect(
-
             self.screen,
-
             (
                 255,
                 100,
                 200,
             ),
-
-            rect.inflate(
-                -12,
-                -12,
-            ),
-
+            rect.inflate(-12, -12),
             width=1,
-
             border_radius=10,
+        )
+
+    # ========================================================
+    # CENTER TEXT
+    # ========================================================
+
+    def _text_center(
+        self,
+        text,
+        font,
+        color,
+        y,
+    ):
+
+        rendered = font.render(
+            str(text),
+            True,
+            color,
+        )
+
+        rect = rendered.get_rect(
+            center=(
+                self.WIDTH // 2,
+                y,
+            )
+        )
+
+        self.screen.blit(
+            rendered,
+            rect,
         )
 
     # ========================================================
@@ -468,77 +451,49 @@ class LoadingScreen:
             h,
         )
 
-        # ----------------------------------------------------
-        # BAR BACKGROUND
-        # ----------------------------------------------------
-
         pygame.draw.rect(
-
             self.screen,
-
             (
                 15,
                 20,
                 38,
             ),
-
             outer,
-
             border_radius=13,
         )
 
-        # ----------------------------------------------------
-        # FILL
-        # ----------------------------------------------------
-
-        fill_w = int(
-
-            (
-                w - 6
-            )
-
-            *
-
-            max(
-                0.0,
-                min(
-                    1.0,
-                    progress,
-                ),
-            )
+        progress = max(
+            0.0,
+            min(
+                1.0,
+                progress,
+            ),
         )
 
-        if fill_w:
+        fill_w = int(
+            (w - 6)
+            * progress
+        )
+
+        if fill_w > 0:
 
             fill = pygame.Rect(
-
                 x + 3,
-
                 y + 3,
-
                 fill_w,
-
                 h - 6,
             )
 
             pygame.draw.rect(
-
                 self.screen,
-
                 (
                     255,
                     100,
                     205,
                 ),
-
                 fill,
-
                 border_radius=10,
             )
-
-            # -----------------------------------------------
-            # HIGHLIGHT
-            # -----------------------------------------------
 
             highlight_w = min(
                 80,
@@ -546,64 +501,38 @@ class LoadingScreen:
             )
 
             highlight = pygame.Rect(
-
-                x + 3
-                + fill_w
-                - highlight_w,
-
+                x + 3 + fill_w - highlight_w,
                 y + 3,
-
                 highlight_w,
-
                 h - 6,
             )
 
             pygame.draw.rect(
-
                 self.screen,
-
                 (
                     80,
                     225,
                     255,
                 ),
-
                 highlight,
-
                 border_radius=10,
             )
 
-        # ----------------------------------------------------
-        # OUTLINE
-        # ----------------------------------------------------
-
         pygame.draw.rect(
-
             self.screen,
-
             (
                 0,
                 225,
                 255,
             ),
-
             outer,
-
             width=2,
-
             border_radius=13,
         )
 
-        # ----------------------------------------------------
-        # PERCENTAGE
-        # ----------------------------------------------------
-
         percent = self.percent_font.render(
-
             f"{int(progress * 100)}%",
-
             True,
-
             (
                 255,
                 255,
@@ -612,9 +541,7 @@ class LoadingScreen:
         )
 
         self.screen.blit(
-
             percent,
-
             percent.get_rect(
                 midleft=(
                     900,
@@ -632,21 +559,14 @@ class LoadingScreen:
         index,
     ):
 
-        message = (
-            self.MESSAGES[
-                index
-                % len(
-                    self.MESSAGES
-                )
-            ]
-        )
+        message = self.MESSAGES[
+            index
+            % len(self.MESSAGES)
+        ]
 
         prefix = self.small_font.render(
-
             ">>",
-
             True,
-
             (
                 255,
                 100,
@@ -655,11 +575,8 @@ class LoadingScreen:
         )
 
         text = self.message_font.render(
-
             message,
-
             True,
-
             (
                 220,
                 235,
@@ -684,36 +601,6 @@ class LoadingScreen:
         )
 
     # ========================================================
-    # CENTER TEXT
-    # ========================================================
-
-    def _text_center(
-        self,
-        text,
-        font,
-        color,
-        y,
-    ):
-
-        surface = font.render(
-            text,
-            True,
-            color,
-        )
-
-        rect = surface.get_rect(
-            center=(
-                self.WIDTH // 2,
-                y,
-            )
-        )
-
-        self.screen.blit(
-            surface,
-            rect,
-        )
-
-    # ========================================================
     # RUN
     # ========================================================
 
@@ -721,36 +608,27 @@ class LoadingScreen:
         self,
         player_name="Barista",
         level=1,
-        duration=3.2,
+        duration=6.7,
     ):
         """
         Display the loading screen.
 
+        Music is intentionally untouched.
+
         Returns:
 
-            True
-                Loading finished.
-
-            False
-                Game was closed.
+            True  = finished
+            False = player closed game
         """
 
         player_name = (
-            str(
-                player_name
-            ).strip()
+            str(player_name).strip()
             or "BARISTA"
         )
 
-        # ----------------------------------------------------
-        # VALID LEVEL
-        # ----------------------------------------------------
-
         try:
 
-            level = int(
-                level
-            )
+            level = int(level)
 
         except (
             TypeError,
@@ -759,57 +637,34 @@ class LoadingScreen:
 
             level = 1
 
-        if level not in self.LEVEL_INFO:
-
-            level = 1
+        level = max(
+            1,
+            min(
+                level,
+                3,
+            ),
+        )
 
         location, sector = (
-            self.LEVEL_INFO[
-                level
-            ]
-        )
-
-        # ----------------------------------------------------
-        # DEBUG OUTPUT
-        # ----------------------------------------------------
-
-        print(
-            "========================================"
+            self.LEVEL_INFO[level]
         )
 
         print(
-            "[LOADING SCREEN]"
+            "[LOADING SCREEN] "
+            f"STARTING Level {level}"
         )
 
         print(
-            f"Player: {player_name}"
-        )
-
-        print(
-            f"Level: {level}"
-        )
-
-        print(
+            "[LOADING SCREEN] "
             f"Location: {location}"
         )
 
         print(
-            f"Duration: {duration}s"
+            "[LOADING SCREEN] "
+            f"Duration: {duration:.1f} seconds"
         )
-
-        print(
-            "========================================"
-        )
-
-        # ----------------------------------------------------
-        # TIMER
-        # ----------------------------------------------------
 
         elapsed = 0.0
-
-        # ====================================================
-        # LOOP
-        # ====================================================
 
         while elapsed < duration:
 
@@ -832,7 +687,7 @@ class LoadingScreen:
 
                     print(
                         "[LOADING SCREEN] "
-                        "Game closed."
+                        "QUIT received."
                     )
 
                     return False
@@ -843,7 +698,7 @@ class LoadingScreen:
 
             progress = min(
                 1.0,
-                elapsed / duration,
+                elapsed / float(duration),
             )
 
             smooth = (
@@ -851,22 +706,15 @@ class LoadingScreen:
                 * progress
                 * (
                     3.0
-                    - 2.0
-                    * progress
+                    - 2.0 * progress
                 )
             )
 
             index = min(
-
-                len(
-                    self.MESSAGES
-                ) - 1,
-
+                len(self.MESSAGES) - 1,
                 int(
                     progress
-                    * len(
-                        self.MESSAGES
-                    )
+                    * len(self.MESSAGES)
                 ),
             )
 
@@ -881,48 +729,35 @@ class LoadingScreen:
             self._draw_panel()
 
             self._text_center(
-
-                f"WELCOME, "
-                f"{player_name.upper()}!",
-
+                f"WELCOME, {player_name.upper()}!",
                 self.name_font,
-
                 (
                     255,
                     180,
                     235,
                 ),
-
                 245,
             )
 
             self._text_center(
-
                 location,
-
                 self.title_font,
-
                 (
                     0,
                     235,
                     255,
                 ),
-
                 285,
             )
 
             self._text_center(
-
                 sector,
-
                 self.small_font,
-
                 (
                     210,
                     220,
                     245,
                 ),
-
                 315,
             )
 
@@ -935,70 +770,32 @@ class LoadingScreen:
             )
 
             self._text_center(
-
-                "GOOD COFFEE  ✦  "
-                "BRIGHTER PEOPLE",
-
+                "GOOD COFFEE  ✦  BRIGHTER PEOPLE",
                 self.small_font,
-
                 (
                     255,
                     190,
                     235,
                 ),
-
                 565,
             )
 
             self._text_center(
-
                 "Preparing your café experience...",
-
                 self.small_font,
-
                 (
                     180,
                     205,
                     235,
                 ),
-
                 595,
             )
 
             pygame.display.flip()
 
         print(
-            "[LOADING SCREEN] Finished."
+            "[LOADING SCREEN] "
+            f"Level {level} loading finished."
         )
 
         return True
-
-
-# ============================================================
-# STANDALONE TEST
-# ============================================================
-
-if __name__ == "__main__":
-
-    pygame.init()
-
-    screen = pygame.display.set_mode(
-        (
-            1280,
-            720,
-        )
-    )
-
-    pygame.display.set_caption(
-        "Cyberpunk Café - Loading Screen"
-    )
-
-    LoadingScreen(
-        screen
-    ).run(
-        "Mahirah",
-        level=2,
-        duration=6.0,
-    )
-
-    pygame.quit()

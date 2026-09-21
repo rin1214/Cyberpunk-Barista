@@ -34,5 +34,23 @@
         "xp": 25,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "kale": {
+        "credits": 193,
+        "xp": 25,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "day": {
+        "credits": 199,
+        "xp": 35,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "ali": {
+        "credits": 199,
+        "xp": 35,
+        "level": 2,
+        "location": "Neon Lounge"
     }
 }
