@@ -47,7 +47,10 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
 screen = pygame.display.set_mode(
-    (SCREEN_WIDTH, SCREEN_HEIGHT)
+    (
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+    )
 )
 
 pygame.display.set_caption(
@@ -69,21 +72,36 @@ FPS = 60
 # ============================================================
 
 LEVEL_BACKGROUNDS = {
+
     1: "assets/places/cafe_lvl1.png",
+
     2: "assets/places/cafe_lvl2.png",
+
     3: "assets/places/cafe_lvl3.png",
 }
+
 
 bg_cache = {}
 
 
-def load_level_background(level_num):
+def load_level_background(
+    level_num,
+):
     """
     Load and cache the background for the current level.
     """
 
+    # --------------------------------------------------------
+    # USE CACHED IMAGE
+    # --------------------------------------------------------
+
     if level_num in bg_cache:
+
         return bg_cache[level_num]
+
+    # --------------------------------------------------------
+    # FIND IMAGE
+    # --------------------------------------------------------
 
     relative_path = LEVEL_BACKGROUNDS.get(
         level_num,
@@ -94,6 +112,10 @@ def load_level_background(level_num):
         PROJECT_ROOT,
         relative_path,
     )
+
+    # --------------------------------------------------------
+    # LOAD IMAGE
+    # --------------------------------------------------------
 
     try:
 
@@ -112,6 +134,10 @@ def load_level_background(level_num):
         bg_cache[level_num] = scaled_img
 
         return scaled_img
+
+    # --------------------------------------------------------
+    # FALLBACK
+    # --------------------------------------------------------
 
     except (
         pygame.error,
@@ -146,7 +172,9 @@ def load_level_background(level_num):
 # CUSTOMER HELPERS
 # ============================================================
 
-def create_customer(level):
+def create_customer(
+    level,
+):
     """
     Create a customer for the current level.
     """
@@ -170,15 +198,11 @@ def position_customer(
     """
     Put the customer in the lower-left café area.
 
-    The customer is positioned above the counter rather than
-    in the middle of the screen.
-
-    We only initialise the movement coordinates here. We do
-    not overwrite the customer's rectangle every frame,
-    because customer.py controls the movement animation.
+    Customer.py controls the customer's movement animation.
     """
 
     if customer is None:
+
         return
 
     try:
@@ -188,10 +212,14 @@ def position_customer(
         # ----------------------------------------------------
 
         counter_bottom = 690
+
         customer_x = 180
 
         customer.x = customer_x
-        customer.y_counter = counter_bottom
+
+        customer.y_counter = (
+            counter_bottom
+        )
 
         # ----------------------------------------------------
         # SPAWN POSITION
@@ -217,7 +245,10 @@ def position_customer(
         # RECTANGLE
         # ----------------------------------------------------
 
-        if hasattr(customer, "rect"):
+        if hasattr(
+            customer,
+            "rect",
+        ):
 
             customer.rect.centerx = (
                 customer_x
@@ -239,10 +270,12 @@ def sync_station_order(
     customer,
 ):
     """
-    Give the current customer order to the station.
+    Give the current customer's order to
+    the Mixing Station.
     """
 
     if customer is None:
+
         return
 
     order = getattr(
@@ -276,8 +309,13 @@ def sync_level_systems(
     mixing_station,
 ):
     """
-    Keep Economy, Progression and MixingStation synchronized.
+    Keep Economy, Progression and MixingStation
+    synchronized.
     """
+
+    # --------------------------------------------------------
+    # ECONOMY
+    # --------------------------------------------------------
 
     try:
 
@@ -291,29 +329,37 @@ def sync_level_systems(
             f"[MAIN] Economy sync warning: {e}"
         )
 
-    try:
+    # --------------------------------------------------------
+    # MIXING STATION
+    # --------------------------------------------------------
 
-        mixing_station.set_progression(
-            progression
-        )
+    if mixing_station is not None:
 
-    except Exception as e:
+        try:
 
-        print(
-            f"[MAIN] Station progression sync warning: {e}"
-        )
+            mixing_station.set_progression(
+                progression
+            )
 
-    try:
+        except Exception as e:
 
-        mixing_station.set_level(
-            progression.level
-        )
+            print(
+                "[MAIN] Station progression "
+                f"sync warning: {e}"
+            )
 
-    except Exception as e:
+        try:
 
-        print(
-            f"[MAIN] Station level sync warning: {e}"
-        )
+            mixing_station.set_level(
+                progression.level
+            )
+
+        except Exception as e:
+
+            print(
+                "[MAIN] Station level "
+                f"sync warning: {e}"
+            )
 
 
 # ============================================================
@@ -325,7 +371,8 @@ def refresh_customer(
     mixing_station,
 ):
     """
-    Create a fresh customer and give their order to the station.
+    Create a fresh customer and give their order
+    to the Mixing Station.
     """
 
     customer = create_customer(
@@ -353,6 +400,9 @@ def open_map(
 ):
     """
     Open the Map screen and synchronize the game afterward.
+
+    The Map system belongs to the collaborator's work,
+    so this function only opens and synchronizes it.
     """
 
     map_screen = MapScreen(
@@ -363,14 +413,27 @@ def open_map(
 
     map_screen.run()
 
-    progression.level = economy.level
-    progression.xp = economy.xp
+    # --------------------------------------------------------
+    # SYNCHRONIZE PROGRESSION
+    # --------------------------------------------------------
+
+    progression.level = (
+        economy.level
+    )
+
+    progression.xp = (
+        economy.xp
+    )
 
     sync_level_systems(
         economy,
         progression,
         mixing_station,
     )
+
+    # --------------------------------------------------------
+    # REFRESH LEVEL
+    # --------------------------------------------------------
 
     active_bg = load_level_background(
         progression.level
@@ -400,6 +463,8 @@ def open_leaderboard(
 ):
     """
     Open the Leaderboard screen and return to gameplay.
+
+    The leaderboard system is left unchanged.
     """
 
     leaderboard_screen = LeaderboardScreen(
@@ -410,14 +475,27 @@ def open_leaderboard(
 
     leaderboard_screen.run()
 
-    progression.level = economy.level
-    progression.xp = economy.xp
+    # --------------------------------------------------------
+    # SYNCHRONIZE PROGRESSION
+    # --------------------------------------------------------
+
+    progression.level = (
+        economy.level
+    )
+
+    progression.xp = (
+        economy.xp
+    )
 
     sync_level_systems(
         economy,
         progression,
         mixing_station,
     )
+
+    # --------------------------------------------------------
+    # REFRESH LEVEL
+    # --------------------------------------------------------
 
     active_bg = load_level_background(
         progression.level
@@ -445,8 +523,15 @@ def switch_level(
     mixing_station,
 ):
     """
-    Switch the active game to one of the three playable levels.
+    Switch the active game to one of the three playable
+    levels.
+
+    This remains compatible with the existing map system.
     """
+
+    # --------------------------------------------------------
+    # CLAMP LEVEL
+    # --------------------------------------------------------
 
     level = max(
         1,
@@ -456,23 +541,47 @@ def switch_level(
         ),
     )
 
+    # --------------------------------------------------------
+    # ECONOMY LEVEL
+    # --------------------------------------------------------
+
     economy.set_level(
         level
     )
 
-    progression.level = level
+    # --------------------------------------------------------
+    # PROGRESSION LEVEL
+    # --------------------------------------------------------
 
-    # Keyboard level switching is treated as a manual
-    # location selection, so the XP for the selected test
-    # level is reset exactly as in the existing system.
+    progression.level = (
+        level
+    )
+
+    # --------------------------------------------------------
+    # RESET TEST XP
+    #
+    # This preserves the existing keyboard/debug behavior.
+    # --------------------------------------------------------
+
     progression.xp = 0
 
     try:
+
         economy.xp = 0
+
     except Exception:
+
         pass
 
+    # --------------------------------------------------------
+    # SAVE
+    # --------------------------------------------------------
+
     economy.save_economy_data()
+
+    # --------------------------------------------------------
+    # SYNCHRONIZE
+    # --------------------------------------------------------
 
     sync_level_systems(
         economy,
@@ -480,9 +589,17 @@ def switch_level(
         mixing_station,
     )
 
+    # --------------------------------------------------------
+    # BACKGROUND
+    # --------------------------------------------------------
+
     active_bg = load_level_background(
         level
     )
+
+    # --------------------------------------------------------
+    # CUSTOMER
+    # --------------------------------------------------------
 
     active_customer = refresh_customer(
         level,
@@ -508,6 +625,7 @@ player_name = start_screen.run()
 if player_name is None:
 
     pygame.quit()
+
     sys.exit()
 
 
@@ -564,6 +682,31 @@ loading_screen = LoadingScreen(
     screen
 )
 
+
+# ============================================================
+# LEVEL UNLOCK SCREEN
+# ============================================================
+
+level_unlock_screen = LevelUnlockScreen(
+    screen
+)
+
+
+# ============================================================
+# INITIAL SYNCHRONISATION
+# ============================================================
+
+sync_level_systems(
+    economy,
+    progression,
+    None,
+)
+
+
+# ============================================================
+# INITIAL LOADING SCREEN
+# ============================================================
+
 loading_ok = loading_screen.run(
     player_name=player_name,
     level=progression.level,
@@ -573,6 +716,7 @@ loading_ok = loading_screen.run(
 if not loading_ok:
 
     pygame.quit()
+
     sys.exit()
 
 
@@ -593,6 +737,17 @@ mixing_station = MixingStation(
     progression=progression,
     rewards=reward_system,
     economy=economy,
+)
+
+
+# ============================================================
+# SYNCHRONIZE STATION
+# ============================================================
+
+sync_level_systems(
+    economy,
+    progression,
+    mixing_station,
 )
 
 
@@ -640,7 +795,6 @@ while running:
         FPS
     ) / 1000.0
 
-
     # ========================================================
     # EVENT LOOP
     # ========================================================
@@ -668,10 +822,9 @@ while running:
         except Exception as e:
 
             print(
-                f"[STATION ERROR] "
+                "[STATION ERROR] "
                 f"Event handling exception: {e}"
             )
-
 
         # ====================================================
         # VISIBLE MAP BUTTON
@@ -702,7 +855,6 @@ while running:
                 f"[MAP BUTTON ERROR] {e}"
             )
 
-
         # ====================================================
         # VISIBLE LEADERBOARD BUTTON
         # ====================================================
@@ -732,7 +884,6 @@ while running:
                 f"[LEADERBOARD BUTTON ERROR] {e}"
             )
 
-
         # ====================================================
         # KEYBOARD
         # ====================================================
@@ -749,13 +900,33 @@ while running:
                     "[MAIN] Resetting game..."
                 )
 
+                # --------------------------------------------
+                # RESET ECONOMY
+                # --------------------------------------------
+
                 economy.reset_economy()
+
+                # --------------------------------------------
+                # RESET PROGRESSION
+                # --------------------------------------------
 
                 progression.reset()
 
+                # --------------------------------------------
+                # RESET REWARDS / COMBO
+                # --------------------------------------------
+
                 reward_system.reset()
 
+                # --------------------------------------------
+                # RESET MIXING STATION
+                # --------------------------------------------
+
                 mixing_station.reset()
+
+                # --------------------------------------------
+                # SYNCHRONIZE
+                # --------------------------------------------
 
                 progression.level = (
                     economy.level
@@ -771,11 +942,19 @@ while running:
                     mixing_station,
                 )
 
+                # --------------------------------------------
+                # BACKGROUND
+                # --------------------------------------------
+
                 active_bg = (
                     load_level_background(
                         progression.level
                     )
                 )
+
+                # --------------------------------------------
+                # NEW CUSTOMER
+                # --------------------------------------------
 
                 active_customer = (
                     refresh_customer(
@@ -785,7 +964,6 @@ while running:
                 )
 
                 spawn_timer = 0.0
-
 
             # ------------------------------------------------
             # M = MAP
@@ -814,7 +992,6 @@ while running:
                         f"[MAP ERROR] {e}"
                     )
 
-
             # ------------------------------------------------
             # L = LEADERBOARD
             # ------------------------------------------------
@@ -841,7 +1018,6 @@ while running:
                     print(
                         f"[LEADERBOARD ERROR] {e}"
                     )
-
 
             # ------------------------------------------------
             # 1 = LEVEL 1
@@ -870,7 +1046,6 @@ while running:
 
                     spawn_timer = 0.0
 
-
             # ------------------------------------------------
             # 2 = LEVEL 2
             # ------------------------------------------------
@@ -897,7 +1072,6 @@ while running:
                     )
 
                     spawn_timer = 0.0
-
 
             # ------------------------------------------------
             # 3 = LEVEL 3
@@ -926,7 +1100,6 @@ while running:
 
                     spawn_timer = 0.0
 
-
     # ========================================================
     # UPDATE MIXING STATION
     # ========================================================
@@ -940,10 +1113,9 @@ while running:
     except Exception as e:
 
         print(
-            f"[STATION ERROR] "
+            "[STATION ERROR] "
             f"Update exception: {e}"
         )
-
 
     # ========================================================
     # SERVE COMPLETED DRINK
@@ -996,14 +1168,17 @@ while running:
                 )
 
                 # ------------------------------------------------
-                # REAL CUSTOMER SPEED
+                # CUSTOMER SPEED
                 # ------------------------------------------------
                 #
-                # Customer.py now owns the 15-second timer.
+                # Customer.py owns the patience timer.
                 #
-                # served_quickly() checks whether the customer
-                # still has at least 50% of their patience.
+                # served_quickly() determines whether the
+                # customer was served quickly enough for the
+                # speed bonus.
                 #
+                # The actual customer patience is 18 seconds.
+                # ------------------------------------------------
 
                 try:
 
@@ -1027,19 +1202,23 @@ while running:
                 )
 
                 # ------------------------------------------------
-                # LEVEL / XP
+                # SAVE OLD LEVEL
                 # ------------------------------------------------
 
                 old_level = (
                     progression.level
                 )
 
+                # ------------------------------------------------
+                # APPLY XP
+                # ------------------------------------------------
+
                 progression.add_xp(
                     reward_result.total_xp
                 )
 
                 # ------------------------------------------------
-                # CREDITS
+                # APPLY CREDITS
                 # ------------------------------------------------
 
                 economy.apply_reward(
@@ -1047,7 +1226,7 @@ while running:
                 )
 
                 # ------------------------------------------------
-                # SYNC
+                # SYNCHRONIZE
                 # ------------------------------------------------
 
                 economy.sync_progression(
@@ -1081,7 +1260,7 @@ while running:
                 except Exception as e:
 
                     print(
-                        f"[CUSTOMER] "
+                        "[CUSTOMER] "
                         f"Serve reaction warning: {e}"
                     )
 
@@ -1092,27 +1271,36 @@ while running:
                 try:
 
                     mixing_station.set_reward_feedback(
-                        xp_delta=reward_result.total_xp,
-                        credit_delta=reward_result.net_credits,
+                        xp_delta=(
+                            reward_result.total_xp
+                        ),
+                        credit_delta=(
+                            reward_result.net_credits
+                        ),
                     )
 
                 except Exception as e:
 
                     print(
-                        f"[HUD] Reward feedback warning: {e}"
+                        "[HUD] "
+                        f"Reward feedback warning: {e}"
                     )
 
-                # ------------------------------------------------
+                # =================================================
                 # LEVEL-UP
-                # ------------------------------------------------
+                # =================================================
 
                 if progression.level > old_level:
 
                     print(
-                        f"[LEVEL UP] "
+                        "[LEVEL UP] "
                         f"Level {old_level} -> "
                         f"{progression.level}"
                     )
+
+                    # --------------------------------------------
+                    # SYNCHRONIZE NEW LEVEL
+                    # --------------------------------------------
 
                     economy.sync_progression(
                         progression
@@ -1126,40 +1314,88 @@ while running:
                         progression.level
                     )
 
+                    # --------------------------------------------
+                    # NEW BACKGROUND
+                    # --------------------------------------------
+
                     active_bg = (
                         load_level_background(
                             progression.level
                         )
                     )
 
-                    # --------------------------------------------
-                    # SHOW LOADING SCREEN FOR THE NEW LEVEL
-                    # --------------------------------------------
+                    # ============================================
+                    # LEVEL UNLOCK SCREEN
+                    # ============================================
+                    #
+                    # Level 2:
+                    #     Neon Lounge
+                    #
+                    # Level 3:
+                    #     Cyber Penthouse
+                    #
+                    # The existing unlock screen already
+                    # contains the appropriate artwork.
+                    # ============================================
 
                     try:
 
-                        loading_ok = (
-                            loading_screen.run(
-                                player_name=player_name,
-                                level=progression.level,
-                                duration=6.7,
+                        unlock_ok = (
+                            level_unlock_screen.run(
+                                level=(
+                                    progression.level
+                                ),
+                                duration=4.5,
                             )
                         )
 
-                        if not loading_ok:
+                        if not unlock_ok:
 
                             running = False
 
                     except Exception as e:
 
                         print(
-                            f"[LOADING] "
-                            f"Level transition warning: {e}"
+                            "[UNLOCK SCREEN] "
+                            "Level transition warning: "
+                            f"{e}"
                         )
 
-                # ------------------------------------------------
+                    # ============================================
+                    # LOADING SCREEN
+                    # ============================================
+
+                    if running:
+
+                        try:
+
+                            loading_ok = (
+                                loading_screen.run(
+                                    player_name=(
+                                        player_name
+                                    ),
+                                    level=(
+                                        progression.level
+                                    ),
+                                    duration=6.7,
+                                )
+                            )
+
+                            if not loading_ok:
+
+                                running = False
+
+                        except Exception as e:
+
+                            print(
+                                "[LOADING] "
+                                "Level transition warning: "
+                                f"{e}"
+                            )
+
+                # =================================================
                 # TERMINAL RESULT
-                # ------------------------------------------------
+                # =================================================
 
                 print(
                     "----------------------------------------"
@@ -1185,6 +1421,10 @@ while running:
                     f"{served_quickly}"
                 )
 
+                # ------------------------------------------------
+                # XP RESULT
+                # ------------------------------------------------
+
                 if reward_result.total_xp >= 0:
 
                     print(
@@ -1199,10 +1439,18 @@ while running:
                         f"{reward_result.total_xp}"
                     )
 
+                # ------------------------------------------------
+                # CREDIT RESULT
+                # ------------------------------------------------
+
                 print(
                     f"Credits Change: "
                     f"{reward_result.net_credits:+}"
                 )
+
+                # ------------------------------------------------
+                # XP PENALTY
+                # ------------------------------------------------
 
                 if getattr(
                     reward_result,
@@ -1215,6 +1463,10 @@ while running:
                         f"-{reward_result.xp_penalty}"
                     )
 
+                # ------------------------------------------------
+                # CREDIT PENALTY
+                # ------------------------------------------------
+
                 if getattr(
                     reward_result,
                     "credit_penalty",
@@ -1226,14 +1478,31 @@ while running:
                         f"-{reward_result.credit_penalty}"
                     )
 
+                # ------------------------------------------------
+                # COMBO
+                # ------------------------------------------------
+
                 print(
                     f"Combo: "
                     f"{reward_result.combo_count}"
                 )
 
+                # ------------------------------------------------
+                # LEVEL
+                # ------------------------------------------------
+
                 print(
                     f"Current Level: "
                     f"{progression.level}"
+                )
+
+                # ------------------------------------------------
+                # LOCATION
+                # ------------------------------------------------
+
+                print(
+                    f"Current Location: "
+                    f"{progression.get_current_location()}"
                 )
 
                 print(
@@ -1245,7 +1514,6 @@ while running:
         # ----------------------------------------------------
 
         mixing_station.reset()
-
 
     # ========================================================
     # CUSTOMER UPDATE
@@ -1290,7 +1558,6 @@ while running:
                 SPAWN_DELAY
             )
 
-
     # ========================================================
     # SPAWN NEXT CUSTOMER
     # ========================================================
@@ -1314,9 +1581,7 @@ while running:
                 )
             )
 
-
     # ========================================================
-    
     # DRAW BACKGROUND
     # ========================================================
 
@@ -1324,7 +1589,6 @@ while running:
         active_bg,
         (0, 0),
     )
-
 
     # ========================================================
     # DRAW CUSTOMER
@@ -1344,7 +1608,6 @@ while running:
                 f"[CUSTOMER DRAW ERROR] {e}"
             )
 
-
     # ========================================================
     # DRAW MIXING STATION
     # ========================================================
@@ -1358,10 +1621,9 @@ while running:
     except Exception as e:
 
         print(
-            f"[STATION ERROR] "
+            "[STATION ERROR] "
             f"Draw exception: {e}"
         )
-
 
     # ========================================================
     # DISPLAY

@@ -24,9 +24,15 @@
         "location": "Neon Lounge"
     },
     "md": {
-        "credits": 11,
-        "xp": 205,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 189,
+        "xp": 25,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "alex": {
+        "credits": 189,
+        "xp": 25,
+        "level": 2,
+        "location": "Neon Lounge"
     }
 }

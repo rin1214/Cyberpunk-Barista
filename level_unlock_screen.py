@@ -3,137 +3,490 @@ import pygame
 
 
 class LevelUnlockScreen:
-    """Cyberpunk Cafe level-unlock celebration screen."""
+    """
+    Cyberpunk Café level-unlock celebration screen.
+
+    This screen is shown AFTER the player actually
+    reaches a new level.
+
+    Level 2:
+        Neon Lounge
+
+    Level 3:
+        Cyber Penthouse
+    """
 
     WIDTH = 1280
     HEIGHT = 720
     FPS = 60
-    DISPLAY_TIME = 4.0
 
-    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-    UNLOCK_ROOT = os.path.join(PROJECT_ROOT, "assets", "mahirah", "unlock")
+    DISPLAY_TIME = 4.5
+
+    # --------------------------------------------------------
+    # IMPORTANT:
+    #
+    # Build the asset path from the Python file's own folder.
+    #
+    # This prevents the screen from breaking when VS Code
+    # starts the game from a different working directory.
+    # --------------------------------------------------------
+
+    PROJECT_ROOT = os.path.dirname(
+        os.path.abspath(__file__)
+    )
+
+    UNLOCK_ROOT = os.path.join(
+        PROJECT_ROOT,
+        "assets",
+        "mahirah",
+        "unlock",
+    )
 
     LEVEL_IMAGES = {
+
         2: "level_2_unlock.png",
+
         3: "level_3_unlock.png",
     }
 
-    def __init__(self, screen):
+    def __init__(
+        self,
+        screen,
+    ):
+
         self.screen = screen
+
         self.clock = pygame.time.Clock()
 
-        self.images = {
-            level: self._load_image(filename)
-            for level, filename in self.LEVEL_IMAGES.items()
-        }
+        # ----------------------------------------------------
+        # LOAD ALL UNLOCK IMAGES
+        # ----------------------------------------------------
 
-    def _load_image(self, filename):
-        path = os.path.join(self.UNLOCK_ROOT, filename)
+        self.images = {}
+
+        for level, filename in self.LEVEL_IMAGES.items():
+
+            self.images[level] = (
+                self._load_image(
+                    filename
+                )
+            )
+
+    # ========================================================
+    # LOAD IMAGE
+    # ========================================================
+
+    def _load_image(
+        self,
+        filename,
+    ):
+        """
+        Load an unlock image using an absolute project path.
+        """
+
+        path = os.path.join(
+            self.UNLOCK_ROOT,
+            filename,
+        )
 
         try:
-            image = pygame.image.load(path).convert()
-            print(f"[UNLOCK ASSET] Loaded: {path}")
+
+            image = pygame.image.load(
+                path
+            ).convert()
+
+            print(
+                "[UNLOCK ASSET] Loaded:"
+            )
+
+            print(
+                f"    {path}"
+            )
+
+            print(
+                f"    Size: {image.get_size()}"
+            )
+
             return image
-        except (pygame.error, FileNotFoundError) as e:
-            print(f"[UNLOCK ASSET WARNING] {path} ({e})")
+
+        except (
+            pygame.error,
+            FileNotFoundError,
+        ) as error:
+
+            print(
+                "[UNLOCK ASSET ERROR]"
+            )
+
+            print(
+                f"    Could not load: {path}"
+            )
+
+            print(
+                f"    Reason: {error}"
+            )
+
             return None
 
-    def _draw_image(self, image):
+    # ========================================================
+    # DRAW IMAGE
+    # ========================================================
+
+    def _draw_image(
+        self,
+        image,
+    ):
+        """
+        Draw the unlock artwork while preserving
+        its aspect ratio.
+        """
+
+        # ----------------------------------------------------
+        # IMAGE MISSING
+        # ----------------------------------------------------
+
         if image is None:
-            self.screen.fill((15, 10, 30))
+
+            self.screen.fill(
+                (
+                    15,
+                    10,
+                    30,
+                )
+            )
+
             return
 
-        image_width, image_height = image.get_size()
+        # ----------------------------------------------------
+        # ORIGINAL SIZE
+        # ----------------------------------------------------
 
-        # Fill the 1280x720 screen while preserving aspect ratio.
+        image_width, image_height = (
+            image.get_size()
+        )
+
+        # ----------------------------------------------------
+        # SCALE TO FILL 1280x720
+        # ----------------------------------------------------
+
         scale = max(
+
             self.WIDTH / image_width,
-            self.HEIGHT / image_height
+
+            self.HEIGHT / image_height,
         )
 
         new_size = (
-            max(1, int(image_width * scale)),
-            max(1, int(image_height * scale))
+
+            max(
+                1,
+                int(
+                    image_width * scale
+                ),
+            ),
+
+            max(
+                1,
+                int(
+                    image_height * scale
+                ),
+            ),
         )
 
-        scaled = pygame.transform.smoothscale(image, new_size)
+        scaled = pygame.transform.smoothscale(
+            image,
+            new_size,
+        )
 
-        x = (self.WIDTH - new_size[0]) // 2
-        y = (self.HEIGHT - new_size[1]) // 2
+        # ----------------------------------------------------
+        # CENTER
+        # ----------------------------------------------------
 
-        self.screen.blit(scaled, (x, y))
+        x = (
+            self.WIDTH
+            - new_size[0]
+        ) // 2
 
-    def _draw_subtle_effect(self, elapsed):
-        """Very subtle scanline/glow effect; no extra text or timer."""
+        y = (
+            self.HEIGHT
+            - new_size[1]
+        ) // 2
+
+        self.screen.blit(
+            scaled,
+            (
+                x,
+                y,
+            ),
+        )
+
+    # ========================================================
+    # EFFECT
+    # ========================================================
+
+    def _draw_subtle_effect(
+        self,
+        elapsed,
+    ):
+        """
+        Add a very subtle cyberpunk scanline effect.
+        """
+
         lines = pygame.Surface(
-            (self.WIDTH, self.HEIGHT),
-            pygame.SRCALPHA
+            (
+                self.WIDTH,
+                self.HEIGHT,
+            ),
+            pygame.SRCALPHA,
         )
 
-        for y in range(0, self.HEIGHT, 4):
+        for y in range(
+            0,
+            self.HEIGHT,
+            4,
+        ):
+
             pygame.draw.line(
+
                 lines,
-                (255, 255, 255, 10),
-                (0, y),
-                (self.WIDTH, y)
+
+                (
+                    255,
+                    255,
+                    255,
+                    10,
+                ),
+
+                (
+                    0,
+                    y,
+                ),
+
+                (
+                    self.WIDTH,
+                    y,
+                ),
             )
 
-        self.screen.blit(lines, (0, 0))
+        self.screen.blit(
+            lines,
+            (
+                0,
+                0,
+            ),
+        )
 
-        glow_y = int((elapsed * 35) % self.HEIGHT)
+        # ----------------------------------------------------
+        # MOVING GLOW
+        # ----------------------------------------------------
+
+        glow_y = int(
+            (
+                elapsed
+                * 35
+            )
+            % self.HEIGHT
+        )
 
         glow = pygame.Surface(
-            (self.WIDTH, 35),
-            pygame.SRCALPHA
+            (
+                self.WIDTH,
+                35,
+            ),
+            pygame.SRCALPHA,
         )
-        glow.fill((120, 220, 255, 12))
 
-        self.screen.blit(glow, (0, glow_y - 17))
+        glow.fill(
+            (
+                120,
+                220,
+                255,
+                12,
+            )
+        )
 
-    def run(self, level, duration=DISPLAY_TIME):
+        self.screen.blit(
+            glow,
+            (
+                0,
+                glow_y - 17,
+            ),
+        )
+
+    # ========================================================
+    # RUN
+    # ========================================================
+
+    def run(
+        self,
+        level,
+        duration=DISPLAY_TIME,
+    ):
         """
-        Show the unlock artwork for the requested level.
+        Show the unlock screen.
 
-        Returns True when finished normally.
-        Returns False if the player closes the game.
+        Returns:
+
+            True
+                Screen finished normally.
+
+            False
+                Player closed the game.
         """
+
+        # ----------------------------------------------------
+        # SAFETY
+        # ----------------------------------------------------
+
+        try:
+
+            level = int(
+                level
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            print(
+                "[UNLOCK SCREEN] "
+                "Invalid level."
+            )
+
+            return True
+
+        # ----------------------------------------------------
+        # LEVEL 1 HAS NO UNLOCK SCREEN
+        # ----------------------------------------------------
+
+        if level == 1:
+
+            print(
+                "[UNLOCK SCREEN] "
+                "Level 1 does not require an unlock screen."
+            )
+
+            return True
+
+        # ----------------------------------------------------
+        # CHECK IMAGE EXISTS
+        # ----------------------------------------------------
 
         if level not in self.images:
+
             print(
-                f"[UNLOCK SCREEN] No unlock artwork for Level {level}."
+                "[UNLOCK SCREEN] "
+                f"No artwork configured for Level {level}."
             )
+
             return True
 
         image = self.images[level]
+
+        # ----------------------------------------------------
+        # START TIMER
+        # ----------------------------------------------------
+
         elapsed = 0.0
 
+        print(
+            "========================================"
+        )
+
+        print(
+            "[UNLOCK SCREEN]"
+        )
+
+        print(
+            f"Showing Level {level} unlock screen."
+        )
+
+        print(
+            f"Artwork loaded: {image is not None}"
+        )
+
+        print(
+            "========================================"
+        )
+
+        # ====================================================
+        # SCREEN LOOP
+        # ====================================================
+
         while elapsed < duration:
-            dt = self.clock.tick(self.FPS) / 1000.0
+
+            dt = (
+                self.clock.tick(
+                    self.FPS
+                )
+                / 1000.0
+            )
+
             elapsed += dt
 
+            # ------------------------------------------------
+            # EVENTS
+            # ------------------------------------------------
+
             for event in pygame.event.get():
+
                 if event.type == pygame.QUIT:
+
+                    print(
+                        "[UNLOCK SCREEN] "
+                        "Game closed."
+                    )
+
                     return False
 
-            self._draw_image(image)
-            self._draw_subtle_effect(elapsed)
+            # ------------------------------------------------
+            # DRAW
+            # ------------------------------------------------
+
+            self._draw_image(
+                image
+            )
+
+            self._draw_subtle_effect(
+                elapsed
+            )
 
             pygame.display.flip()
+
+        print(
+            "[UNLOCK SCREEN] Finished."
+        )
 
         return True
 
 
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+
 if __name__ == "__main__":
+
     pygame.init()
 
-    screen = pygame.display.set_mode((1280, 720))
-    pygame.display.set_caption(
-        "Cyberpunk Cafe - Level Unlock Screen"
+    screen = pygame.display.set_mode(
+        (
+            1280,
+            720,
+        )
     )
 
-    unlock_screen = LevelUnlockScreen(screen)
+    pygame.display.set_caption(
+        "Cyberpunk Café - Level Unlock Screen"
+    )
 
-    # Standalone test: Level 2.
-    unlock_screen.run(level=2, duration=4.5)
+    unlock_screen = LevelUnlockScreen(
+        screen
+    )
+
+    unlock_screen.run(
+        level=2,
+        duration=4.5,
+    )
 
     pygame.quit()
