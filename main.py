@@ -8,36 +8,34 @@ MASTER GAME FLOW
 ------------------------------------------------------------
 
 START SCREEN
-     ↓
-LOADING SCREEN
-     ↓
+        ↓
+INITIAL LOADING
+        ↓
 LEVEL 1 GAMEPLAY
-     ↓
-CUSTOMER ORDER
-     ↓
+        ↓
+CUSTOMER
+        ↓
 DRINK MIXING
-     ↓
+        ↓
 SERVE
-     ↓
-ACCURACY CHECK
-     ↓
-REWARD / XP / CREDITS
-     ↓
+        ↓
+ACCURACY
+        ↓
+REWARD
+        ↓
+XP / CREDITS
+        ↓
 LEVEL UP?
-     │
-     ├── NO ───────→ NEXT CUSTOMER
-     │
-     └── YES
-             ↓
-        LEVEL UNLOCK
-             ↓
-        LOADING SCREEN
-             ↓
-        NEW LEVEL
-             ↓
-        NEW CUSTOMER
-             ↓
-        GAMEPLAY
+     /       \
+   NO         YES
+   ↓           ↓
+NEXT       LEVEL UNLOCK
+CUSTOMER        ↓
+             LOADING
+                ↓
+             NEW LEVEL
+                ↓
+           NEW CUSTOMER
 
 
 FINAL LEVELS
@@ -52,24 +50,43 @@ Neon Lounge
 LEVEL 3
 Cyber Penthouse
 
-LEVEL 3 is the maximum level.
+LEVEL 3 is the maximum.
 
 
-MUSIC
+IMPORTANT CUSTOMER RULE
 ------------------------------------------------------------
 
-The Start Screen starts the Cyberpunk Café music.
+customer.py owns customer movement.
 
-main.py then makes sure that music continues playing
-throughout the game.
+main.py ONLY initializes the customer's starting position.
 
-The following screens NEVER stop the music:
+main.py must NOT repeatedly overwrite:
 
-    • Loading Screen
-    • Level Unlock Screen
-    • Gameplay
-    • Map
-    • Leaderboard
+    customer.current_y
+    customer.rect.bottom
+
+during the main game loop.
+
+Otherwise the customer cannot finish leaving
+after being served.
+
+
+MUSIC RULE
+------------------------------------------------------------
+
+The music starts from the Start Screen.
+
+main.py keeps the same music playing.
+
+The music is NOT restarted when:
+
+    • gameplay starts
+    • Level Unlock Screen appears
+    • Loading Screen appears
+    • Level 2 begins
+    • Level 3 begins
+    • Map opens
+    • Leaderboard opens
 
 ============================================================
 """
@@ -80,7 +97,7 @@ import pygame
 
 
 # ============================================================
-# PROJECT SYSTEM IMPORTS
+# IMPORT GAME SYSTEMS
 # ============================================================
 
 from customer import (
@@ -140,7 +157,7 @@ from leaderboard_screen import (
 
 
 # ============================================================
-# PYGAME INITIALISATION
+# INITIALISE PYGAME
 # ============================================================
 
 pygame.init()
@@ -156,11 +173,10 @@ PROJECT_ROOT = os.path.dirname(
 
 
 # ============================================================
-# MASTER SCREEN SIZE
+# MASTER GAME SIZE
 # ============================================================
 
 SCREEN_WIDTH = 1280
-
 SCREEN_HEIGHT = 720
 
 
@@ -173,7 +189,7 @@ screen = pygame.display.set_mode(
 
 
 pygame.display.set_caption(
-    "Cyberpunk Café - Game Engine"
+    "Cyberpunk Café - Game Engine (16:9)"
 )
 
 
@@ -216,7 +232,7 @@ def load_level_background(
     level_num,
 ):
     """
-    Load the correct café background.
+    Load the background belonging to the player's level.
 
     Level 1:
         Back Alley Kiosk
@@ -234,7 +250,9 @@ def load_level_background(
 
     try:
 
-        level_num = int(level_num)
+        level_num = int(
+            level_num
+        )
 
     except (
         TypeError,
@@ -257,15 +275,19 @@ def load_level_background(
 
     if level_num in bg_cache:
 
-        return bg_cache[level_num]
+        return bg_cache[
+            level_num
+        ]
 
     # --------------------------------------------------------
-    # FILE
+    # FILE PATH
     # --------------------------------------------------------
 
-    relative_path = LEVEL_BACKGROUNDS.get(
-        level_num,
-        LEVEL_BACKGROUNDS[1],
+    relative_path = (
+        LEVEL_BACKGROUNDS.get(
+            level_num,
+            LEVEL_BACKGROUNDS[1],
+        )
     )
 
     path = os.path.join(
@@ -274,7 +296,7 @@ def load_level_background(
     )
 
     # --------------------------------------------------------
-    # LOAD
+    # LOAD IMAGE
     # --------------------------------------------------------
 
     try:
@@ -283,17 +305,19 @@ def load_level_background(
             path
         ).convert_alpha()
 
-        scaled_image = pygame.transform.smoothscale(
-            raw_image,
-            (
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT,
-            ),
+        scaled_image = (
+            pygame.transform.smoothscale(
+                raw_image,
+                (
+                    SCREEN_WIDTH,
+                    SCREEN_HEIGHT,
+                ),
+            )
         )
 
-        bg_cache[level_num] = (
-            scaled_image
-        )
+        bg_cache[
+            level_num
+        ] = scaled_image
 
         print(
             "[MAIN] Loaded Level "
@@ -306,13 +330,17 @@ def load_level_background(
 
         return scaled_image
 
+    # --------------------------------------------------------
+    # FALLBACK
+    # --------------------------------------------------------
+
     except (
         pygame.error,
         FileNotFoundError,
     ) as error:
 
         print(
-            "[MAIN] Background loading error:"
+            "[MAIN] Could not load background:"
         )
 
         print(
@@ -323,10 +351,6 @@ def load_level_background(
             f"       {error}"
         )
 
-        # ----------------------------------------------------
-        # FALLBACK
-        # ----------------------------------------------------
-
         fallback = pygame.Surface(
             (
                 SCREEN_WIDTH,
@@ -336,13 +360,15 @@ def load_level_background(
 
         fallback.fill(
             (
-                20,
+                25,
                 15,
                 35,
             )
         )
 
-        bg_cache[level_num] = fallback
+        bg_cache[
+            level_num
+        ] = fallback
 
         return fallback
 
@@ -368,26 +394,17 @@ def ensure_game_music(
 
     IMPORTANT:
 
-    This function does NOT restart the music if it is already
-    playing.
+    This function does NOT restart the music when music is
+    already playing.
 
-    Therefore:
+    Therefore the same music continues through:
 
         Start Screen
-            ↓
-        Loading
-            ↓
-        Level 1
-            ↓
-        Level Unlock
-            ↓
-        Loading
-            ↓
+        Gameplay
+        Unlock Screen
+        Loading Screen
         Level 2
-            ↓
         Level 3
-
-    all use the same continuous music playback.
     """
 
     try:
@@ -401,12 +418,16 @@ def ensure_game_music(
             pygame.mixer.init()
 
         # ----------------------------------------------------
-        # DETERMINE VOLUME
+        # DEFAULT VOLUME
         # ----------------------------------------------------
 
         volume = 0.30
 
         muted = False
+
+        # ----------------------------------------------------
+        # USE START SCREEN SETTINGS
+        # ----------------------------------------------------
 
         if start_screen is not None:
 
@@ -416,7 +437,7 @@ def ensure_game_music(
                     getattr(
                         start_screen,
                         "music_volume",
-                        volume,
+                        0.30,
                     )
                 )
 
@@ -436,7 +457,7 @@ def ensure_game_music(
             )
 
         # ----------------------------------------------------
-        # SAFETY CLAMP
+        # CLAMP VOLUME
         # ----------------------------------------------------
 
         volume = max(
@@ -464,19 +485,15 @@ def ensure_game_music(
             )
 
         # ----------------------------------------------------
-        # MUSIC ALREADY PLAYING
+        # ALREADY PLAYING
         # ----------------------------------------------------
 
         if pygame.mixer.music.get_busy():
 
-            print(
-                "[AUDIO] Music is already playing."
-            )
-
             return True
 
         # ----------------------------------------------------
-        # MUSIC FILE CHECK
+        # CHECK MUSIC FILE
         # ----------------------------------------------------
 
         if not os.path.exists(
@@ -494,7 +511,7 @@ def ensure_game_music(
             return False
 
         # ----------------------------------------------------
-        # LOAD ONLY WHEN NOT ALREADY PLAYING
+        # LOAD AND PLAY
         # ----------------------------------------------------
 
         pygame.mixer.music.load(
@@ -507,7 +524,7 @@ def ensure_game_music(
 
         print(
             "[AUDIO] Cyberpunk Café music "
-            "is now playing continuously."
+            "started/continued."
         )
 
         return True
@@ -515,24 +532,33 @@ def ensure_game_music(
     except pygame.error as error:
 
         print(
-            f"[AUDIO ERROR] {error}"
+            "[AUDIO ERROR]"
+        )
+
+        print(
+            f"       {error}"
         )
 
         return False
 
 
 # ============================================================
-# CUSTOMER POSITION
+# CUSTOMER INITIAL POSITION
 # ============================================================
 
 def position_customer(
     customer,
-    spawning=False,
 ):
     """
-    Position the customer in the lower-left café area.
+    Set the customer's INITIAL position.
 
-    Customer.py remains responsible for the actual movement.
+    IMPORTANT:
+
+    This function is called only when a customer is created.
+
+    It is NOT called every frame.
+
+    customer.py controls the customer's movement after this.
     """
 
     if customer is None:
@@ -542,12 +568,20 @@ def position_customer(
     try:
 
         # ----------------------------------------------------
-        # FINAL COUNTER POSITION
+        # CUSTOMER X POSITION
+        # ----------------------------------------------------
+
+        customer_x = 180
+
+        # ----------------------------------------------------
+        # COUNTER POSITION
         # ----------------------------------------------------
 
         counter_bottom = 690
 
-        customer_x = 180
+        # ----------------------------------------------------
+        # BASIC POSITION DATA
+        # ----------------------------------------------------
 
         customer.x = (
             customer_x
@@ -565,20 +599,12 @@ def position_customer(
             counter_bottom + 120
         )
 
-        if spawning:
-
-            customer.current_y = (
-                customer.spawn_y
-            )
-
-        else:
-
-            customer.current_y = (
-                counter_bottom
-            )
+        customer.current_y = (
+            customer.spawn_y
+        )
 
         # ----------------------------------------------------
-        # RECTANGLE
+        # INITIAL RECTANGLE
         # ----------------------------------------------------
 
         if hasattr(
@@ -613,23 +639,35 @@ def create_customer(
     level,
 ):
     """
-    Create a customer using the current level.
+    Create a new customer.
+
+    Customer.py owns:
+
+        • order generation
+        • patience
+        • movement
+        • FSM
+        • serving
+        • leaving
     """
 
     customer = Customer(
         current_level=level
     )
 
+    # --------------------------------------------------------
+    # INITIAL POSITION ONLY
+    # --------------------------------------------------------
+
     position_customer(
-        customer,
-        spawning=True,
+        customer
     )
 
     return customer
 
 
 # ============================================================
-# GIVE CUSTOMER ORDER TO STATION
+# SEND CUSTOMER ORDER TO STATION
 # ============================================================
 
 def sync_station_order(
@@ -637,7 +675,7 @@ def sync_station_order(
     customer,
 ):
     """
-    Send the customer's order to the mixing station.
+    Give the current customer order to the Mixing Station.
     """
 
     if customer is None:
@@ -667,7 +705,7 @@ def sync_station_order(
         )
 
     # --------------------------------------------------------
-    # SEND ORDER
+    # SEND TO STATION
     # --------------------------------------------------------
 
     if order is not None:
@@ -678,7 +716,7 @@ def sync_station_order(
 
 
 # ============================================================
-# REFRESH CUSTOMER
+# CREATE AND SYNC CUSTOMER
 # ============================================================
 
 def refresh_customer(
@@ -686,7 +724,8 @@ def refresh_customer(
     mixing_station,
 ):
     """
-    Create a fresh customer and send their order to the station.
+    Create a customer and immediately give their order
+    to the Mixing Station.
     """
 
     customer = create_customer(
@@ -702,7 +741,7 @@ def refresh_customer(
 
 
 # ============================================================
-# SYNCHRONISE GAME SYSTEMS
+# SYNCHRONISE LEVEL SYSTEMS
 # ============================================================
 
 def sync_level_systems(
@@ -735,7 +774,7 @@ def sync_level_systems(
         )
 
     # --------------------------------------------------------
-    # MIXING STATION
+    # STATION
     # --------------------------------------------------------
 
     if mixing_station is not None:
@@ -785,9 +824,13 @@ def open_map(
     mixing_station,
 ):
     """
-    Open the existing collaborator Map screen.
+    Open the existing Map system.
 
-    Map.py / map_manager.py are not modified here.
+    After returning:
+
+        • progression is synchronized
+        • background is refreshed
+        • a new customer is created
     """
 
     print(
@@ -803,7 +846,7 @@ def open_map(
     map_screen.run()
 
     # --------------------------------------------------------
-    # SYNCHRONISE AFTER MAP
+    # SYNC FROM ECONOMY
     # --------------------------------------------------------
 
     try:
@@ -835,20 +878,42 @@ def open_map(
 
         progression.xp = 0
 
+    # --------------------------------------------------------
+    # SYNC
+    # --------------------------------------------------------
+
     sync_level_systems(
         economy,
         progression,
         mixing_station,
     )
 
-    active_bg = load_level_background(
-        progression.level
+    # --------------------------------------------------------
+    # BACKGROUND
+    # --------------------------------------------------------
+
+    active_bg = (
+        load_level_background(
+            progression.level
+        )
     )
 
-    active_customer = refresh_customer(
-        progression.level,
-        mixing_station,
+    # --------------------------------------------------------
+    # NEW CUSTOMER
+    # --------------------------------------------------------
+
+    active_customer = (
+        refresh_customer(
+            progression.level,
+            mixing_station,
+        )
     )
+
+    # --------------------------------------------------------
+    # MUSIC
+    # --------------------------------------------------------
+
+    ensure_game_music()
 
     return (
         active_bg,
@@ -868,7 +933,7 @@ def open_leaderboard(
     mixing_station,
 ):
     """
-    Open the existing collaborator Leaderboard screen.
+    Open the existing Leaderboard system.
     """
 
     print(
@@ -886,7 +951,7 @@ def open_leaderboard(
     leaderboard_screen.run()
 
     # --------------------------------------------------------
-    # SYNCHRONISE AFTER LEADERBOARD
+    # SYNC FROM ECONOMY
     # --------------------------------------------------------
 
     try:
@@ -918,20 +983,42 @@ def open_leaderboard(
 
         progression.xp = 0
 
+    # --------------------------------------------------------
+    # SYNC
+    # --------------------------------------------------------
+
     sync_level_systems(
         economy,
         progression,
         mixing_station,
     )
 
-    active_bg = load_level_background(
-        progression.level
+    # --------------------------------------------------------
+    # BACKGROUND
+    # --------------------------------------------------------
+
+    active_bg = (
+        load_level_background(
+            progression.level
+        )
     )
 
-    active_customer = refresh_customer(
-        progression.level,
-        mixing_station,
+    # --------------------------------------------------------
+    # NEW CUSTOMER
+    # --------------------------------------------------------
+
+    active_customer = (
+        refresh_customer(
+            progression.level,
+            mixing_station,
+        )
     )
+
+    # --------------------------------------------------------
+    # MUSIC
+    # --------------------------------------------------------
+
+    ensure_game_music()
 
     return (
         active_bg,
@@ -950,17 +1037,18 @@ def switch_level(
     mixing_station,
 ):
     """
-    Debug/manual level switching.
+    Debug/manual level switch.
 
-    This is separate from natural XP progression.
+    This is NOT the normal progression system.
 
-    It is kept for compatibility with the existing
-    keyboard controls.
+    Normal gameplay uses XP to advance levels.
     """
 
     try:
 
-        level = int(level)
+        level = int(
+            level
+        )
 
     except (
         TypeError,
@@ -978,7 +1066,7 @@ def switch_level(
     )
 
     # --------------------------------------------------------
-    # SET ECONOMY LEVEL
+    # ECONOMY
     # --------------------------------------------------------
 
     economy.set_level(
@@ -986,7 +1074,7 @@ def switch_level(
     )
 
     # --------------------------------------------------------
-    # SET PROGRESSION LEVEL
+    # PROGRESSION
     # --------------------------------------------------------
 
     progression.level = (
@@ -994,6 +1082,10 @@ def switch_level(
     )
 
     progression.xp = 0
+
+    # --------------------------------------------------------
+    # ECONOMY XP
+    # --------------------------------------------------------
 
     try:
 
@@ -1007,7 +1099,19 @@ def switch_level(
     # SAVE
     # --------------------------------------------------------
 
-    economy.save_economy_data()
+    try:
+
+        economy.save_economy_data()
+
+    except Exception as error:
+
+        print(
+            "[MAIN] Manual level save warning:"
+        )
+
+        print(
+            f"       {error}"
+        )
 
     # --------------------------------------------------------
     # SYNC
@@ -1023,17 +1127,21 @@ def switch_level(
     # BACKGROUND
     # --------------------------------------------------------
 
-    active_bg = load_level_background(
-        level
+    active_bg = (
+        load_level_background(
+            level
+        )
     )
 
     # --------------------------------------------------------
     # CUSTOMER
     # --------------------------------------------------------
 
-    active_customer = refresh_customer(
-        level,
-        mixing_station,
+    active_customer = (
+        refresh_customer(
+            level,
+            mixing_station,
+        )
     )
 
     return (
@@ -1057,18 +1165,17 @@ def run_level_transition(
     mixing_station,
 ):
     """
-    Run the complete level transition.
+    Run the COMPLETE level-up sequence.
 
-    THIS IS THE IMPORTANT FIX.
+    IMPORTANT:
 
-    Normal gameplay does not draw while these screens
-    are active.
+    Normal gameplay is paused while this function runs.
 
     Sequence:
 
         Level Up
             ↓
-        Unlock Screen
+        Level Unlock Screen
             ↓
         Loading Screen
             ↓
@@ -1077,10 +1184,12 @@ def run_level_transition(
         New Customer
             ↓
         Resume Gameplay
+
+    Music is intentionally kept alive.
     """
 
     # --------------------------------------------------------
-    # SAFETY
+    # SAFE LEVEL
     # --------------------------------------------------------
 
     try:
@@ -1110,7 +1219,7 @@ def run_level_transition(
     )
 
     print(
-        "[MAIN] STARTING LEVEL TRANSITION"
+        "[MAIN] LEVEL TRANSITION START"
     )
 
     print(
@@ -1122,48 +1231,13 @@ def run_level_transition(
     )
 
     # --------------------------------------------------------
-    # CLEAR OLD CUSTOMER / STATION
-    # --------------------------------------------------------
-
-    try:
-
-        mixing_station.reset()
-
-    except Exception as error:
-
-        print(
-            "[MAIN] Station reset warning:"
-        )
-
-        print(
-            f"       {error}"
-        )
-
-    # --------------------------------------------------------
-    # CLEAR OLD DISPLAY
-    #
-    # This guarantees the transition screen gets a clean
-    # display surface.
-    # --------------------------------------------------------
-
-    screen.fill(
-        (
-            8,
-            10,
-            28,
-        )
-    )
-
-    pygame.display.flip()
-
-    # --------------------------------------------------------
-    # MAKE SURE MUSIC CONTINUES
+    # MAKE SURE MUSIC IS RUNNING
     # --------------------------------------------------------
 
     ensure_game_music()
 
     # ========================================================
-    # LEVEL UNLOCK SCREEN
+    # LEVEL UNLOCK
     # ========================================================
 
     if new_level >= 2:
@@ -1182,19 +1256,19 @@ def run_level_transition(
         if not unlock_ok:
 
             print(
-                "[MAIN] Level unlock screen requested quit."
+                "[MAIN] Unlock screen requested quit."
             )
 
-            return False
+            return None
 
     # --------------------------------------------------------
-    # MUSIC CHECK
+    # KEEP MUSIC
     # --------------------------------------------------------
 
     ensure_game_music()
 
     # ========================================================
-    # LOADING SCREEN
+    # LOADING
     # ========================================================
 
     print(
@@ -1215,29 +1289,25 @@ def run_level_transition(
             "[MAIN] Loading screen requested quit."
         )
 
-        return False
+        return None
 
     # --------------------------------------------------------
-    # MUSIC CHECK
+    # KEEP MUSIC
     # --------------------------------------------------------
 
     ensure_game_music()
 
     # ========================================================
-    # SET NEW BACKGROUND
-    # ========================================================
-
-    active_bg = load_level_background(
-        new_level
-    )
-
-    # ========================================================
-    # SYNCHRONISE PROGRESSION
+    # SET NEW LEVEL
     # ========================================================
 
     progression.level = (
         new_level
     )
+
+    # ========================================================
+    # SYNCHRONISE SYSTEMS
+    # ========================================================
 
     sync_level_systems(
         economy,
@@ -1253,9 +1323,15 @@ def run_level_transition(
 
         mixing_station.reset()
 
-    except Exception:
+    except Exception as error:
 
-        pass
+        print(
+            "[MAIN] Station reset warning:"
+        )
+
+        print(
+            f"       {error}"
+        )
 
     try:
 
@@ -1278,16 +1354,28 @@ def run_level_transition(
         pass
 
     # ========================================================
-    # NEW CUSTOMER
+    # NEW BACKGROUND
     # ========================================================
 
-    active_customer = refresh_customer(
-        new_level,
-        mixing_station,
+    active_bg = (
+        load_level_background(
+            new_level
+        )
     )
 
     # ========================================================
-    # SAVE NEW LEVEL
+    # NEW CUSTOMER
+    # ========================================================
+
+    active_customer = (
+        refresh_customer(
+            new_level,
+            mixing_station,
+        )
+    )
+
+    # ========================================================
+    # SAVE
     # ========================================================
 
     try:
@@ -1307,7 +1395,7 @@ def run_level_transition(
     except Exception as error:
 
         print(
-            "[MAIN] Save warning:"
+            "[MAIN] Level save warning:"
         )
 
         print(
@@ -1315,7 +1403,7 @@ def run_level_transition(
         )
 
     # ========================================================
-    # FINAL DISPLAY
+    # SHOW NEW LEVEL ONCE
     # ========================================================
 
     screen.blit(
@@ -1332,15 +1420,9 @@ def run_level_transition(
             screen
         )
 
-    except Exception as error:
+    except Exception:
 
-        print(
-            "[MAIN] Customer draw warning:"
-        )
-
-        print(
-            f"       {error}"
-        )
+        pass
 
     try:
 
@@ -1348,30 +1430,25 @@ def run_level_transition(
             screen
         )
 
-    except Exception as error:
+    except Exception:
 
-        print(
-            "[MAIN] Station draw warning:"
-        )
-
-        print(
-            f"       {error}"
-        )
+        pass
 
     pygame.display.flip()
 
-    # --------------------------------------------------------
-    # MUSIC
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL MUSIC CHECK
+    # ========================================================
 
     ensure_game_music()
 
     print(
-        f"[MAIN] LEVEL {new_level} TRANSITION COMPLETE."
+        f"[MAIN] LEVEL {new_level} "
+        "TRANSITION COMPLETE."
     )
 
     print(
-        "[MAIN] Returning to normal gameplay."
+        "[MAIN] Returning to gameplay."
     )
 
     print()
@@ -1379,7 +1456,6 @@ def run_level_transition(
     return (
         active_bg,
         active_customer,
-        True,
     )
 
 
@@ -1391,11 +1467,12 @@ start_screen = StartScreen(
     screen
 )
 
+
 player_name = start_screen.run()
 
 
 # ============================================================
-# START SCREEN EXIT
+# EXIT FROM START SCREEN
 # ============================================================
 
 if player_name is None:
@@ -1406,8 +1483,13 @@ if player_name is None:
 
 
 # ============================================================
-# IMPORTANT:
-# TAKE OVER GLOBAL MUSIC AFTER START SCREEN
+# MUSIC HANDOFF
+# ============================================================
+#
+# StartScreen has already been responsible for starting
+# the music.
+#
+# We now keep it alive from the main game.
 # ============================================================
 
 ensure_game_music(
@@ -1436,7 +1518,7 @@ progression = Progression(
 
 
 # ============================================================
-# FORCE FINAL LEVEL LIMIT
+# FINAL LEVEL SAFETY
 # ============================================================
 
 progression.level = max(
@@ -1478,15 +1560,6 @@ leaderboard_manager = (
 
 
 # ============================================================
-# LOADING SCREEN
-# ============================================================
-
-loading_screen = LoadingScreen(
-    screen
-)
-
-
-# ============================================================
 # LEVEL UNLOCK SCREEN
 # ============================================================
 
@@ -1498,7 +1571,16 @@ level_unlock_screen = (
 
 
 # ============================================================
-# SYNCHRONISE SYSTEMS
+# LOADING SCREEN
+# ============================================================
+
+loading_screen = LoadingScreen(
+    screen
+)
+
+
+# ============================================================
+# INITIAL SYNCHRONISATION
 # ============================================================
 
 sync_level_systems(
@@ -1516,11 +1598,13 @@ ensure_game_music(
     start_screen
 )
 
+
 loading_ok = loading_screen.run(
     player_name=player_name,
     level=progression.level,
     duration=6.7,
 )
+
 
 if not loading_ok:
 
@@ -1530,7 +1614,7 @@ if not loading_ok:
 
 
 # ============================================================
-# MAKE SURE MUSIC SURVIVED LOADING
+# MUSIC AFTER INITIAL LOADING
 # ============================================================
 
 ensure_game_music(
@@ -1559,11 +1643,24 @@ mixing_station = MixingStation(
 
 
 # ============================================================
+# INITIAL SYNCHRONISATION WITH STATION
+# ============================================================
+
+sync_level_systems(
+    economy,
+    progression,
+    mixing_station,
+)
+
+
+# ============================================================
 # INITIAL BACKGROUND
 # ============================================================
 
-active_bg = load_level_background(
-    progression.level
+active_bg = (
+    load_level_background(
+        progression.level
+    )
 )
 
 
@@ -1571,14 +1668,16 @@ active_bg = load_level_background(
 # FIRST CUSTOMER
 # ============================================================
 
-active_customer = refresh_customer(
-    progression.level,
-    mixing_station,
+active_customer = (
+    refresh_customer(
+        progression.level,
+        mixing_station,
+    )
 )
 
 
 # ============================================================
-# CUSTOMER SPAWN SETTINGS
+# CUSTOMER SPAWN TIMER
 # ============================================================
 
 spawn_timer = 0.0
@@ -1606,14 +1705,9 @@ while running:
         / 1000.0
     )
 
+
     # ========================================================
     # KEEP MUSIC ALIVE
-    # ========================================================
-    #
-    # This does NOT restart music when it is already playing.
-    #
-    # It only protects against another screen accidentally
-    # stopping the music.
     # ========================================================
 
     if not pygame.mixer.music.get_busy():
@@ -1621,6 +1715,7 @@ while running:
         ensure_game_music(
             start_screen
         )
+
 
     # ========================================================
     # EVENT LOOP
@@ -1638,8 +1733,9 @@ while running:
 
             continue
 
+
         # ====================================================
-        # MIXING STATION
+        # MIXING STATION INPUT
         # ====================================================
 
         try:
@@ -1659,6 +1755,7 @@ while running:
                 f"       {error}"
             )
 
+
         # ====================================================
         # MAP BUTTON
         # ====================================================
@@ -1666,7 +1763,8 @@ while running:
         try:
 
             if (
-                mixing_station.consume_map_request()
+                mixing_station
+                .consume_map_request()
             ):
 
                 (
@@ -1682,11 +1780,6 @@ while running:
 
                 spawn_timer = 0.0
 
-                # Music continues after Map.
-                ensure_game_music(
-                    start_screen
-                )
-
         except Exception as error:
 
             print(
@@ -1696,6 +1789,7 @@ while running:
             print(
                 f"       {error}"
             )
+
 
         # ====================================================
         # LEADERBOARD BUTTON
@@ -1721,11 +1815,6 @@ while running:
 
                 spawn_timer = 0.0
 
-                # Music continues after Leaderboard.
-                ensure_game_music(
-                    start_screen
-                )
-
         except Exception as error:
 
             print(
@@ -1736,8 +1825,9 @@ while running:
                 f"       {error}"
             )
 
+
         # ====================================================
-        # KEYBOARD CONTROLS
+        # KEYBOARD
         # ====================================================
 
         if event.type == pygame.KEYDOWN:
@@ -1808,9 +1898,9 @@ while running:
                         f"       {error}"
                     )
 
-                # ------------------------------------------------
-                # SYNCHRONISE
-                # ------------------------------------------------
+                # ---------------------------------------------
+                # SYNC
+                # ---------------------------------------------
 
                 progression.level = (
                     economy.level
@@ -1826,11 +1916,19 @@ while running:
                     mixing_station,
                 )
 
+                # ---------------------------------------------
+                # BACKGROUND
+                # ---------------------------------------------
+
                 active_bg = (
                     load_level_background(
                         progression.level
                     )
                 )
+
+                # ---------------------------------------------
+                # CUSTOMER
+                # ---------------------------------------------
 
                 active_customer = (
                     refresh_customer(
@@ -1840,6 +1938,7 @@ while running:
                 )
 
                 spawn_timer = 0.0
+
 
             # =================================================
             # M = MAP
@@ -1862,10 +1961,6 @@ while running:
 
                     spawn_timer = 0.0
 
-                    ensure_game_music(
-                        start_screen
-                    )
-
                 except Exception as error:
 
                     print(
@@ -1875,6 +1970,7 @@ while running:
                     print(
                         f"       {error}"
                     )
+
 
             # =================================================
             # L = LEADERBOARD
@@ -1897,10 +1993,6 @@ while running:
 
                     spawn_timer = 0.0
 
-                    ensure_game_music(
-                        start_screen
-                    )
-
                 except Exception as error:
 
                     print(
@@ -1910,6 +2002,7 @@ while running:
                     print(
                         f"       {error}"
                     )
+
 
             # =================================================
             # 1 = LEVEL 1 DEBUG
@@ -1952,6 +2045,7 @@ while running:
                         f"       {error}"
                     )
 
+
             # =================================================
             # 2 = LEVEL 2 DEBUG
             # =================================================
@@ -1992,6 +2086,7 @@ while running:
                     print(
                         f"       {error}"
                     )
+
 
             # =================================================
             # 3 = LEVEL 3 DEBUG
@@ -2034,6 +2129,7 @@ while running:
                         f"       {error}"
                     )
 
+
     # ========================================================
     # UPDATE MIXING STATION
     # ========================================================
@@ -2055,35 +2151,42 @@ while running:
             f"       {error}"
         )
 
+
     # ========================================================
-    # SERVE COMPLETED DRINK
+    # SERVED DRINK PROCESSING
     # ========================================================
 
-    if (
-        mixing_station.served
-    ):
+    if mixing_station.served:
+
+        # ----------------------------------------------------
+        # ONLY PROCESS IF A CUSTOMER IS PRESENT
+        # ----------------------------------------------------
 
         if (
             active_customer is not None
         ):
+
+            # ------------------------------------------------
+            # ONLY PROCESS A WAITING CUSTOMER
+            # ------------------------------------------------
 
             if (
                 active_customer.state
                 == CustomerState.WAITING
             ):
 
-                # ==============================================
-                # PLAYER DRINK
-                # ==============================================
+                # =============================================
+                # PLAYER DRINK DATA
+                # =============================================
 
                 player_drink_data = (
                     mixing_station
                     .get_player_drink_data()
                 )
 
-                # ==============================================
+                # =============================================
                 # CUSTOMER ORDER
-                # ==============================================
+                # =============================================
 
                 customer_order = getattr(
                     active_customer,
@@ -2099,9 +2202,9 @@ while running:
                         None,
                     )
 
-                # ==============================================
+                # =============================================
                 # ACCURACY
-                # ==============================================
+                # =============================================
 
                 accuracy_result = (
                     OrderAccuracy.check_order(
@@ -2110,9 +2213,9 @@ while running:
                     )
                 )
 
-                # ==============================================
-                # CUSTOMER SPEED
-                # ==============================================
+                # =============================================
+                # SPEED
+                # =============================================
 
                 try:
 
@@ -2125,36 +2228,38 @@ while running:
 
                     served_quickly = False
 
-                # ==============================================
+                # =============================================
                 # REWARD
-                # ==============================================
+                # =============================================
 
                 reward_result = (
                     reward_system.calculate_reward(
                         accuracy_result,
-                        served_quickly=served_quickly,
+                        served_quickly=(
+                            served_quickly
+                        ),
                     )
                 )
 
-                # ==============================================
+                # =============================================
                 # OLD LEVEL
-                # ==============================================
+                # =============================================
 
                 old_level = (
                     progression.level
                 )
 
-                # ==============================================
+                # =============================================
                 # ADD / REMOVE XP
-                # ==============================================
+                # =============================================
 
                 progression.add_xp(
                     reward_result.total_xp
                 )
 
-                # ==============================================
+                # =============================================
                 # CREDITS
-                # ==============================================
+                # =============================================
 
                 try:
 
@@ -2172,9 +2277,9 @@ while running:
                         f"       {error}"
                     )
 
-                # ==============================================
-                # CHECK NEW LEVEL
-                # ==============================================
+                # =============================================
+                # NEW LEVEL
+                # =============================================
 
                 new_level = (
                     progression.level
@@ -2185,9 +2290,9 @@ while running:
                     > old_level
                 )
 
-                # ==============================================
-                # SYNCHRONISE ECONOMY
-                # ==============================================
+                # =============================================
+                # SYNC
+                # =============================================
 
                 try:
 
@@ -2205,9 +2310,47 @@ while running:
                         f"       {error}"
                     )
 
-                # ==============================================
+                try:
+
+                    mixing_station.set_progression(
+                        progression
+                    )
+
+                except Exception:
+
+                    pass
+
+                try:
+
+                    mixing_station.set_level(
+                        progression.level
+                    )
+
+                except Exception:
+
+                    pass
+
+                # =============================================
+                # SAVE
+                # =============================================
+
+                try:
+
+                    economy.save_economy_data()
+
+                except Exception as error:
+
+                    print(
+                        "[MAIN] Save warning:"
+                    )
+
+                    print(
+                        f"       {error}"
+                    )
+
+                # =============================================
                 # CUSTOMER REACTION
-                # ==============================================
+                # =============================================
 
                 try:
 
@@ -2225,9 +2368,9 @@ while running:
                         f"       {error}"
                     )
 
-                # ==============================================
+                # =============================================
                 # REWARD HUD
-                # ==============================================
+                # =============================================
 
                 try:
 
@@ -2250,9 +2393,9 @@ while running:
                         f"       {error}"
                     )
 
-                # ==============================================
-                # TERMINAL RESULT
-                # ==============================================
+                # =============================================
+                # TERMINAL INFORMATION
+                # =============================================
 
                 print(
                     "----------------------------------------"
@@ -2300,6 +2443,10 @@ while running:
                     f"{reward_result.net_credits:+}"
                 )
 
+                # ---------------------------------------------
+                # XP PENALTY
+                # ---------------------------------------------
+
                 if getattr(
                     reward_result,
                     "xp_penalty",
@@ -2310,6 +2457,10 @@ while running:
                         f"XP Penalty Applied: "
                         f"-{reward_result.xp_penalty}"
                     )
+
+                # ---------------------------------------------
+                # CREDIT PENALTY
+                # ---------------------------------------------
 
                 if getattr(
                     reward_result,
@@ -2332,30 +2483,31 @@ while running:
                     f"{progression.level}"
                 )
 
+                try:
+
+                    current_location = (
+                        progression
+                        .get_current_location()
+                    )
+
+                except Exception:
+
+                    current_location = (
+                        "Unknown"
+                    )
+
                 print(
                     f"Current Location: "
-                    f"{progression.get_current_location()}"
+                    f"{current_location}"
                 )
 
                 print(
                     "----------------------------------------"
                 )
 
-                # ==============================================
-                # LEVEL TRANSITION
-                # ==============================================
-                #
-                # IMPORTANT:
-                #
-                # We DO NOT change active_bg before the
-                # unlock screen.
-                #
-                # We DO NOT create a new customer before
-                # the transition.
-                #
-                # The entire transition takes place first.
-                #
-                # ==============================================
+                # =============================================
+                # LEVEL-UP TRANSITION
+                # =============================================
 
                 if level_changed:
 
@@ -2365,15 +2517,18 @@ while running:
                         f"-> {new_level}"
                     )
 
-                    # ------------------------------------------
-                    # Remove old customer from gameplay.
-                    # ------------------------------------------
-
-                    active_customer = None
-
-                    # ------------------------------------------
-                    # Run transition as ONE BLOCK.
-                    # ------------------------------------------
+                    # -----------------------------------------
+                    # VERY IMPORTANT:
+                    #
+                    # We do NOT call position_customer().
+                    #
+                    # We let the old customer finish naturally.
+                    #
+                    # However, because the level transition must
+                    # happen immediately after the level-up, the
+                    # old customer will be replaced after the
+                    # transition.
+                    # -----------------------------------------
 
                     transition_result = (
                         run_level_transition(
@@ -2388,80 +2543,48 @@ while running:
                         )
                     )
 
-                    # ------------------------------------------
+                    # -----------------------------------------
                     # PLAYER CLOSED GAME
-                    # ------------------------------------------
+                    # -----------------------------------------
 
                     if (
                         transition_result
-                        is False
+                        is None
                     ):
 
                         running = False
 
-                    # ------------------------------------------
+                    # -----------------------------------------
                     # SUCCESS
-                    # ------------------------------------------
+                    # -----------------------------------------
 
-                    elif (
-                        isinstance(
-                            transition_result,
-                            tuple,
-                        )
-                        and len(
-                            transition_result
-                        ) == 3
-                    ):
+                    else:
 
                         (
                             active_bg,
                             active_customer,
-                            transition_ok,
                         ) = (
                             transition_result
                         )
 
-                        if not transition_ok:
+                        spawn_timer = 0.0
 
-                            running = False
+                # =============================================
+                # NORMAL ORDER COMPLETION
+                # =============================================
 
-                        else:
+                else:
 
-                            spawn_timer = 0.0
+                    # ------------------------------------------------
+                    # DO NOT REPLACE THE CUSTOMER HERE.
+                    #
+                    # customer.py now controls its leaving animation.
+                    # ------------------------------------------------
 
-                    # ------------------------------------------
-                    # SAFETY
-                    # ------------------------------------------
-
-                    else:
-
-                        print(
-                            "[MAIN] "
-                            "Unexpected transition result."
-                        )
-
-                # ==============================================
-                # SAVE AFTER ORDER
-                # ==============================================
-
-                try:
-
-                    economy.save_economy_data()
-
-                except Exception as error:
-
-                    print(
-                        "[MAIN] Save warning:"
-                    )
-
-                    print(
-                        f"       {error}"
-                    )
+                    pass
 
         # ----------------------------------------------------
-        # RESET STATION
-        #
-        # Only reset after the transition has completed.
+        # RESET STATION AFTER SERVE PROCESSING
         # ----------------------------------------------------
 
         if running:
@@ -2480,6 +2603,7 @@ while running:
                     f"       {error}"
                 )
 
+
     # ========================================================
     # CUSTOMER UPDATE
     # ========================================================
@@ -2489,12 +2613,16 @@ while running:
         and active_customer is not None
     ):
 
+        # ----------------------------------------------------
+        # SAVE OLD STATE
+        # ----------------------------------------------------
+
         old_state = (
             active_customer.state
         )
 
         # ----------------------------------------------------
-        # UPDATE CUSTOMER
+        # CUSTOMER OWNS MOVEMENT
         # ----------------------------------------------------
 
         try:
@@ -2514,15 +2642,7 @@ while running:
             )
 
         # ----------------------------------------------------
-        # KEEP CUSTOMER POSITIONED
-        # ----------------------------------------------------
-
-        position_customer(
-            active_customer
-        )
-
-        # ----------------------------------------------------
-        # CUSTOMER LEFT
+        # CUSTOMER RAN OUT OF PATIENCE
         # ----------------------------------------------------
 
         if (
@@ -2534,8 +2654,9 @@ while running:
         ):
 
             print(
-                "[CUSTOMER] Customer left "
-                "without receiving the correct drink."
+                "[CUSTOMER] "
+                "Customer left without receiving "
+                "the correct drink."
             )
 
             try:
@@ -2547,7 +2668,7 @@ while running:
                 pass
 
         # ----------------------------------------------------
-        # CUSTOMER FINISHED
+        # CUSTOMER FINISHED LEAVING
         # ----------------------------------------------------
 
         try:
@@ -2555,6 +2676,11 @@ while running:
             if (
                 active_customer.is_finished()
             ):
+
+                print(
+                    "[CUSTOMER] "
+                    "Customer finished leaving."
+                )
 
                 active_customer = None
 
@@ -2572,6 +2698,7 @@ while running:
                 f"       {error}"
             )
 
+
     # ========================================================
     # SPAWN NEXT CUSTOMER
     # ========================================================
@@ -2585,11 +2712,19 @@ while running:
 
         if spawn_timer <= 0:
 
+            # ------------------------------------------------
+            # CURRENT LEVEL BACKGROUND
+            # ------------------------------------------------
+
             active_bg = (
                 load_level_background(
                     progression.level
                 )
             )
+
+            # ------------------------------------------------
+            # NEW CUSTOMER
+            # ------------------------------------------------
 
             active_customer = (
                 refresh_customer(
@@ -2599,6 +2734,7 @@ while running:
             )
 
             spawn_timer = 0.0
+
 
     # ========================================================
     # DRAW BACKGROUND
@@ -2615,6 +2751,7 @@ while running:
             0,
         ),
     )
+
 
     # ========================================================
     # DRAW CUSTOMER
@@ -2640,6 +2777,7 @@ while running:
                 f"       {error}"
             )
 
+
     # ========================================================
     # DRAW MIXING STATION
     # ========================================================
@@ -2661,6 +2799,7 @@ while running:
             f"       {error}"
         )
 
+
     # ========================================================
     # DISPLAY
     # ========================================================
@@ -2669,13 +2808,12 @@ while running:
 
 
 # ============================================================
-# SHUTDOWN
+# CLEAN SHUTDOWN
 # ============================================================
 
 print(
     "[MAIN] Shutting down Cyberpunk Café."
 )
-
 
 pygame.quit()
 

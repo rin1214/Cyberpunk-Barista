@@ -1,957 +1,365 @@
 """
-============================================================
 CYBERPUNK CAFÉ
 PLAYER PROGRESSION SYSTEM
-============================================================
 
-FINAL GAME PROGRESSION
-------------------------------------------------------------
+The game has exactly 3 playable levels:
 
-There are ONLY 3 levels.
+    Level 1 -> Back Alley Kiosk
+    Level 2 -> Neon Lounge
+    Level 3 -> Cyber Penthouse
 
-LEVEL 1
-    Back Alley Kiosk
+Level 3 is the absolute maximum.
 
-LEVEL 2
-    Neon Lounge
+XP rules:
+    Level 1 -> Level 2 : 100 XP
+    Level 2 -> Level 3 : 250 XP
 
-LEVEL 3
-    Cyber Penthouse
+Positive XP can cause a level-up.
+Negative XP can reduce the player's current XP, but can never
+reduce the player's level.
 
-There is NO Level 4.
-
-------------------------------------------------------------
-XP REQUIREMENTS
-------------------------------------------------------------
-
-Level 1 -> Level 2
-    100 XP
-
-Level 2 -> Level 3
-    250 XP
-
-Level 3
-    Maximum level
-
-------------------------------------------------------------
-RESPONSIBILITIES
-------------------------------------------------------------
-
-This file controls:
-
-    • Player level
-    • Player XP
-    • Level-up detection
-    • Level-up status
-    • Drink unlock progression
-    • Location progression
-    • Feature unlocks
-
-This file does NOT control:
-
-    • Credits
-    • Money
-    • Saving player profiles
-    • Order accuracy
-    • Customer behaviour
-    • Reward calculation
-
-Those systems are handled by:
-
-    ui_economy.py
-    accuracy.py
-    customer.py
-    rewards.py
-
-============================================================
+Credits are handled by ui_economy.py.
+Order rewards are handled by rewards.py.
+Order accuracy is handled by accuracy.py.
 """
 
 from drink import get_unlocked_drinks
 
 
 class Progression:
+    """Stores and manages the player's level and XP."""
 
-    # ========================================================
-    # FINAL GAME LEVEL LIMIT
-    # ========================================================
+    # ------------------------------------------------------------
+    # GAME LIMIT
+    # ------------------------------------------------------------
 
     MAX_LEVEL = 3
 
-    # ========================================================
-    # XP REQUIREMENTS
-    #
-    # The number represents the XP needed to advance
-    # FROM that level.
-    #
-    # Level 1 -> Level 2 = 100 XP
-    # Level 2 -> Level 3 = 250 XP
-    #
-    # There is intentionally no Level 3 -> Level 4.
-    # ========================================================
-
+    # XP required to move from the listed level to the next level.
+    # Level 3 has no next level, but 450 is used as its XP display cap.
     XP_REQUIREMENTS = {
-
-        1: 100,
-
-        2: 250,
-
+        1: 100,   # Level 1 -> Level 2
+        2: 250,   # Level 2 -> Level 3
+        3: 450,   # Level 3 is the final level
     }
 
-    # ========================================================
-    # FINAL LOCATION NAMES
-    # ========================================================
+    # ------------------------------------------------------------
+    # LEVEL LOCATIONS
+    # ------------------------------------------------------------
 
     LOCATION_UNLOCKS = {
-
         1: "Back Alley Kiosk",
-
         2: "Neon Lounge",
-
         3: "Cyber Penthouse",
-
     }
 
-    # ========================================================
-    # FINAL FEATURE UNLOCKS
-    # ========================================================
+    # ------------------------------------------------------------
+    # LEVEL FEATURES
+    # ------------------------------------------------------------
 
     FEATURE_UNLOCKS = {
-
-        # ----------------------------------------------------
-        # LEVEL 1
-        # ----------------------------------------------------
-
         1: [
-
             "Basic Café",
-
-            "Neon Latte",
-
-            "Milkyway",
-
-            "Void Chai",
-
         ],
-
-        # ----------------------------------------------------
-        # LEVEL 2
-        # ----------------------------------------------------
-
         2: [
-
-            "Cyber Fuel",
-
-            "Hologram Frappe",
-
-            "Pixel Lemint",
-
+            "New Drinks",
         ],
-
-        # ----------------------------------------------------
-        # LEVEL 3
-        # ----------------------------------------------------
-
         3: [
-
-            "Caramel Byte",
-
-            "Stardust Matcha",
-
-            "Meteorite",
-
+            "New Drinks",
         ],
-
     }
 
-    # ========================================================
-    # CONSTRUCTOR
-    # ========================================================
+    def __init__(self, level=1, xp=0):
+        self.level = self._clamp_level(level)
+        self.xp = self._clamp_xp_value(xp, self.level)
 
-    def __init__(
-        self,
-        level=1,
-        xp=0,
-    ):
-
-        # ====================================================
-        # SAFE LEVEL
-        # ====================================================
-
-        try:
-
-            level = int(level)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            level = 1
-
-        # ----------------------------------------------------
-        # Never allow a level below 1.
-        # Never allow a level above 3.
-        # ----------------------------------------------------
-
-        self.level = max(
-            1,
-            min(
-                level,
-                self.MAX_LEVEL,
-            ),
-        )
-
-        # ====================================================
-        # SAFE XP
-        # ====================================================
-
-        try:
-
-            xp = int(xp)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            xp = 0
-
-        # ----------------------------------------------------
-        # XP can never be negative.
-        # ----------------------------------------------------
-
-        self.xp = max(
-            0,
-            xp,
-        )
-
-        # ====================================================
-        # LEVEL-UP STATUS
-        # ====================================================
-
+        # True only when add_xp() actually moves the player
+        # from one level to another.
         self.level_up = False
 
+        # Used by main.py to know which level was left.
         self.previous_level = self.level
 
-        # ====================================================
-        # COMPATIBILITY ATTRIBUTES
-        #
-        # Some existing files use these instance attributes
-        # instead of the class constants.
-        #
-        # Keeping them prevents compatibility problems.
-        # ====================================================
+    # ------------------------------------------------------------
+    # VALUE VALIDATION
+    # ------------------------------------------------------------
 
-        self.xp_requirements = dict(
-            self.XP_REQUIREMENTS
-        )
+    @staticmethod
+    def _safe_int(value, default):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
 
-        self.location_unlocks = dict(
-            self.LOCATION_UNLOCKS
-        )
+    def _clamp_level(self, level):
+        level = self._safe_int(level, 1)
+        return max(1, min(level, self.MAX_LEVEL))
 
-        self.feature_unlocks = {
+    def _clamp_xp_value(self, xp, level=None):
+        if level is None:
+            level = self.level
 
-            level: list(features)
+        xp = self._safe_int(xp, 0)
+        xp = max(0, xp)
 
-            for level, features
-            in self.FEATURE_UNLOCKS.items()
+        maximum = self.XP_REQUIREMENTS.get(level)
 
-        }
+        if maximum is not None:
+            xp = min(xp, maximum)
 
-    # ========================================================
-    # CLAMP XP
-    # ========================================================
+        return xp
 
     def _clamp_xp(self):
-
-        """
-        Prevent XP from ever becoming negative.
-        """
-
-        if self.xp < 0:
-
-            self.xp = 0
-
-    # ========================================================
-    # ADD XP
-    # ========================================================
-
-    def add_xp(
-        self,
-        amount,
-    ):
-        """
-        Add or remove XP.
-
-        Positive XP:
-            Can cause a level-up.
-
-        Negative XP:
-            Deducts XP.
-
-        IMPORTANT:
-
-        A mistake can reduce XP to 0, but it can NEVER
-        reduce the player's current level.
-
-        Returns:
-
-            True
-                if the player levelled up.
-
-            False
-                otherwise.
-        """
-
-        # ----------------------------------------------------
-        # Convert amount safely.
-        # ----------------------------------------------------
-
-        try:
-
-            amount = int(amount)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            return False
-
-        # ----------------------------------------------------
-        # Reset level-up flag before this XP transaction.
-        # ----------------------------------------------------
-
-        self.level_up = False
-
-        # ====================================================
-        # NEGATIVE XP
-        # ====================================================
-
-        if amount < 0:
-
-            self.xp += amount
-
-            self._clamp_xp()
-
-            return False
-
-        # ====================================================
-        # ZERO XP
-        # ====================================================
-
-        if amount == 0:
-
-            return False
-
-        # ====================================================
-        # LEVEL 3 IS THE MAXIMUM
-        # ====================================================
-
-        if self.level >= self.MAX_LEVEL:
-
-            self.level = self.MAX_LEVEL
-
-            return False
-
-        # ====================================================
-        # ADD XP
-        # ====================================================
-
-        self.xp += amount
-
-        # ====================================================
-        # CHECK LEVEL-UP
-        # ====================================================
-
-        return self.check_level_up()
-
-    # ========================================================
-    # CHECK LEVEL-UP
-    # ========================================================
-
-    def check_level_up(self):
-        """
-        Checks whether enough XP has been collected
-        to advance to the next level.
-
-        XP remaining after the level-up is carried forward.
-
-        Example:
-
-            Level 1
-            XP = 80
-
-            Gain 40 XP
-
-            Total XP = 120
-
-            100 XP is used for Level 2.
-
-            New result:
-
-                Level = 2
-                XP = 20
-        """
-
-        # ----------------------------------------------------
-        # Reset this transaction's level-up flag.
-        # ----------------------------------------------------
-
-        self.level_up = False
-
-        # ====================================================
-        # ALREADY AT MAXIMUM
-        # ====================================================
-
-        if self.level >= self.MAX_LEVEL:
-
-            self.level = self.MAX_LEVEL
-
-            return False
-
-        # ====================================================
-        # CHECK FOR ONE OR MORE LEVEL-UPS
-        # ====================================================
-
-        while self.level < self.MAX_LEVEL:
-
-            # ------------------------------------------------
-            # Find XP requirement for current level.
-            # ------------------------------------------------
-
-            required_xp = (
-                self.xp_requirements.get(
-                    self.level
-                )
-            )
-
-            # ------------------------------------------------
-            # Safety check.
-            # ------------------------------------------------
-
-            if required_xp is None:
-
-                break
-
-            # ------------------------------------------------
-            # Not enough XP yet.
-            # ------------------------------------------------
-
-            if self.xp < required_xp:
-
-                break
-
-            # ------------------------------------------------
-            # Remember old level.
-            # ------------------------------------------------
-
-            self.previous_level = self.level
-
-            # ------------------------------------------------
-            # Consume required XP.
-            # ------------------------------------------------
-
-            self.xp -= required_xp
-
-            self._clamp_xp()
-
-            # ------------------------------------------------
-            # Advance level.
-            # ------------------------------------------------
-
-            self.level += 1
-
-            # ------------------------------------------------
-            # Record that a level-up occurred.
-            # ------------------------------------------------
-
-            self.level_up = True
-
-            print(
-                "[PROGRESSION] "
-                f"Level {self.previous_level} "
-                f"-> {self.level}"
-            )
-
-            # ------------------------------------------------
-            # Level 3 is the maximum.
-            # ------------------------------------------------
-
-            if self.level >= self.MAX_LEVEL:
-
-                self.level = self.MAX_LEVEL
-
-                break
-
-        return self.level_up
-
-    # ========================================================
-    # GET CURRENT LOCATION
-    # ========================================================
-
-    def get_current_location(self):
-        """
-        Compatibility method.
-
-        Existing main.py and ui_economy.py use:
-
-            progression.get_current_location()
-
-        This method returns the correct location for the
-        player's current level.
-        """
-
-        return self.location_unlocks.get(
-            self.level,
-            self.location_unlocks[1],
-        )
-
-    # ========================================================
-    # GET LOCATION
-    # ========================================================
-
-    def get_location(self):
-        """
-        Modern/short version of get_current_location().
-        """
-
-        return self.get_current_location()
-
-    # ========================================================
-    # GET XP REQUIRED FOR NEXT LEVEL
-    # ========================================================
-
-    def get_xp_required(self):
-        """
-        Returns the XP needed to reach the next level.
-
-        Level 1:
-            returns 100
-
-        Level 2:
-            returns 250
-
-        Level 3:
-            returns None because Level 3 is maximum.
-        """
-
-        if self.level >= self.MAX_LEVEL:
-
-            return None
-
-        return self.xp_requirements.get(
+        self.xp = self._clamp_xp_value(
+            self.xp,
             self.level
         )
 
-    # ========================================================
-    # GET XP PROGRESS
-    # ========================================================
+    # ------------------------------------------------------------
+    # ADD / DEDUCT XP
+    # ------------------------------------------------------------
 
-    def get_xp_progress(self):
+    def add_xp(self, amount):
         """
-        Returns information useful for the HUD.
+        Add or deduct XP.
 
-        Example:
+        Positive XP may cause a level-up.
+        Negative XP reduces XP but NEVER de-levels the player.
 
-        {
-            "current": 40,
-            "required": 100,
-            "percentage": 40.0,
-            "max_level": False
-        }
+        Returns:
+            True  -> a level-up happened
+            False -> no level-up happened
         """
 
-        required = self.get_xp_required()
-
-        # ----------------------------------------------------
-        # LEVEL 3
-        # ----------------------------------------------------
-
-        if required is None:
-
-            return {
-
-                "current": self.xp,
-
-                "required": None,
-
-                "percentage": 100.0,
-
-                "max_level": True,
-
-            }
-
-        # ----------------------------------------------------
-        # Calculate percentage.
-        # ----------------------------------------------------
-
-        percentage = (
-            self.xp
-            / float(required)
-        ) * 100.0
-
-        # ----------------------------------------------------
-        # Keep percentage between 0 and 100.
-        # ----------------------------------------------------
-
-        percentage = max(
-            0.0,
-            min(
-                percentage,
-                100.0,
-            ),
-        )
-
-        return {
-
-            "current": self.xp,
-
-            "required": required,
-
-            "percentage": percentage,
-
-            "max_level": False,
-
-        }
-
-    # ========================================================
-    # GET UNLOCKED DRINKS
-    # ========================================================
-
-    def get_unlocked_drinks(self):
-        """
-        Returns the drinks unlocked at the player's
-        current level.
-
-        Drink unlocking remains controlled by drink.py.
-        """
-
-        try:
-
-            return get_unlocked_drinks(
-                self.level
-            )
-
-        except Exception as error:
-
-            print(
-                "[PROGRESSION] "
-                f"Could not get unlocked drinks: {error}"
-            )
-
-            return []
-
-    # ========================================================
-    # CHECK WHETHER A DRINK IS UNLOCKED
-    # ========================================================
-
-    def is_drink_unlocked(
-        self,
-        drink_name,
-    ):
-        """
-        Returns True if the specified drink is unlocked
-        at the current player level.
-        """
-
-        try:
-
-            return drink_name in (
-                self.get_unlocked_drinks()
-            )
-
-        except Exception:
-
-            return False
-
-    # ========================================================
-    # GET FEATURE UNLOCKS
-    # ========================================================
-
-    def get_feature_unlocks(
-        self,
-        level=None,
-    ):
-        """
-        Returns features associated with a level.
-
-        If no level is supplied, the current player level
-        is used.
-        """
-
-        if level is None:
-
-            level = self.level
-
-        try:
-
-            level = int(level)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            level = self.level
-
-        return list(
-            self.feature_unlocks.get(
-                level,
-                [],
-            )
-        )
-
-    # ========================================================
-    # GET LEVEL INFORMATION
-    # ========================================================
-
-    def get_level_info(self):
-        """
-        Returns a complete dictionary describing the
-        current progression state.
-
-        Useful for:
-
-            • HUD
-            • Loading screen
-            • Map
-            • Debugging
-            • Future UI
-        """
-
-        return {
-
-            "level":
-                self.level,
-
-            "xp":
-                self.xp,
-
-            "location":
-                self.get_current_location(),
-
-            "xp_required":
-                self.get_xp_required(),
-
-            "max_level":
-                self.level >= self.MAX_LEVEL,
-
-            "unlocked_drinks":
-                self.get_unlocked_drinks(),
-
-            "features":
-                self.get_feature_unlocks(),
-
-            "level_up":
-                self.level_up,
-
-            "previous_level":
-                self.previous_level,
-
-        }
-
-    # ========================================================
-    # GET LEVEL
-    # ========================================================
-
-    def get_level(self):
-
-        return self.level
-
-    # ========================================================
-    # GET XP
-    # ========================================================
-
-    def get_xp(self):
-
-        return self.xp
-
-    # ========================================================
-    # GET CURRENT LEVEL
-    # ========================================================
-
-    def get_current_level(self):
-
-        return self.level
-
-    # ========================================================
-    # IS MAX LEVEL
-    # ========================================================
-
-    def is_max_level(self):
-
-        return self.level >= self.MAX_LEVEL
-
-    # ========================================================
-    # RESET
-    # ========================================================
-
-    def reset(self):
-        """
-        Completely reset progression.
-
-        Result:
-
-            Level = 1
-            XP = 0
-            Location = Back Alley Kiosk
-        """
-
-        self.level = 1
-
-        self.xp = 0
+        amount = self._safe_int(amount, 0)
 
         self.level_up = False
 
-        self.previous_level = 1
-
-        print(
-            "[PROGRESSION] "
-            "Progression reset to Level 1."
-        )
-
-    # ========================================================
-    # SET LEVEL
-    # ========================================================
-
-    def set_level(
-        self,
-        level,
-    ):
-        """
-        Safely set the current level.
-
-        This is mainly a compatibility/debug helper.
-
-        Normal gameplay should advance levels through XP.
-        """
-
-        try:
-
-            level = int(level)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
+        # Mistake penalty.
+        if amount < 0:
+            self.xp += amount
+            self._clamp_xp()
             return False
 
-        self.level = max(
-            1,
-            min(
-                level,
-                self.MAX_LEVEL,
-            ),
-        )
+        # Nothing to add, or already at Level 3.
+        if amount == 0 or self.is_max_level():
+            return False
 
-        # ----------------------------------------------------
-        # Do not pretend this was a natural level-up.
-        # ----------------------------------------------------
+        self.xp += amount
+
+        return self.check_level_up()
+
+    # ------------------------------------------------------------
+    # LEVEL-UP CHECK
+    # ------------------------------------------------------------
+
+    def check_level_up(self):
+        """
+        Check whether the current XP crosses a level threshold.
+
+        Only these transitions are possible:
+
+            1 -> 2
+            2 -> 3
+
+        Level 3 can NEVER become Level 4.
+        """
 
         self.level_up = False
 
-        self.previous_level = self.level
+        while (
+            self.level < self.MAX_LEVEL
+            and self.level in self.XP_REQUIREMENTS
+            and self.xp >= self.XP_REQUIREMENTS[self.level]
+        ):
 
-        # ----------------------------------------------------
-        # XP must remain valid.
-        # ----------------------------------------------------
+            self.previous_level = self.level
+
+            required_xp = self.XP_REQUIREMENTS[self.level]
+
+            self.xp -= required_xp
+            self.level += 1
+
+            self.level_up = True
 
         self._clamp_xp()
 
-        return True
+        return self.level_up
 
-    # ========================================================
-    # SET XP
-    # ========================================================
+    # ------------------------------------------------------------
+    # XP INFORMATION
+    # ------------------------------------------------------------
 
-    def set_xp(
-        self,
-        xp,
-    ):
-        """
-        Directly set XP.
+    def get_xp_required(self):
+        """Return XP required for the player's current level."""
 
-        This does not automatically change the level.
+        return self.XP_REQUIREMENTS.get(
+            self.level
+        )
 
-        Normal gameplay should use add_xp().
-        """
+    def get_xp_progress(self):
+        """Return current-level XP progress from 0.0 to 1.0."""
 
-        try:
+        required_xp = self.get_xp_required()
 
-            xp = int(xp)
+        if required_xp is None or required_xp <= 0:
+            return 1.0
 
-        except (
-            TypeError,
-            ValueError,
+        return max(
+            0.0,
+            min(
+                self.xp / required_xp,
+                1.0
+            )
+        )
+
+    def get_xp_percentage(self):
+        """Return current-level XP progress as a percentage."""
+
+        return self.get_xp_progress() * 100
+
+    # ------------------------------------------------------------
+    # DRINK UNLOCKS
+    # ------------------------------------------------------------
+
+    def get_unlocked_drinks(self):
+        """Return the drinks unlocked at the current level."""
+
+        return get_unlocked_drinks(
+            self.level
+        )
+
+    # ------------------------------------------------------------
+    # LOCATION
+    # ------------------------------------------------------------
+
+    def get_current_location(self):
+        """Return the location belonging to the current level."""
+
+        return self.LOCATION_UNLOCKS.get(
+            self.level,
+            self.LOCATION_UNLOCKS[1]
+        )
+
+    # ------------------------------------------------------------
+    # FEATURES
+    # ------------------------------------------------------------
+
+    def get_unlocked_features(self):
+        """Return all features unlocked up to the current level."""
+
+        unlocked_features = []
+
+        for level in range(
+            1,
+            self.level + 1
         ):
 
-            return False
+            unlocked_features.extend(
+                self.FEATURE_UNLOCKS.get(
+                    level,
+                    []
+                )
+            )
+
+        return unlocked_features
+
+    # ------------------------------------------------------------
+    # LEVEL-UP STATUS
+    # ------------------------------------------------------------
+
+    def has_levelled_up(self):
+        return self.level_up
+
+    def get_previous_level(self):
+        return self.previous_level
+
+    def clear_level_up(self):
+        self.level_up = False
+
+    # ------------------------------------------------------------
+    # LEVEL NAME
+    # ------------------------------------------------------------
+
+    def get_level_name(self):
+        return f"LEVEL {self.level}"
+
+    # ------------------------------------------------------------
+    # MAX LEVEL
+    # ------------------------------------------------------------
+
+    def is_max_level(self):
+        return self.level >= self.MAX_LEVEL
+
+    # ------------------------------------------------------------
+    # SAVE DATA
+    # ------------------------------------------------------------
+
+    def get_data(self):
+        return {
+            "level": self.level,
+            "xp": self.xp
+        }
+
+    # ------------------------------------------------------------
+    # LOAD DATA
+    # ------------------------------------------------------------
+
+    def set_data(self, data):
+        """
+        Load level/XP from a save dictionary.
+
+        Loading a save does NOT create a new level-up event.
+        The level-up flag is therefore cleared after loading.
+        """
+
+        if not isinstance(data, dict):
+            return
+
+        loaded_level = self._safe_int(
+            data.get(
+                "level",
+                1
+            ),
+            1
+        )
+
+        loaded_xp = self._safe_int(
+            data.get(
+                "xp",
+                0
+            ),
+            0
+        )
+
+        self.level = self._clamp_level(
+            loaded_level
+        )
 
         self.xp = max(
             0,
-            xp,
+            loaded_xp
         )
 
-        return True
+        # Normalize old save data into the current
+        # 3-level progression system.
+        self.level_up = False
+        self.previous_level = self.level
 
-    # ========================================================
-    # DEBUG INFORMATION
-    # ========================================================
+        self.check_level_up()
 
-    def debug_print(self):
-        """
-        Prints the current progression state to the
-        VS Code terminal.
-        """
+        # Loading an existing save is NOT a new level-up event.
+        self.level_up = False
+        self.previous_level = self.level
 
-        print(
-            "========================================"
-        )
+        self._clamp_xp()
 
-        print(
-            "[PROGRESSION DEBUG]"
-        )
+    # ------------------------------------------------------------
+    # RESET
+    # ------------------------------------------------------------
 
-        print(
-            f"Level: {self.level}"
-        )
-
-        print(
-            f"XP: {self.xp}"
-        )
-
-        print(
-            f"Location: "
-            f"{self.get_current_location()}"
-        )
-
-        required = self.get_xp_required()
-
-        if required is None:
-
-            print(
-                "Next Level: MAXIMUM"
-            )
-
-        else:
-
-            print(
-                f"XP Required: {required}"
-            )
-
-        print(
-            "Unlocked Drinks:"
-        )
-
-        for drink in self.get_unlocked_drinks():
-
-            print(
-                f"  - {drink}"
-            )
-
-        print(
-            "========================================"
-        )
+    def reset(self):
+        self.level = 1
+        self.xp = 0
+        self.level_up = False
+        self.previous_level = 1

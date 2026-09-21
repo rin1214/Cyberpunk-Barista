@@ -52,5 +52,23 @@
         "xp": 35,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "dave": {
+        "credits": 160,
+        "xp": 80,
+        "level": 1,
+        "location": "Back Alley Kiosk"
+    },
+    "leon": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk"
+    },
+    "kl": {
+        "credits": 199,
+        "xp": 35,
+        "level": 2,
+        "location": "Neon Lounge"
     }
 }
