@@ -42,10 +42,10 @@
         "location": "BACK ALLEY KIOSK"
     },
     "lucy": {
-        "credits": 0,
-        "xp": 0,
+        "credits": 3,
+        "xp": 25,
         "level": 1,
-        "location": "BACK ALLEY KIOSK"
+        "location": "Neon Alley"
     },
     "eli": {
         "credits": 90,
@@ -158,6 +158,12 @@
     "yiuu": {
         "credits": 119,
         "xp": 65,
+        "level": 1,
+        "location": "Neon Alley"
+    },
+    "willie": {
+        "credits": 108,
+        "xp": 20,
         "level": 1,
         "location": "Neon Alley"
     }

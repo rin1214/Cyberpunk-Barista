@@ -136,6 +136,57 @@ class MixingStation:
         self.served = False
 
         # ====================================================
+        # TOP-RIGHT NAVIGATION REQUESTS
+        # ====================================================
+        #
+        # These flags let main.py open the full Map and
+        # Leaderboard screens without coupling this station
+        # directly to those screen classes.
+        #
+        self.map_requested = False
+        self.leaderboard_requested = False
+
+        # ====================================================
+        # REWARD FEEDBACK
+        # ====================================================
+        #
+        # main.py can update these after an order is scored.
+        # They are displayed in the HUD so the player can see
+        # XP/credit additions or deductions.
+        #
+        self.last_xp_change = 0
+        self.last_credit_change = 0
+        self.reward_feedback_until = 0.0
+
+        # ====================================================
+        # TIMING SLIDERS
+        # ====================================================
+        # Each customisation parameter has a continuously moving
+        # indicator. The player clicks when the indicator reaches
+        # the requested customer zone.
+        self.slider_time = 0.0
+        self.slider_speeds = {
+            "temperature": 0.72,
+            "caffeine": 0.88,
+            "sweetness": 1.04,
+        }
+        self.slider_phases = {
+            "temperature": 0.00,
+            "caffeine": 0.33,
+            "sweetness": 0.67,
+        }
+        self.slider_results = {
+            "temperature": None,
+            "caffeine": None,
+            "sweetness": None,
+        }
+        self.slider_feedback = {
+            "temperature": "WAITING",
+            "caffeine": "WAITING",
+            "sweetness": "WAITING",
+        }
+
+        # ====================================================
         # BLENDER
         # ====================================================
 
@@ -414,264 +465,63 @@ class MixingStation:
     def _create_layout(self):
 
         # ====================================================
-        # TOP HUD
+        # TOP HUD — FLUSH TO THE TOP
         # ====================================================
 
-        self.hud_rect = pygame.Rect(
-            20,
-            15,
-            525,
-            43,
-        )
+        self.hud_rect = pygame.Rect(8, 4, 870, 52)
+
+        self.map_button = pygame.Rect(900, 6, 120, 44)
+        self.leaderboard_button = pygame.Rect(1030, 6, 190, 44)
 
         # ====================================================
-        # DRINK MENU
+        # DRINK MENU — 11% SMALLER / MORE BACKGROUND VISIBLE
         # ====================================================
 
-        self.menu_rect = pygame.Rect(
-            425,
-            80,
-            835,
-            194,
-        )
-
+        self.menu_rect = pygame.Rect(530, 62, 740, 165)
         self.menu_slots = []
 
-        slot_width = 87
-        slot_height = 160
+        slot_width = 77
+        slot_height = 135
         gap = 5
+        start_x = 538
+        start_y = 75
 
-        start_x = 433
-        start_y = 94
-
-        for index, drink_name in enumerate(
-            DRINK_MENU
-        ):
-
-            x = (
-                start_x
-                + index
-                * (
-                    slot_width
-                    + gap
-                )
-            )
-
-            rect = pygame.Rect(
-                x,
-                start_y,
-                slot_width,
-                slot_height,
-            )
-
+        for index, drink_name in enumerate(DRINK_MENU):
+            x = start_x + index * (slot_width + gap)
             self.menu_slots.append(
-                (
-                    drink_name,
-                    rect,
-                )
+                (drink_name, pygame.Rect(x, start_y, slot_width, slot_height))
             )
 
         # ====================================================
         # CUSTOMISE PANEL
         # ====================================================
-        #
-        # WIDER
-        # SHORTER
-        # MORE HORIZONTAL
-        #
-        # ====================================================
 
-        self.customise_rect = pygame.Rect(
-            425,
-            430,
-            350,
-            260,
-        )
+        self.customise_rect = pygame.Rect(600, 390, 320, 300)
+
+        # Three moving timing sliders.
+        track_x = self.customise_rect.x + 25
+        track_w = self.customise_rect.width - 50
+        self.slider_tracks = {
+            "temperature": pygame.Rect(track_x, 475, track_w, 12),
+            "caffeine": pygame.Rect(track_x, 550, track_w, 12),
+            "sweetness": pygame.Rect(track_x, 625, track_w, 12),
+        }
 
         # ====================================================
-        # BLENDER PANEL
+        # BLENDER — PRETTY, COMPACT VERSION
         # ====================================================
 
-        self.blender_rect = pygame.Rect(
-            790,
-            410,
-            310,
-            295,
-        )
+        self.blender_rect = pygame.Rect(935, 390, 215, 300)
+        self.blender_jug_rect = pygame.Rect(970, 465, 140, 130)
+        self.blend_button = pygame.Rect(950, 632, 185, 48)
 
         # ====================================================
-        # PREVIEW PANEL
+        # PREVIEW
         # ====================================================
 
-        self.preview_rect = pygame.Rect(
-            1110,
-            410,
-            150,
-            295,
-        )
-
-        # ====================================================
-        # CUSTOMISE BUTTONS
-        # ====================================================
-        #
-        # Three evenly spaced buttons.
-        #
-        # ====================================================
-
-        button_width = 96
-        button_height = 42
-        button_gap = 9
-
-        button_x = (
-            self.customise_rect.x
-            + 20
-        )
-
-        # ----------------------------------------------------
-        # ROW 1
-        # ----------------------------------------------------
-
-        row_1_y = 475
-
-        # ----------------------------------------------------
-        # ROW 2
-        # ----------------------------------------------------
-
-        row_2_y = 533
-
-        # ----------------------------------------------------
-        # ROW 3
-        # ----------------------------------------------------
-
-        row_3_y = 591
-
-        # ====================================================
-        # TEMPERATURE BUTTONS
-        # ====================================================
-
-        self.temperature_buttons = {}
-
-        for index, value in enumerate(
-            TEMPERATURE_OPTIONS
-        ):
-
-            x = (
-                button_x
-                + index
-                * (
-                    button_width
-                    + button_gap
-                )
-            )
-
-            self.temperature_buttons[
-                value
-            ] = pygame.Rect(
-                x,
-                row_1_y,
-                button_width,
-                button_height,
-            )
-
-        # ====================================================
-        # CAFFEINE BUTTONS
-        # ====================================================
-
-        self.caffeine_buttons = {}
-
-        for index, value in enumerate(
-            CAFFEINE_OPTIONS
-        ):
-
-            x = (
-                button_x
-                + index
-                * (
-                    button_width
-                    + button_gap
-                )
-            )
-
-            self.caffeine_buttons[
-                value
-            ] = pygame.Rect(
-                x,
-                row_2_y,
-                button_width,
-                button_height,
-            )
-
-        # ====================================================
-        # SWEETNESS BUTTONS
-        # ====================================================
-
-        self.sweetness_buttons = {}
-
-        for index, value in enumerate(
-            SWEETNESS_OPTIONS
-        ):
-
-            x = (
-                button_x
-                + index
-                * (
-                    button_width
-                    + button_gap
-                )
-            )
-
-            self.sweetness_buttons[
-                value
-            ] = pygame.Rect(
-                x,
-                row_3_y,
-                button_width,
-                button_height,
-            )
-
-        # ====================================================
-        # BLENDER JUG
-        # ====================================================
-
-        self.blender_jug_rect = pygame.Rect(
-            845,
-            448,
-            180,
-            158,
-        )
-
-        # ====================================================
-        # BLEND BUTTON
-        # ====================================================
-
-        self.blend_button = pygame.Rect(
-            825,
-            626,
-            220,
-            59,
-        )
-
-        # ====================================================
-        # PREVIEW IMAGE
-        # ====================================================
-
-        self.preview_image_rect = pygame.Rect(
-            1118,
-            455,
-            124,
-            145,
-        )
-
-        # ====================================================
-        # SERVE BUTTON
-        # ====================================================
-
-        self.serve_button = pygame.Rect(
-            1120,
-            626,
-            120,
-            59,
-        )
+        self.preview_rect = pygame.Rect(1160, 390, 110, 300)
+        self.preview_image_rect = pygame.Rect(1170, 445, 90, 130)
+        self.serve_button = pygame.Rect(1168, 632, 94, 48)
 
     # ========================================================
     # LOAD DRINK IMAGES
@@ -787,6 +637,45 @@ class MixingStation:
         self.economy = economy
 
     # ========================================================
+    # REWARD FEEDBACK
+    # ========================================================
+
+    def set_reward_feedback(
+        self,
+        xp_delta=0,
+        credit_delta=0,
+    ):
+        """Show the latest XP/credit change in the HUD."""
+
+        try:
+            self.last_xp_change = int(xp_delta)
+        except (TypeError, ValueError):
+            self.last_xp_change = 0
+
+        try:
+            self.last_credit_change = int(credit_delta)
+        except (TypeError, ValueError):
+            self.last_credit_change = 0
+
+        self.reward_feedback_until = (
+            time.monotonic() + 2.5
+        )
+
+    # ========================================================
+    # NAVIGATION REQUESTS
+    # ========================================================
+
+    def consume_map_request(self):
+        requested = self.map_requested
+        self.map_requested = False
+        return requested
+
+    def consume_leaderboard_request(self):
+        requested = self.leaderboard_requested
+        self.leaderboard_requested = False
+        return requested
+
+    # ========================================================
     # CUSTOMER ORDER
     # ========================================================
 
@@ -802,6 +691,8 @@ class MixingStation:
         )
 
         self.player_drink.reset()
+
+        self._reset_sliders()
 
         self.served = False
 
@@ -971,6 +862,8 @@ class MixingStation:
             GameState.CUSTOMISE
         )
 
+        self._reset_sliders()
+
         self.served = False
 
         self._sync_legacy_values()
@@ -984,7 +877,97 @@ class MixingStation:
         dt=0.0,
     ):
 
+        # The timing sliders only move while the player is
+        # customising a selected drink.
+        if self.game_state.can_customize() and self.player_drink.drink_name:
+            self.slider_time += max(0.0, float(dt))
+
         self._update_blending()
+
+    # ========================================================
+    # SLIDER MOTION
+    # ========================================================
+
+    def _slider_position(self, parameter):
+        """Return a 0..1 ping-pong position for a slider."""
+
+        speed = self.slider_speeds[parameter]
+        phase = self.slider_phases[parameter]
+        cycle = (self.slider_time * speed + phase) % 2.0
+
+        if cycle <= 1.0:
+            return cycle
+
+        return 2.0 - cycle
+
+    def _slider_option_from_position(self, parameter):
+        """Convert the moving indicator position to one of 3 options."""
+
+        options = {
+            "temperature": TEMPERATURE_OPTIONS,
+            "caffeine": CAFFEINE_OPTIONS,
+            "sweetness": SWEETNESS_OPTIONS,
+        }[parameter]
+
+        position = self._slider_position(parameter)
+        centers = (0.08, 0.50, 0.92)
+        index = min(
+            range(3),
+            key=lambda i: abs(position - centers[i]),
+        )
+        return options[index], abs(position - centers[index])
+
+    def _reset_sliders(self):
+        self.slider_time = 0.0
+        self.slider_results = {
+            "temperature": None,
+            "caffeine": None,
+            "sweetness": None,
+        }
+        self.slider_feedback = {
+            "temperature": "WAITING",
+            "caffeine": "WAITING",
+            "sweetness": "WAITING",
+        }
+
+    def _get_customer_target(self, parameter):
+        if self.customer_order is None:
+            return None
+        return getattr(self.customer_order, parameter, None)
+
+    def _lock_slider(self, parameter):
+        """Capture the current moving position as the player's choice."""
+
+        if not self.game_state.can_customize():
+            return
+
+        value, distance = self._slider_option_from_position(parameter)
+
+        # The indicator must be close enough to a zone to count.
+        # This creates the timing challenge.
+        if distance > 0.15:
+            self.slider_feedback[parameter] = "MISSED"
+            self.slider_results[parameter] = False
+            return
+
+        if parameter == "temperature":
+            accepted = self.game_state.select_temperature(value)
+            if accepted:
+                self.player_drink.temperature = value
+        elif parameter == "caffeine":
+            accepted = self.game_state.select_caffeine(value)
+            if accepted:
+                self.player_drink.caffeine = value
+        else:
+            accepted = self.game_state.select_sweetness(value)
+            if accepted:
+                self.player_drink.sweetness = value
+
+        target = self._get_customer_target(parameter)
+        correct = target is not None and value == target
+        self.slider_results[parameter] = correct
+        self.slider_feedback[parameter] = "CORRECT" if correct else "WRONG"
+        self._sync_legacy_values()
 
     # ========================================================
     # UPDATE BLENDING
@@ -1052,6 +1035,22 @@ class MixingStation:
         self._update_blending()
 
         # ====================================================
+        # MAP BUTTON
+        # ====================================================
+
+        if self.map_button.collidepoint(mouse):
+            self.map_requested = True
+            return
+
+        # ====================================================
+        # LEADERBOARD BUTTON
+        # ====================================================
+
+        if self.leaderboard_button.collidepoint(mouse):
+            self.leaderboard_requested = True
+            return
+
+        # ====================================================
         # DRINK MENU
         # ====================================================
 
@@ -1110,84 +1109,14 @@ class MixingStation:
             return
 
         # ====================================================
-        # CUSTOMISATION
+        # CUSTOMISATION TIMING SLIDERS
         # ====================================================
 
         if self.game_state.can_customize():
 
-            # ------------------------------------------------
-            # TEMPERATURE
-            # ------------------------------------------------
-
-            for (
-                value,
-                rect,
-            ) in self.temperature_buttons.items():
-
-                if rect.collidepoint(
-                    mouse
-                ):
-
-                    if self.game_state.select_temperature(
-                        value
-                    ):
-
-                        self.player_drink.temperature = (
-                            value
-                        )
-
-                        self._sync_legacy_values()
-
-                    return
-
-            # ------------------------------------------------
-            # CAFFEINE
-            # ------------------------------------------------
-
-            for (
-                value,
-                rect,
-            ) in self.caffeine_buttons.items():
-
-                if rect.collidepoint(
-                    mouse
-                ):
-
-                    if self.game_state.select_caffeine(
-                        value
-                    ):
-
-                        self.player_drink.caffeine = (
-                            value
-                        )
-
-                        self._sync_legacy_values()
-
-                    return
-
-            # ------------------------------------------------
-            # SWEETNESS
-            # ------------------------------------------------
-
-            for (
-                value,
-                rect,
-            ) in self.sweetness_buttons.items():
-
-                if rect.collidepoint(
-                    mouse
-                ):
-
-                    if self.game_state.select_sweetness(
-                        value
-                    ):
-
-                        self.player_drink.sweetness = (
-                            value
-                        )
-
-                        self._sync_legacy_values()
-
+            for parameter, rect in self.slider_tracks.items():
+                if rect.collidepoint(mouse):
+                    self._lock_slider(parameter)
                     return
 
         # ====================================================
@@ -1282,6 +1211,7 @@ class MixingStation:
         self,
         screen,
     ):
+        """Draw the compact-but-wide player information HUD."""
 
         rect = self.hud_rect
 
@@ -1290,45 +1220,39 @@ class MixingStation:
             rect,
             self.CYAN,
             self.PANEL,
+            radius=12,
+            width=2,
         )
+
+        # ----------------------------------------------------
+        # READ CURRENT PLAYER DATA
+        # ----------------------------------------------------
 
         level = self.level
         xp = 0
-        max_xp = 100
         credits = 0
+        player_name = "PLAYER"
+        location = "UNKNOWN"
         combo = 0
 
         if self.progression is not None:
-
             level = getattr(
                 self.progression,
                 "level",
                 level,
             )
-
             xp = getattr(
                 self.progression,
                 "xp",
                 xp,
             )
 
-            max_xp = getattr(
-                self.progression,
-                "xp_required",
-                max_xp,
-            )
-
-            if callable(max_xp):
-
-                try:
-
-                    max_xp = max_xp()
-
-                except Exception:
-
-                    max_xp = 100
-
         if self.economy is not None:
+            player_name = getattr(
+                self.economy,
+                "player_name",
+                player_name,
+            )
 
             credits = getattr(
                 self.economy,
@@ -1336,43 +1260,116 @@ class MixingStation:
                 credits,
             )
 
-            if hasattr(
-                self.economy,
-                "get_credits",
-            ):
-
+            if hasattr(self.economy, "get_credits"):
                 try:
-
-                    credits = (
-                        self.economy
-                        .get_credits()
-                    )
-
+                    credits = self.economy.get_credits()
                 except Exception:
-
                     pass
 
-        if self.rewards is not None:
+            location = getattr(
+                self.economy,
+                "location",
+                location,
+            )
 
+        if self.rewards is not None:
             combo = getattr(
                 self.rewards,
                 "combo",
                 combo,
             )
 
+        if not player_name:
+            player_name = "PLAYER"
+
+        if not location:
+            location = "UNKNOWN"
+
         # ----------------------------------------------------
-        # LEVEL
+        # NEXT-LEVEL XP REQUIREMENT
         # ----------------------------------------------------
 
-        level_text = self.font_hud.render(
-            f"LEVEL {level}",
+        max_xp = 100
+
+        if self.progression is not None:
+
+            xp_requirements = getattr(
+                self.progression,
+                "xp_requirements",
+                None,
+            )
+
+            if isinstance(
+                xp_requirements,
+                dict,
+            ):
+                max_xp = xp_requirements.get(
+                    level,
+                    100,
+                )
+
+            else:
+                possible = getattr(
+                    self.progression,
+                    "xp_required",
+                    None,
+                )
+
+                if callable(possible):
+                    try:
+                        possible = possible()
+                    except Exception:
+                        possible = 100
+
+                if possible is not None:
+                    max_xp = possible
+
+        try:
+            max_xp = max(
+                1,
+                int(max_xp),
+            )
+        except (TypeError, ValueError):
+            max_xp = 100
+
+        try:
+            xp = int(xp)
+        except (TypeError, ValueError):
+            xp = 0
+
+        try:
+            credits = int(credits)
+        except (TypeError, ValueError):
+            credits = 0
+
+        # ----------------------------------------------------
+        # PLAYER NAME
+        # ----------------------------------------------------
+
+        name_text = self.font_hud.render(
+            str(player_name)[:14].upper(),
             True,
             self.WHITE,
         )
 
         screen.blit(
+            name_text,
+            (35, 20),
+        )
+
+        # ----------------------------------------------------
+        # LEVEL
+        # ----------------------------------------------------
+
+        level_text = self.font_small.render(
+            f"LEVEL {level}",
+            True,
+            self.CYAN_LIGHT,
+        )
+
+        screen.blit(
             level_text,
-            (35, 28),
+            (35, 40),
         )
 
         # ----------------------------------------------------
@@ -1387,7 +1384,7 @@ class MixingStation:
 
         screen.blit(
             xp_label,
-            (115, 30),
+            (150, 22),
         )
 
         # ----------------------------------------------------
@@ -1395,19 +1392,15 @@ class MixingStation:
         # ----------------------------------------------------
 
         xp_bar = pygame.Rect(
-            140,
-            27,
-            105,
+            174,
+            20,
+            225,
             18,
         )
 
         pygame.draw.rect(
             screen,
-            (
-                20,
-                28,
-                52,
-            ),
+            (18, 25, 48),
             xp_bar,
             border_radius=9,
         )
@@ -1420,30 +1413,20 @@ class MixingStation:
             border_radius=9,
         )
 
-        try:
-
-            ratio = max(
-                0,
-                min(
-                    1,
-                    xp / max_xp,
-                ),
-            )
-
-        except Exception:
-
-            ratio = 0
+        ratio = max(
+            0.0,
+            min(
+                1.0,
+                xp / max_xp,
+            ),
+        )
 
         fill_width = int(
-            (
-                xp_bar.width
-                - 6
-            )
+            (xp_bar.width - 6)
             * ratio
         )
 
         if fill_width > 0:
-
             pygame.draw.rect(
                 screen,
                 self.CYAN,
@@ -1465,7 +1448,7 @@ class MixingStation:
         screen.blit(
             xp_number,
             xp_number.get_rect(
-                center=xp_bar.center
+                center=xp_bar.center,
             ),
         )
 
@@ -1474,29 +1457,106 @@ class MixingStation:
         # ----------------------------------------------------
 
         credit_text = self.font_hud.render(
-            f"CREDITS  ${credits}",
+            f"CREDITS ${credits}",
             True,
             self.YELLOW,
         )
 
         screen.blit(
             credit_text,
-            (270, 28),
+            (420, 20),
         )
 
         # ----------------------------------------------------
-        # COMBO
+        # LOCATION
         # ----------------------------------------------------
 
-        combo_text = self.font_hud.render(
+        location_text = self.font_small.render(
+            f"LOCATION: {str(location).upper()}",
+            True,
+            self.SOFT_WHITE,
+        )
+
+        screen.blit(
+            location_text,
+            (420, 40),
+        )
+
+        combo_text = self.font_small.render(
             f"COMBO x{combo}",
             True,
-            self.CYAN_LIGHT,
+            self.PINK_LIGHT,
         )
 
         screen.blit(
             combo_text,
-            (405, 28),
+            (650, 40),
+        )
+
+        # ----------------------------------------------------
+        # REWARD FEEDBACK
+        # ----------------------------------------------------
+
+        if time.monotonic() < self.reward_feedback_until:
+
+            feedback_parts = []
+
+            if self.last_xp_change > 0:
+                feedback_parts.append(
+                    f"+{self.last_xp_change} XP"
+                )
+            elif self.last_xp_change < 0:
+                feedback_parts.append(
+                    f"{self.last_xp_change} XP"
+                )
+
+            if self.last_credit_change > 0:
+                feedback_parts.append(
+                    f"+${self.last_credit_change}"
+                )
+            elif self.last_credit_change < 0:
+                feedback_parts.append(
+                    f"-${abs(self.last_credit_change)}"
+                )
+
+            if feedback_parts:
+
+                feedback = self.font_small.render(
+                    "  ".join(feedback_parts),
+                    True,
+                    self.GREEN
+                    if (
+                        self.last_xp_change >= 0
+                        and self.last_credit_change >= 0
+                    )
+                    else self.PINK_LIGHT,
+                )
+
+                screen.blit(
+                    feedback,
+                    (600, 20),
+                )
+
+        # ----------------------------------------------------
+        # TOP-RIGHT NAVIGATION
+        # ----------------------------------------------------
+
+        self._action_button(
+            screen,
+            self.map_button,
+            "MAP  [M]",
+            self.CYAN,
+            True,
+            large=False,
+        )
+
+        self._action_button(
+            screen,
+            self.leaderboard_button,
+            "LEADERBOARD  [L]",
+            self.PINK,
+            True,
+            large=False,
         )
 
     # ========================================================
@@ -1753,25 +1813,14 @@ class MixingStation:
         screen,
     ):
 
-        # ----------------------------------------------------
-        # PANEL
-        # ----------------------------------------------------
-
         self._panel(
             screen,
             self.customise_rect,
             self.CYAN,
-            (
-                6,
-                12,
-                29,
-                180,
-            ),
+            (6, 12, 29, 190),
+            radius=14,
+            width=2,
         )
-
-        # ----------------------------------------------------
-        # TITLE
-        # ----------------------------------------------------
 
         title = self.font_big_title.render(
             "CUSTOMISE YOUR DRINK",
@@ -1782,214 +1831,169 @@ class MixingStation:
         screen.blit(
             title,
             title.get_rect(
-                center=(
-                    self.customise_rect.centerx,
-                    448,
-                ),
+                center=(self.customise_rect.centerx, 420)
             ),
         )
 
-        # ----------------------------------------------------
-        # TEMPERATURE
-        # ----------------------------------------------------
-
-        self._draw_option_row(
-            screen,
-            "TEMPERATURE",
-            self.temperature_buttons,
-            self.player_drink.temperature,
+        instruction = self.font_small.render(
+            "CLICK WHEN THE INDICATOR HITS THE CORRECT ZONE!",
+            True,
+            self.SOFT_WHITE,
         )
 
-        # ----------------------------------------------------
-        # CAFFEINE
-        # ----------------------------------------------------
-
-        self._draw_option_row(
-            screen,
-            "CAFFEINE LEVEL",
-            self.caffeine_buttons,
-            self.player_drink.caffeine,
+        screen.blit(
+            instruction,
+            instruction.get_rect(
+                center=(self.customise_rect.centerx, 444)
+            ),
         )
 
-        # ----------------------------------------------------
-        # SWEETNESS
-        # ----------------------------------------------------
-
-        self._draw_option_row(
-            screen,
-            "SWEETNESS LEVEL",
-            self.sweetness_buttons,
-            self.player_drink.sweetness,
+        self._draw_timing_slider(
+            screen, "temperature", "TEMPERATURE", TEMPERATURE_OPTIONS, self.CYAN, 465
+        )
+        self._draw_timing_slider(
+            screen, "caffeine", "CAFFEINE LEVEL", CAFFEINE_OPTIONS, self.YELLOW, 540
+        )
+        self._draw_timing_slider(
+            screen, "sweetness", "SWEETNESS LEVEL", SWEETNESS_OPTIONS, self.PINK_LIGHT, 615
         )
 
-    # ========================================================
-    # CUSTOMISE OPTION ROW
-    # ========================================================
-
-    def _draw_option_row(
+    def _draw_timing_slider(
         self,
         screen,
+        parameter,
         label,
-        buttons,
-        selected,
+        options,
+        accent,
+        track_y,
     ):
 
-        first = next(
-            iter(
-                buttons.values()
-            )
-        )
+        track = self.slider_tracks[parameter]
 
-        # ====================================================
-        # CATEGORY LABEL
-        # ====================================================
-
-        label_surface = (
-            self.font_category.render(
-                label,
-                True,
-                self.CYAN_LIGHT,
-            )
+        label_surface = self.font_category.render(
+            label,
+            True,
+            accent,
         )
 
         screen.blit(
             label_surface,
-            (
-                first.x,
-                first.y - 18,
-            ),
+            (track.x, track.y - 26),
         )
 
-        # ====================================================
-        # SUBTLE LINE
-        # ====================================================
-
-        line_start = (
-            first.x
-            + label_surface.get_width()
-            + 10
+        # Track glow.
+        glow = pygame.Rect(
+            track.x - 2,
+            track.y - 2,
+            track.width + 4,
+            track.height + 4,
+        )
+        glow_surface = pygame.Surface(
+            glow.size,
+            pygame.SRCALPHA,
+        )
+        pygame.draw.rect(
+            glow_surface,
+            (*accent, 70),
+            glow_surface.get_rect(),
+            border_radius=8,
+        )
+        screen.blit(
+            glow_surface,
+            glow.topleft,
         )
 
-        line_end = (
-            self.customise_rect.right
-            - 20
+        pygame.draw.rect(
+            screen,
+            (15, 24, 48),
+            track,
+            border_radius=6,
+        )
+        pygame.draw.rect(
+            screen,
+            accent,
+            track,
+            width=2,
+            border_radius=6,
         )
 
-        if line_end > line_start:
+        # Three target zones. Their positions are deliberately
+        # obvious, but the correct zone is not highlighted.
+        centers = (0.08, 0.50, 0.92)
+
+        for index, option in enumerate(options):
+            cx = int(track.x + track.width * centers[index])
 
             pygame.draw.line(
                 screen,
-                (
-                    35,
-                    75,
-                    105,
-                ),
-                (
-                    line_start,
-                    first.y - 8,
-                ),
-                (
-                    line_end,
-                    first.y - 8,
-                ),
+                (105, 120, 150),
+                (cx, track.y - 5),
+                (cx, track.bottom + 5),
                 1,
             )
 
-        # ====================================================
-        # BUTTONS
-        # ====================================================
-
-        for (
-            value,
-            rect,
-        ) in buttons.items():
-
-            active = (
-                value == selected
-            )
-
-            # ------------------------------------------------
-            # SELECTED
-            # ------------------------------------------------
-
-            if active:
-
-                fill = self.BUTTON_SELECTED
-
-                border = self.PINK_LIGHT
-
-                text_colour = self.WHITE
-
-            # ------------------------------------------------
-            # NORMAL
-            # ------------------------------------------------
-
-            else:
-
-                fill = self.BUTTON
-
-                border = (
-                    55,
-                    190,
-                    220,
-                )
-
-                text_colour = self.SOFT_WHITE
-
-            # ------------------------------------------------
-            # BUTTON
-            # ------------------------------------------------
-
-            self._panel(
-                screen,
-                rect,
-                border,
-                fill,
-                radius=11,
-                width=1,
-            )
-
-            # ------------------------------------------------
-            # TEXT
-            # ------------------------------------------------
-
-            text = self.font_button.render(
-                value.upper(),
+            text = self.font_small.render(
+                option.upper(),
                 True,
-                text_colour,
+                self.WHITE,
             )
 
             screen.blit(
                 text,
                 text.get_rect(
-                    center=rect.center,
+                    center=(cx, track.bottom + 18)
                 ),
             )
 
-            # ------------------------------------------------
-            # SELECTED GLOW
-            # ------------------------------------------------
+        # Moving indicator.
+        position = self._slider_position(parameter)
+        indicator_x = int(
+            track.x + track.width * position
+        )
 
-            if active:
+        pygame.draw.circle(
+            screen,
+            (0, 0, 0),
+            (indicator_x, track.centery),
+            9,
+        )
 
-                glow = pygame.Rect(
-                    rect.x - 2,
-                    rect.y - 2,
-                    rect.width + 4,
-                    rect.height + 4,
-                )
+        pygame.draw.circle(
+            screen,
+            accent,
+            (indicator_x, track.centery),
+            7,
+        )
 
-                pygame.draw.rect(
-                    screen,
-                    (
-                        255,
-                        100,
-                        210,
-                    ),
-                    glow,
-                    width=1,
-                    border_radius=13,
-                )
+        pygame.draw.circle(
+            screen,
+            self.WHITE,
+            (indicator_x, track.centery),
+            2,
+        )
+
+        # Result feedback appears only after the player clicks.
+        result = self.slider_results[parameter]
+        if result is True:
+            feedback = "✓ CORRECT"
+            colour = self.GREEN
+        elif result is False:
+            feedback = self.slider_feedback[parameter]
+            colour = self.PINK_LIGHT
+        else:
+            feedback = "CLICK"
+            colour = self.MUTED
+
+        feedback_text = self.font_small.render(
+            feedback,
+            True,
+            colour,
+        )
+
+        screen.blit(
+            feedback_text,
+            (track.right - feedback_text.get_width(), track.y - 26),
+        )
 
     # ========================================================
     # BLENDER
@@ -2031,7 +2035,7 @@ class MixingStation:
             title.get_rect(
                 center=(
                     self.blender_rect.centerx,
-                    431,
+                    self.blender_rect.y + 20,
                 )
             ),
         )
@@ -2128,6 +2132,27 @@ class MixingStation:
             border_radius=23,
         )
 
+        # Sleek lid and neon rim.
+        lid = pygame.Rect(
+            jug.x + 24,
+            jug.y - 8,
+            jug.width - 48,
+            18,
+        )
+        pygame.draw.rect(
+            screen,
+            (20, 24, 48),
+            lid,
+            border_radius=8,
+        )
+        pygame.draw.rect(
+            screen,
+            self.PINK_LIGHT,
+            lid,
+            width=2,
+            border_radius=8,
+        )
+
         # ====================================================
         # INNER GLASS
         # ====================================================
@@ -2156,9 +2181,9 @@ class MixingStation:
 
         handle = pygame.Rect(
             jug.right - 2,
-            jug.y + 35,
-            28,
-            65,
+            jug.y + 28,
+            22,
+            52,
         )
 
         pygame.draw.rect(
@@ -2325,6 +2350,18 @@ class MixingStation:
                 border_radius=4,
             )
 
+            shimmer_y = int(
+                liquid.y
+                + liquid.height * (0.35 + 0.12 * math.sin(time.monotonic() * 2.5))
+            )
+            pygame.draw.line(
+                screen,
+                (255, 255, 255, 110),
+                (liquid.x + 12, shimmer_y),
+                (liquid.right - 12, shimmer_y),
+                1,
+            )
+
             # ------------------------------------------------
             # WAVES
             # ------------------------------------------------
@@ -2469,7 +2506,7 @@ class MixingStation:
         # ====================================================
 
         core_x = jug.centerx
-        core_y = jug.bottom - 25
+        core_y = jug.bottom - 20
 
         pygame.draw.circle(
             screen,
@@ -2482,7 +2519,7 @@ class MixingStation:
                 core_x,
                 core_y,
             ),
-            14,
+            11,
         )
 
         pygame.draw.circle(
@@ -2551,10 +2588,10 @@ class MixingStation:
         # ====================================================
 
         base = pygame.Rect(
-            jug.x - 12,
+            jug.x - 10,
             jug.bottom - 2,
-            jug.width + 24,
-            27,
+            jug.width + 20,
+            22,
         )
 
         pygame.draw.rect(
@@ -3066,6 +3103,15 @@ class MixingStation:
         self.customer_order = None
 
         self.served = False
+
+        self.map_requested = False
+        self.leaderboard_requested = False
+
+        self.last_xp_change = 0
+        self.last_credit_change = 0
+        self.reward_feedback_until = 0.0
+
+        self._reset_sliders()
 
         self.blend_start_time = 0.0
 
