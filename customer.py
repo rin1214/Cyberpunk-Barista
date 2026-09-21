@@ -25,12 +25,12 @@ SCALE_Y = GAME_HEIGHT / BASE_HEIGHT
 
 
 def sx(value):
-    """Convert a 960x540 X coordinate to 1280x720."""
+    """Convert a 960x540 X coordinate to the 1280x720 game size."""
     return int(round(value * SCALE_X))
 
 
 def sy(value):
-    """Convert a 960x540 Y coordinate to 1280x720."""
+    """Convert a 960x540 Y coordinate to the 1280x720 game size."""
     return int(round(value * SCALE_Y))
 
 
@@ -39,6 +39,9 @@ def sy(value):
 # ============================================================
 
 class CustomerState:
+    """
+    These are the different stages of a customer's life.
+    """
 
     SPAWNING = "spawning"
     ORDERING = "ordering"
@@ -70,13 +73,17 @@ class CustomerOrder:
         caffeine,
         sweetness,
     ):
-
         self.drink = drink
         self.temperature = temperature
         self.caffeine = caffeine
         self.sweetness = sweetness
 
     def get_data(self):
+        """
+        Convert the order into a dictionary.
+
+        This makes it easy for other systems to read.
+        """
 
         return {
             "drink": self.drink,
@@ -86,6 +93,9 @@ class CustomerOrder:
         }
 
     def __str__(self):
+        """
+        Human-readable version of the order.
+        """
 
         return (
             f"{self.drink} | "
@@ -100,13 +110,20 @@ class CustomerOrder:
 # ============================================================
 
 class Customer:
+    """
+    Manages:
 
-    def __init__(
-        self,
-        x=180,
-        y_counter=500,
-        current_level=1,
-    ):
+        - customer appearance
+        - customer movement
+        - customer FSM
+        - customer order
+        - patience
+        - order verification
+        - feedback
+        - speech UI
+    """
+
+    def __init__(self, x=360, y_counter=405, current_level=1):
 
         # ----------------------------------------------------
         # POSITION
@@ -116,7 +133,7 @@ class Customer:
         self.y_counter = sy(y_counter)
 
         # ----------------------------------------------------
-        # LEVEL
+        # CURRENT LEVEL
         # ----------------------------------------------------
 
         self.level = current_level
@@ -140,7 +157,7 @@ class Customer:
         )
 
         # ----------------------------------------------------
-        # STATE
+        # FSM STATE
         # ----------------------------------------------------
 
         self.state = CustomerState.SPAWNING
@@ -158,76 +175,48 @@ class Customer:
         self.rect = self.image.get_rect()
 
         self.rect.centerx = self.x
-
-        self.rect.bottom = int(
-            self.current_y
-        )
+        self.rect.bottom = int(self.current_y)
 
         # ----------------------------------------------------
-        # ORDER
+        # CUSTOMER ORDER
         # ----------------------------------------------------
 
         self.order = self._generate_order()
 
         # ----------------------------------------------------
-        # BACKWARD COMPATIBILITY
-        # ----------------------------------------------------
-
-        self.target_sweetness = (
-            self._sweetness_to_number(
-                self.order.sweetness
-            )
-        )
-
-        self.target_caffeine = (
-            self._caffeine_to_number(
-                self.order.caffeine
-            )
-        )
-
-        self.target_temperature = (
-            self._temperature_to_number(
-                self.order.temperature
-            )
-        )
-
-        # ----------------------------------------------------
-        # CUSTOMER PATIENCE
+        # BACKWARD-COMPATIBILITY VALUES
         # ----------------------------------------------------
         #
-        # FINAL VALUE:
+        # These will eventually be removed.
         #
-        #       15 SECONDS
+        # The old main.py / station.py may still refer to
+        # target_sweetness, target_caffeine and
+        # target_temperature.
         #
-        # This is the complete customer order timer.
+        # We temporarily keep them so the migration is safe.
         #
 
-        self.max_patience = 15.0
+        self.target_sweetness = self._sweetness_to_number(
+            self.order.sweetness
+        )
 
-        self.current_patience = (
-            self.max_patience
+        self.target_caffeine = self._caffeine_to_number(
+            self.order.caffeine
+        )
+
+        self.target_temperature = self._temperature_to_number(
+            self.order.temperature
         )
 
         # ----------------------------------------------------
-        # QUICK SERVICE THRESHOLD
+        # PATIENCE
         # ----------------------------------------------------
-        #
-        # The player receives the speed bonus if they
-        # serve the customer while at least 50% of the
-        # customer's patience remains.
-        #
-        # This means:
-        #
-        # 15 seconds × 50% = 7.5 seconds
-        #
-        # Therefore a service completed with 7.5 seconds
-        # or more remaining counts as "quick".
-        #
 
-        self.quick_service_ratio = 0.50
+        self.max_patience = 18.0
+        self.current_patience = self.max_patience
 
         # ----------------------------------------------------
-        # FONTS
+        # UI
         # ----------------------------------------------------
 
         self.font_small = pygame.font.SysFont(
@@ -254,24 +243,19 @@ class Customer:
             bold=True,
         )
 
-        # ----------------------------------------------------
-        # DIALOGUE
-        # ----------------------------------------------------
+        # Backward-compatible alias used by the feedback system.
+        self.font = self.font_small
 
-        self.dialogue = (
-            self._generate_dialogue()
-        )
+        self.quick_service_ratio = 0.50
 
-        # ----------------------------------------------------
-        # FEEDBACK
-        # ----------------------------------------------------
+        self.dialogue = self._generate_dialogue()
 
         self.feedback_text = ""
 
         self.feedback_color = (
             0,
             255,
-            150,
+            150
         )
 
     # ========================================================
@@ -279,18 +263,21 @@ class Customer:
     # ========================================================
 
     def _generate_order(self):
+        """
+        Generate a legal order using the drinks unlocked
+        at the customer's current level.
+        """
 
-        unlocked_drinks = (
-            get_unlocked_drinks(
-                self.level
-            )
+        unlocked_drinks = get_unlocked_drinks(
+            self.level
         )
 
+        # Safety check.
+        #
+        # There should always be at least the three
+        # Level 1 drinks available.
         if not unlocked_drinks:
-
-            unlocked_drinks = (
-                get_unlocked_drinks(1)
-            )
+            unlocked_drinks = get_unlocked_drinks(1)
 
         drink = random.choice(
             unlocked_drinks
@@ -316,13 +303,18 @@ class Customer:
         )
 
     # ========================================================
-    # NUMERIC COMPATIBILITY
+    # OLD NUMERIC COMPATIBILITY
     # ========================================================
 
-    def _sweetness_to_number(
-        self,
-        sweetness,
-    ):
+    def _sweetness_to_number(self, sweetness):
+        """
+        Temporary conversion for the old system.
+
+        New system:
+            Less = 25
+            Normal = 50
+            Extra = 75
+        """
 
         values = {
             "Less": 25,
@@ -332,13 +324,18 @@ class Customer:
 
         return values.get(
             sweetness,
-            50,
+            50
         )
 
-    def _caffeine_to_number(
-        self,
-        caffeine,
-    ):
+    def _caffeine_to_number(self, caffeine):
+        """
+        Temporary conversion for the old system.
+
+        New system:
+            Low = 25
+            Normal = 50
+            High = 75
+        """
 
         values = {
             "Low": 25,
@@ -348,13 +345,18 @@ class Customer:
 
         return values.get(
             caffeine,
-            50,
+            50
         )
 
-    def _temperature_to_number(
-        self,
-        temperature,
-    ):
+    def _temperature_to_number(self, temperature):
+        """
+        Temporary conversion for the old system.
+
+        New system:
+            Cold = 25
+            Normal = 50
+            Hot = 75
+        """
 
         values = {
             "Cold": 25,
@@ -364,33 +366,29 @@ class Customer:
 
         return values.get(
             temperature,
-            50,
+            50
         )
 
     # ========================================================
-    # LOAD CUSTOMER SPRITE
+    # SPRITE
     # ========================================================
 
-    def _load_sprite(
-        self,
-        ctype,
-    ):
+    def _load_sprite(self, ctype):
+        """
+        Load a customer image and scale it to the game size.
+        """
 
-        filename = (
-            f"{ctype}.png"
-        )
+        filename = f"{ctype}.png"
 
-        project_root = (
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
+        project_root = os.path.dirname(
+            os.path.abspath(__file__)
         )
 
         path = os.path.join(
             project_root,
             "assets",
             "customers",
-            filename,
+            filename
         )
 
         if os.path.exists(path):
@@ -404,16 +402,16 @@ class Customer:
             img = pygame.Surface(
                 (
                     sx(180),
-                    sy(220),
+                    sy(220)
                 ),
-                pygame.SRCALPHA,
+                pygame.SRCALPHA
             )
 
             img.fill(
                 (
                     100,
                     100,
-                    150,
+                    150
                 )
             )
 
@@ -421,8 +419,8 @@ class Customer:
             img,
             (
                 sx(180),
-                sy(220),
-            ),
+                sy(220)
+            )
         )
 
     # ========================================================
@@ -430,6 +428,9 @@ class Customer:
     # ========================================================
 
     def _generate_dialogue(self):
+        """
+        Generate customer speech from the actual order.
+        """
 
         return (
             f"{self.order.drink} / "
@@ -439,81 +440,29 @@ class Customer:
         )
 
     # ========================================================
-    # PATIENCE RATIO
-    # ========================================================
-
-    def get_remaining_patience_ratio(self):
-
-        if self.max_patience <= 0:
-
-            return 0.0
-
-        ratio = (
-            self.current_patience
-            / self.max_patience
-        )
-
-        return max(
-            0.0,
-            min(
-                1.0,
-                ratio,
-            ),
-        )
-
-    # ========================================================
-    # QUICK SERVICE
-    # ========================================================
-
-    def served_quickly(self):
-        """
-        Returns True if the customer was served while
-        at least 50% of their patience remained.
-        """
-
-        if self.state != (
-            CustomerState.SERVED
-        ):
-
-            return False
-
-        return (
-            self.get_remaining_patience_ratio()
-            >= self.quick_service_ratio
-        )
-
-    # ========================================================
     # UPDATE
     # ========================================================
 
-    def update(
-        self,
-        dt,
-    ):
+    def update(self, dt):
+        """
+        Update the customer's FSM and movement.
+        """
 
         # ----------------------------------------------------
         # SPAWNING
         # ----------------------------------------------------
 
-        if self.state == (
-            CustomerState.SPAWNING
-        ):
+        if self.state == CustomerState.SPAWNING:
 
-            if self.current_y > (
-                self.y_counter
-            ):
+            if self.current_y > self.y_counter:
 
                 self.current_y -= (
                     sy(120) * dt
                 )
 
-                if self.current_y <= (
-                    self.y_counter
-                ):
+                if self.current_y <= self.y_counter:
 
-                    self.current_y = (
-                        self.y_counter
-                    )
+                    self.current_y = self.y_counter
 
                     self.state = (
                         CustomerState.ORDERING
@@ -527,21 +476,15 @@ class Customer:
         # ORDERING
         # ----------------------------------------------------
 
-        elif self.state == (
-            CustomerState.ORDERING
-        ):
+        elif self.state == CustomerState.ORDERING:
 
-            self.state = (
-                CustomerState.WAITING
-            )
+            self.state = CustomerState.WAITING
 
         # ----------------------------------------------------
         # WAITING
         # ----------------------------------------------------
 
-        elif self.state == (
-            CustomerState.WAITING
-        ):
+        elif self.state == CustomerState.WAITING:
 
             self.current_patience -= dt
 
@@ -556,7 +499,7 @@ class Customer:
                 self.feedback_color = (
                     255,
                     50,
-                    80,
+                    80
                 )
 
                 self.state = (
@@ -572,39 +515,30 @@ class Customer:
             CustomerState.LEAVING,
         ):
 
-            if self.current_y < (
-                self.spawn_y
-            ):
+            if self.current_y < self.spawn_y:
 
                 self.current_y += (
                     sy(150) * dt
                 )
-
-                if self.current_y > (
-                    self.spawn_y
-                ):
-
-                    self.current_y = (
-                        self.spawn_y
-                    )
 
             self.rect.bottom = int(
                 self.current_y
             )
 
     # ========================================================
-    # SERVE DRINK
+    # SERVE
     # ========================================================
 
-    def serve_drink(
-        self,
-        drink_data,
-    ):
+    def serve_drink(self, drink_data):
+        """
+        Evaluate the player's completed drink.
 
-        if self.state != (
-            CustomerState.WAITING
-        ):
+        Returns:
+            True  = correct order
+            False = incorrect order
+        """
 
+        if self.state != CustomerState.WAITING:
             return False
 
         success = self.verify_order(
@@ -613,14 +547,12 @@ class Customer:
 
         if success:
 
-            self.feedback_text = (
-                "PERFECT!"
-            )
+            self.feedback_text = "PERFECT!"
 
             self.feedback_color = (
                 0,
                 255,
-                150,
+                150
             )
 
             self.state = (
@@ -636,7 +568,7 @@ class Customer:
             self.feedback_color = (
                 255,
                 50,
-                80,
+                80
             )
 
             self.state = (
@@ -646,56 +578,81 @@ class Customer:
         return success
 
     # ========================================================
-    # VERIFY ORDER
+    # ORDER VERIFICATION
     # ========================================================
 
-    def verify_order(
-        self,
-        drink_data,
-    ):
+    def verify_order(self, drink_data):
+        """
+        Compare the customer's exact order with the
+        player's completed drink.
+
+        The new system uses exact matching.
+
+        There is NO +/-20 tolerance anymore.
+        """
 
         if not isinstance(
             drink_data,
-            dict,
+            dict
         ):
 
             return False
 
-        player_drink = (
-            drink_data.get("drink")
+        player_drink = drink_data.get(
+            "drink"
         )
 
-        player_temperature = (
-            drink_data.get("temperature")
+        player_temperature = drink_data.get(
+            "temperature"
         )
 
-        player_caffeine = (
-            drink_data.get("caffeine")
+        player_caffeine = drink_data.get(
+            "caffeine"
         )
 
-        player_sweetness = (
-            drink_data.get("sweetness")
+        player_sweetness = drink_data.get(
+            "sweetness"
         )
+
+        # ----------------------------------------------------
+        # DRINK
+        # ----------------------------------------------------
 
         drink_ok = (
             player_drink
             == self.order.drink
         )
 
+        # ----------------------------------------------------
+        # TEMPERATURE
+        # ----------------------------------------------------
+
         temperature_ok = (
             player_temperature
             == self.order.temperature
         )
+
+        # ----------------------------------------------------
+        # CAFFEINE
+        # ----------------------------------------------------
 
         caffeine_ok = (
             player_caffeine
             == self.order.caffeine
         )
 
+        # ----------------------------------------------------
+        # SWEETNESS
+        # ----------------------------------------------------
+
         sweetness_ok = (
             player_sweetness
             == self.order.sweetness
         )
+
+        # ----------------------------------------------------
+        # ALL FOUR MUST MATCH
+        # ----------------------------------------------------
 
         return (
             drink_ok
@@ -705,17 +662,21 @@ class Customer:
         )
 
     # ========================================================
-    # ORDER ACCURACY
+    # ACCURACY DETAILS
     # ========================================================
 
-    def get_order_accuracy(
-        self,
-        drink_data,
-    ):
+    def get_order_accuracy(self, drink_data):
+        """
+        Return detailed accuracy information.
+
+        This will later be moved into accuracy.py,
+        but keeping it here temporarily makes the
+        migration easier.
+        """
 
         if not isinstance(
             drink_data,
-            dict,
+            dict
         ):
 
             drink_data = {}
@@ -764,6 +725,10 @@ class Customer:
     # ========================================================
 
     def is_finished(self):
+        """
+        Returns True when the customer has completely
+        left the screen.
+        """
 
         return (
             self.state
@@ -772,35 +737,92 @@ class Customer:
                 CustomerState.LEAVING,
             )
             and
-            self.current_y >= (
-                self.spawn_y
-            )
+            self.current_y >= self.spawn_y
         )
+
+    # ========================================================
+    # PATIENCE HELPERS
+    # ========================================================
+
+    def get_remaining_patience_ratio(self):
+        """
+        Return the proportion of patience remaining.
+
+        1.0 = full patience
+        0.5 = half patience
+        0.0 = no patience
+        """
+
+        if self.max_patience <= 0:
+            return 0.0
+
+        ratio = (
+            self.current_patience
+            / self.max_patience
+        )
+
+        return max(
+            0.0,
+            min(
+                1.0,
+                ratio,
+            ),
+        )
+
+    def served_quickly(self):
+        """
+        Return True when the customer was served while at least
+        50% of their patience remained.
+
+        With the current 18-second timer, this means the speed
+        bonus threshold is 9 seconds remaining.
+        """
+
+        if self.state not in (
+            CustomerState.WAITING,
+            CustomerState.SERVED,
+        ):
+            return False
+
+        return (
+            self.get_remaining_patience_ratio()
+            >= self.quick_service_ratio
+        )
+
+    def _get_patience_color(self):
+        """Return the timer colour based on remaining patience."""
+
+        ratio = self.get_remaining_patience_ratio()
+
+        if ratio > 0.50:
+            return (0, 235, 150)
+
+        if ratio > 0.25:
+            return (255, 205, 70)
+
+        return (255, 60, 100)
 
     # ========================================================
     # DRAW
     # ========================================================
 
-    def draw(
-        self,
-        screen,
-    ):
+    def draw(self, screen):
+        """
+        Draw the customer and the combined order/patience bubble.
+        """
 
         # ----------------------------------------------------
-        # ORDER BUBBLE
+        # ACTIVE CUSTOMER UI
         # ----------------------------------------------------
 
         if self.state in (
             CustomerState.ORDERING,
             CustomerState.WAITING,
         ):
-
-            self._draw_speech_bubble(
-                screen
-            )
+            self._draw_speech_bubble(screen)
 
         # ----------------------------------------------------
-        # CUSTOMER
+        # CUSTOMER SPRITE
         # ----------------------------------------------------
 
         screen.blit(
@@ -818,30 +840,102 @@ class Customer:
                 CustomerState.SERVED,
                 CustomerState.LEAVING,
             ):
-
-                self._draw_feedback(
-                    screen
-                )
+                self._draw_feedback(screen)
 
     # ========================================================
-    # ORDER BUBBLE
+    # LEGACY PATIENCE BAR
     # ========================================================
 
-    def _draw_speech_bubble(
-        self,
-        screen,
-    ):
+    def _draw_patience_bar(self, screen):
+        """
+        Kept for compatibility with older code.
 
-        # ----------------------------------------------------
-        # BUBBLE SIZE
-        # ----------------------------------------------------
+        The current UI draws the patience bar inside the
+        customer order bubble instead.
+        """
+
+        bar_w = sx(120)
+        bar_h = sy(10)
+
+        bar_x = (
+            self.rect.centerx
+            - (bar_w // 2)
+        )
+
+        bar_y = (
+            self.rect.top
+            - sy(20)
+        )
+
+        pygame.draw.rect(
+            screen,
+            (30, 30, 40),
+            (
+                bar_x,
+                bar_y,
+                bar_w,
+                bar_h,
+            ),
+            border_radius=sy(4),
+        )
+
+        ratio = self.get_remaining_patience_ratio()
+        fill_w = int(
+            (bar_w - 2)
+            * ratio
+        )
+
+        if fill_w > 0:
+            pygame.draw.rect(
+                screen,
+                self._get_patience_color(),
+                (
+                    bar_x + sx(1),
+                    bar_y + sy(1),
+                    fill_w,
+                    bar_h - sy(2),
+                ),
+                border_radius=sy(3),
+            )
+
+        pygame.draw.rect(
+            screen,
+            (100, 110, 130),
+            (
+                bar_x,
+                bar_y,
+                bar_w,
+                bar_h,
+            ),
+            width=1,
+            border_radius=sy(4),
+        )
+
+    # ========================================================
+    # COMBINED ORDER / PATIENCE SPEECH BUBBLE
+    # ========================================================
+
+    def _draw_speech_bubble(self, screen):
+        """
+        Draw one readable bubble containing:
+
+            - customer order
+            - temperature
+            - caffeine
+            - sweetness
+            - remaining patience
+            - patience bar
+
+        This keeps all customer information together directly
+        above the customer's head.
+        """
 
         bubble_w = sx(255)
         bubble_h = sy(142)
 
         bubble_x = (
             self.rect.centerx
-            - bubble_w // 2
+            - (bubble_w // 2)
         )
 
         bubble_y = (
@@ -856,16 +950,11 @@ class Customer:
             bubble_h,
         )
 
-        # Keep bubble inside screen.
-
+        # Keep bubble inside the game window.
         if bubble_rect.left < sx(12):
-
             bubble_rect.left = sx(12)
 
-        if bubble_rect.right > (
-            GAME_WIDTH - sx(12)
-        ):
-
+        if bubble_rect.right > GAME_WIDTH - sx(12):
             bubble_rect.right = (
                 GAME_WIDTH - sx(12)
             )
@@ -874,18 +963,23 @@ class Customer:
         # SHADOW
         # ----------------------------------------------------
 
-        shadow_rect = (
-            bubble_rect.move(
-                sx(3),
-                sy(4),
-            )
+        shadow_rect = bubble_rect.move(
+            sx(3),
+            sy(4),
         )
 
-        pygame.draw.rect(
-            screen,
-            (0, 0, 0, 120),
-            shadow_rect,
-            border_radius=sy(12),
+        shadow_surface = pygame.Surface(
+            shadow_rect.size,
+            pygame.SRCALPHA,
+        )
+
+        shadow_surface.fill(
+            (0, 0, 0, 120)
+        )
+
+        screen.blit(
+            shadow_surface,
+            shadow_rect.topleft,
         )
 
         # ----------------------------------------------------
@@ -898,12 +992,7 @@ class Customer:
         )
 
         bg_surface.fill(
-            (
-                8,
-                12,
-                25,
-                235,
-            )
+            (8, 12, 25, 235)
         )
 
         screen.blit(
@@ -941,10 +1030,6 @@ class Customer:
             ),
         )
 
-        # ----------------------------------------------------
-        # HEADER LINE
-        # ----------------------------------------------------
-
         pygame.draw.line(
             screen,
             (55, 90, 120),
@@ -960,26 +1045,14 @@ class Customer:
         )
 
         # ----------------------------------------------------
-        # ORDER VALUES
+        # ORDER DETAILS
         # ----------------------------------------------------
 
         order_lines = [
-            (
-                "DRINK",
-                self.order.drink,
-            ),
-            (
-                "TEMP",
-                self.order.temperature,
-            ),
-            (
-                "CAFFEINE",
-                self.order.caffeine,
-            ),
-            (
-                "SWEETNESS",
-                self.order.sweetness,
-            ),
+            ("DRINK", self.order.drink),
+            ("TEMP", self.order.temperature),
+            ("CAFFEINE", self.order.caffeine),
+            ("SWEETNESS", self.order.sweetness),
         ]
 
         text_y = (
@@ -988,20 +1061,16 @@ class Customer:
 
         for label, value in order_lines:
 
-            label_surface = (
-                self.font_small.render(
-                    label,
-                    True,
-                    (120, 145, 170),
-                )
+            label_surface = self.font_small.render(
+                label,
+                True,
+                (120, 145, 170),
             )
 
-            value_surface = (
-                self.font_small.render(
-                    str(value),
-                    True,
-                    (225, 245, 255),
-                )
+            value_surface = self.font_small.render(
+                str(value),
+                True,
+                (225, 245, 255),
             )
 
             screen.blit(
@@ -1023,7 +1092,7 @@ class Customer:
             text_y += sy(17)
 
         # ----------------------------------------------------
-        # PATIENCE LABEL
+        # PATIENCE LABEL + TIME
         # ----------------------------------------------------
 
         patience_y = (
@@ -1031,12 +1100,10 @@ class Customer:
             - sy(45)
         )
 
-        patience_label = (
-            self.font_small.render(
-                "PATIENCE",
-                True,
-                (255, 200, 100),
-            )
+        patience_label = self.font_small.render(
+            "PATIENCE",
+            True,
+            (255, 200, 100),
         )
 
         screen.blit(
@@ -1047,25 +1114,19 @@ class Customer:
             ),
         )
 
-        # ----------------------------------------------------
-        # TIMER
-        # ----------------------------------------------------
-
         seconds_left = max(
             0.0,
             self.current_patience,
         )
 
-        timer_text = (
-            self.font_timer.render(
-                f"{seconds_left:04.1f}s",
-                True,
-                self._get_patience_color(),
-            )
+        timer_surface = self.font_timer.render(
+            f"{seconds_left:04.1f}s",
+            True,
+            self._get_patience_color(),
         )
 
         screen.blit(
-            timer_text,
+            timer_surface,
             (
                 bubble_rect.right - sx(58),
                 patience_y,
@@ -1073,7 +1134,7 @@ class Customer:
         )
 
         # ----------------------------------------------------
-        # TIMER BAR
+        # PATIENCE BAR
         # ----------------------------------------------------
 
         bar_x = (
@@ -1102,9 +1163,7 @@ class Customer:
             border_radius=sy(5),
         )
 
-        ratio = (
-            self.get_remaining_patience_ratio()
-        )
+        ratio = self.get_remaining_patience_ratio()
 
         fill_w = int(
             bar_w * ratio
@@ -1138,12 +1197,10 @@ class Customer:
         )
 
         # ----------------------------------------------------
-        # POINTER
+        # SPEECH POINTER
         # ----------------------------------------------------
 
-        pointer_x = (
-            self.rect.centerx
-        )
+        pointer_x = self.rect.centerx
 
         pointer_x = max(
             bubble_rect.left + sx(25),
@@ -1153,9 +1210,7 @@ class Customer:
             ),
         )
 
-        pointer_top = (
-            bubble_rect.bottom
-        )
+        pointer_top = bubble_rect.bottom
 
         pointer_points = [
             (
@@ -1207,83 +1262,22 @@ class Customer:
         )
 
     # ========================================================
-    # PATIENCE COLOR
-    # ========================================================
-
-    def _get_patience_color(self):
-
-        ratio = (
-            self.get_remaining_patience_ratio()
-        )
-
-        if ratio > 0.50:
-
-            return (
-                0,
-                235,
-                150,
-            )
-
-        elif ratio > 0.25:
-
-            return (
-                255,
-                205,
-                70,
-            )
-
-        return (
-            255,
-            60,
-            100,
-        )
-
-    # ========================================================
     # FEEDBACK
     # ========================================================
 
-    def _draw_feedback(
-        self,
-        screen,
-    ):
+    def _draw_feedback(self, screen):
 
-        txt = (
-            self.font_feedback.render(
-                self.feedback_text,
-                True,
-                self.feedback_color,
-            )
-        )
-
-        feedback_x = (
-            self.rect.centerx
-            - txt.get_width() // 2
-        )
-
-        feedback_y = (
-            self.rect.top - sy(42)
-        )
-
-        shadow = (
-            self.font_feedback.render(
-                self.feedback_text,
-                True,
-                (0, 0, 0),
-            )
-        )
-
-        screen.blit(
-            shadow,
-            (
-                feedback_x + sx(2),
-                feedback_y + sy(2),
-            ),
+        txt = self.font_feedback.render(
+            self.feedback_text,
+            True,
+            self.feedback_color,
         )
 
         screen.blit(
             txt,
             (
-                feedback_x,
-                feedback_y,
-            ),
+                self.rect.centerx
+                - (txt.get_width() // 2),
+                self.rect.top - sy(40)
+            )
         )

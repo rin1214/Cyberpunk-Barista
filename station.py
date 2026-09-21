@@ -164,16 +164,28 @@ class MixingStation:
         # Each customisation parameter has a continuously moving
         # indicator. The player clicks when the indicator reaches
         # the requested customer zone.
-        self.slider_time = 0.0
-        self.slider_speeds = {
-            "temperature": 0.72,
-            "caffeine": 0.88,
-            "sweetness": 1.04,
+        # Each slider has its own position and direction.
+        # This is important because a slider must FREEZE at the
+        # exact position where the player clicks.
+        self.slider_positions = {
+            "temperature": 0.08,
+            "caffeine": 0.50,
+            "sweetness": 0.92,
         }
-        self.slider_phases = {
-            "temperature": 0.00,
-            "caffeine": 0.33,
-            "sweetness": 0.67,
+        self.slider_directions = {
+            "temperature": 1.0,
+            "caffeine": -1.0,
+            "sweetness": 1.0,
+        }
+        self.slider_speeds = {
+            "temperature": 0.62,
+            "caffeine": 0.74,
+            "sweetness": 0.86,
+        }
+        self.slider_locked = {
+            "temperature": False,
+            "caffeine": False,
+            "sweetness": False,
         }
         self.slider_results = {
             "temperature": None,
@@ -181,9 +193,9 @@ class MixingStation:
             "sweetness": None,
         }
         self.slider_feedback = {
-            "temperature": "WAITING",
-            "caffeine": "WAITING",
-            "sweetness": "WAITING",
+            "temperature": "CLICK",
+            "caffeine": "CLICK",
+            "sweetness": "CLICK",
         }
 
         # ====================================================
@@ -505,6 +517,30 @@ class MixingStation:
             "temperature": pygame.Rect(track_x, 475, track_w, 12),
             "caffeine": pygame.Rect(track_x, 550, track_w, 12),
             "sweetness": pygame.Rect(track_x, 625, track_w, 12),
+        }
+
+        # Larger invisible click zones around the visual tracks.
+        # The visible slider stays slim and pretty, but the player
+        # gets a much more forgiving area to click.
+        self.slider_hitboxes = {
+            "temperature": pygame.Rect(
+                track_x - 12,
+                452,
+                track_w + 24,
+                48,
+            ),
+            "caffeine": pygame.Rect(
+                track_x - 12,
+                527,
+                track_w + 24,
+                48,
+            ),
+            "sweetness": pygame.Rect(
+                track_x - 12,
+                602,
+                track_w + 24,
+                48,
+            ),
         }
 
         # ====================================================
@@ -877,10 +913,28 @@ class MixingStation:
         dt=0.0,
     ):
 
-        # The timing sliders only move while the player is
-        # customising a selected drink.
+        # Each slider moves independently until the player clicks it.
+        # A locked slider stays exactly where the player selected it.
         if self.game_state.can_customize() and self.player_drink.drink_name:
-            self.slider_time += max(0.0, float(dt))
+            delta = max(0.0, float(dt))
+
+            for parameter in self.slider_positions:
+                if self.slider_locked[parameter]:
+                    continue
+
+                self.slider_positions[parameter] += (
+                    self.slider_speeds[parameter]
+                    * self.slider_directions[parameter]
+                    * delta
+                )
+
+                if self.slider_positions[parameter] >= 1.0:
+                    self.slider_positions[parameter] = 1.0
+                    self.slider_directions[parameter] = -1.0
+
+                elif self.slider_positions[parameter] <= 0.0:
+                    self.slider_positions[parameter] = 0.0
+                    self.slider_directions[parameter] = 1.0
 
         self._update_blending()
 
@@ -889,19 +943,12 @@ class MixingStation:
     # ========================================================
 
     def _slider_position(self, parameter):
-        """Return a 0..1 ping-pong position for a slider."""
+        """Return the current frozen or moving 0..1 position."""
 
-        speed = self.slider_speeds[parameter]
-        phase = self.slider_phases[parameter]
-        cycle = (self.slider_time * speed + phase) % 2.0
-
-        if cycle <= 1.0:
-            return cycle
-
-        return 2.0 - cycle
+        return self.slider_positions[parameter]
 
     def _slider_option_from_position(self, parameter):
-        """Convert the moving indicator position to one of 3 options."""
+        """Convert the indicator position into the nearest option."""
 
         options = {
             "temperature": TEMPERATURE_OPTIONS,
@@ -911,23 +958,39 @@ class MixingStation:
 
         position = self._slider_position(parameter)
         centers = (0.08, 0.50, 0.92)
+
         index = min(
             range(3),
             key=lambda i: abs(position - centers[i]),
         )
+
         return options[index], abs(position - centers[index])
 
     def _reset_sliders(self):
-        self.slider_time = 0.0
+        self.slider_positions = {
+            "temperature": 0.08,
+            "caffeine": 0.50,
+            "sweetness": 0.92,
+        }
+        self.slider_directions = {
+            "temperature": 1.0,
+            "caffeine": -1.0,
+            "sweetness": 1.0,
+        }
+        self.slider_locked = {
+            "temperature": False,
+            "caffeine": False,
+            "sweetness": False,
+        }
         self.slider_results = {
             "temperature": None,
             "caffeine": None,
             "sweetness": None,
         }
         self.slider_feedback = {
-            "temperature": "WAITING",
-            "caffeine": "WAITING",
-            "sweetness": "WAITING",
+            "temperature": "CLICK",
+            "caffeine": "CLICK",
+            "sweetness": "CLICK",
         }
 
     def _get_customer_target(self, parameter):
@@ -935,20 +998,42 @@ class MixingStation:
             return None
         return getattr(self.customer_order, parameter, None)
 
+    def _unlock_slider(self, parameter):
+        """Unlock one slider so the player can re-adjust it."""
+
+        self.slider_locked[parameter] = False
+        self.slider_results[parameter] = None
+        self.slider_feedback[parameter] = "ADJUSTING"
+
+        # Remove this parameter from the logical drink until the
+        # player clicks again. This also disables BLEND until all
+        # three parameters have been selected again.
+        if parameter == "temperature":
+            self.player_drink.temperature = None
+            self.game_state.selected_temperature = None
+        elif parameter == "caffeine":
+            self.player_drink.caffeine = None
+            self.game_state.selected_caffeine = None
+        else:
+            self.player_drink.sweetness = None
+            self.game_state.selected_sweetness = None
+
+        self.game_state.state = GameState.CUSTOMISE
+        self._sync_legacy_values()
+
     def _lock_slider(self, parameter):
-        """Capture the current moving position as the player's choice."""
+        """Freeze a slider at the player's clicked position."""
 
         if not self.game_state.can_customize():
             return
 
         value, distance = self._slider_option_from_position(parameter)
 
-        # The indicator must be close enough to a zone to count.
-        # This creates the timing challenge.
-        if distance > 0.15:
-            self.slider_feedback[parameter] = "MISSED"
-            self.slider_results[parameter] = False
-            return
+        # Every click creates a selection. The nearest of the
+        # three option zones becomes the selected value. This
+        # means the indicator ALWAYS stops where the player
+        # clicked, while the nearest option determines whether
+        # that click was correct or wrong.
 
         if parameter == "temperature":
             accepted = self.game_state.select_temperature(value)
@@ -963,10 +1048,20 @@ class MixingStation:
             if accepted:
                 self.player_drink.sweetness = value
 
+        if not accepted:
+            return
+
+        # Freeze the indicator exactly where it was clicked.
+        self.slider_locked[parameter] = True
+
         target = self._get_customer_target(parameter)
         correct = target is not None and value == target
+
         self.slider_results[parameter] = correct
-        self.slider_feedback[parameter] = "CORRECT" if correct else "WRONG"
+        self.slider_feedback[parameter] = (
+            "CORRECT" if correct else "WRONG"
+        )
+
         self._sync_legacy_values()
 
     # ========================================================
@@ -1112,12 +1207,32 @@ class MixingStation:
         # CUSTOMISATION TIMING SLIDERS
         # ====================================================
 
-        if self.game_state.can_customize():
+        # ====================================================
+        # CUSTOMISATION TIMING SLIDERS
+        # ====================================================
+        #
+        # Clicking an unlocked slider freezes it.
+        # Clicking an already locked slider unlocks it so it can
+        # move again and be re-adjusted.
+        #
+        # This works even after all three sliders were selected
+        # and the state became READY_TO_BLEND.
+        #
+        if self.game_state.state in (
+            GameState.CUSTOMISE,
+            GameState.READY_TO_BLEND,
+        ):
 
-            for parameter, rect in self.slider_tracks.items():
-                if rect.collidepoint(mouse):
+            for parameter, rect in self.slider_hitboxes.items():
+                if not rect.collidepoint(mouse):
+                    continue
+
+                if self.slider_locked[parameter]:
+                    self._unlock_slider(parameter)
+                else:
                     self._lock_slider(parameter)
-                    return
+
+                return
 
         # ====================================================
         # BLEND BUTTON
@@ -1921,8 +2036,30 @@ class MixingStation:
         # obvious, but the correct zone is not highlighted.
         centers = (0.08, 0.50, 0.92)
 
+        # Wider visual target zones make the three valid choices
+        # easier to read and aim for. The actual result still
+        # depends on the moving indicator's clicked position.
+        zone_width = max(
+            34,
+            int(track.width * 0.16),
+        )
+
         for index, option in enumerate(options):
             cx = int(track.x + track.width * centers[index])
+
+            zone_rect = pygame.Rect(
+                cx - zone_width // 2,
+                track.y - 5,
+                zone_width,
+                track.height + 10,
+            )
+
+            pygame.draw.rect(
+                screen,
+                (*accent, 28),
+                zone_rect,
+                border_radius=7,
+            )
 
             pygame.draw.line(
                 screen,
@@ -1972,14 +2109,30 @@ class MixingStation:
             2,
         )
 
-        # Result feedback appears only after the player clicks.
+        if self.slider_locked[parameter]:
+            pygame.draw.circle(
+                screen,
+                self.WHITE,
+                (indicator_x, track.centery),
+                11,
+                width=2,
+            )
+
+        # Result feedback appears after the player clicks.
+        # A selected slider visibly remains LOCKED until the
+        # player clicks it again to re-adjust.
         result = self.slider_results[parameter]
-        if result is True:
-            feedback = "✓ CORRECT"
+        locked = self.slider_locked[parameter]
+
+        if locked and result is True:
+            feedback = "✓ LOCKED"
             colour = self.GREEN
-        elif result is False:
-            feedback = self.slider_feedback[parameter]
+        elif locked and result is False:
+            feedback = "✕ WRONG"
             colour = self.PINK_LIGHT
+        elif self.slider_feedback[parameter] == "ADJUSTING":
+            feedback = "ADJUSTING"
+            colour = self.CYAN_LIGHT
         else:
             feedback = "CLICK"
             colour = self.MUTED
