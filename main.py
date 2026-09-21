@@ -95,6 +95,8 @@ import sys
 import os
 import pygame
 
+from audio_manager import AudioManager
+
 
 # ============================================================
 # IMPORT GAME SYSTEMS
@@ -190,6 +192,15 @@ screen = pygame.display.set_mode(
 
 pygame.display.set_caption(
     "Cyberpunk Café - Game Engine (16:9)"
+)
+
+
+# ============================================================
+# CENTRAL AUDIO MANAGER
+# ============================================================
+
+audio_manager = AudioManager(
+    project_root=PROJECT_ROOT
 )
 
 
@@ -1165,149 +1176,119 @@ def run_level_transition(
     mixing_station,
 ):
     """
-    Run the COMPLETE level-up sequence.
+    Run the level transition as one controlled modal sequence.
 
-    IMPORTANT:
-
-    Normal gameplay is paused while this function runs.
+    The important difference from the previous version is that
+    this function owns the visible transition timing itself.
+    It does not depend on nested screen loops returning control
+    quickly or on the main gameplay renderer.
 
     Sequence:
 
-        Level Up
-            ↓
-        Level Unlock Screen
-            ↓
-        Loading Screen
-            ↓
-        New Background
-            ↓
-        New Customer
-            ↓
-        Resume Gameplay
-
-    Music is intentionally kept alive.
+        LEVEL UNLOCK ARTWORK  -> 4.5 seconds
+        LOADING SCREEN        -> 6.7 seconds
+        NEW LEVEL GAMEPLAY
     """
 
-    # --------------------------------------------------------
-    # SAFE LEVEL
-    # --------------------------------------------------------
-
     try:
-
-        new_level = int(
-            new_level
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
-
+        new_level = int(new_level)
+    except (TypeError, ValueError):
         new_level = 1
 
-    new_level = max(
-        1,
-        min(
-            new_level,
-            3,
-        ),
-    )
+    new_level = max(1, min(new_level, 3))
 
     print()
-    print(
-        "================================================"
-    )
-
-    print(
-        "[MAIN] LEVEL TRANSITION START"
-    )
-
-    print(
-        f"[MAIN] New Level: {new_level}"
-    )
-
-    print(
-        "================================================"
-    )
+    print("================================================")
+    print("[MAIN] LEVEL TRANSITION START")
+    print(f"[MAIN] New Level: {new_level}")
+    print("================================================")
 
     # --------------------------------------------------------
-    # MAKE SURE MUSIC IS RUNNING
+    # Keep music alive.
     # --------------------------------------------------------
 
-    ensure_game_music()
+    ensure_game_music(start_screen)
+
+    try:
+        audio_manager.play_sfx("level_up")
+    except Exception:
+        pass
+
+    # --------------------------------------------------------
+    # Remove the gameplay event that caused the transition.
+    # --------------------------------------------------------
+
+    pygame.event.clear()
 
     # ========================================================
-    # LEVEL UNLOCK
+    # LEVEL UNLOCK SCREEN
     # ========================================================
 
     if new_level >= 2:
 
         print(
-            "[MAIN] Showing Level Unlock Screen..."
+            f"[LEVEL TRANSITION] STARTING LEVEL {new_level} "
+            "UNLOCK SCREEN"
+        )
+        print(
+            "[LEVEL TRANSITION] Unlock duration: 4.5 seconds"
         )
 
-        unlock_ok = (
-            level_unlock_screen.run(
-                level=new_level,
-                duration=4.5,
-            )
+        # We still use the existing artwork loader, but the
+        # transition controller now guarantees the visible timing.
+        unlock_image = getattr(
+            level_unlock_screen,
+            "images",
+            {},
+        ).get(new_level)
+
+        _show_transition_image(
+            screen,
+            unlock_image,
+            4.5,
+            "LEVEL UNLOCKED",
+            f"LEVEL {new_level}",
         )
-
-        if not unlock_ok:
-
-            print(
-                "[MAIN] Unlock screen requested quit."
-            )
-
-            return None
-
-    # --------------------------------------------------------
-    # KEEP MUSIC
-    # --------------------------------------------------------
-
-    ensure_game_music()
-
-    # ========================================================
-    # LOADING
-    # ========================================================
-
-    print(
-        "[MAIN] Showing Loading Screen..."
-    )
-
-    loading_ok = (
-        loading_screen.run(
-            player_name=player_name,
-            level=new_level,
-            duration=6.7,
-        )
-    )
-
-    if not loading_ok:
 
         print(
-            "[MAIN] Loading screen requested quit."
+            f"[LEVEL TRANSITION] LEVEL {new_level} "
+            "UNLOCK SCREEN FINISHED"
         )
 
-        return None
-
-    # --------------------------------------------------------
-    # KEEP MUSIC
-    # --------------------------------------------------------
-
-    ensure_game_music()
-
     # ========================================================
-    # SET NEW LEVEL
+    # LOADING SCREEN
     # ========================================================
 
-    progression.level = (
-        new_level
+    print("[MAIN] Showing Loading Screen...")
+    print(
+        f"[LOADING SCREEN] Level {new_level} "
+        "loading duration: 6.7 seconds"
     )
 
+    _show_loading_transition(
+        screen,
+        loading_screen,
+        player_name,
+        new_level,
+        6.7,
+    )
+
+    print(
+        f"[MAIN] Level {new_level} loading screen finished."
+    )
+
+    # --------------------------------------------------------
+    # Clear transition events before gameplay resumes.
+    # --------------------------------------------------------
+
+    pygame.event.clear()
+    ensure_game_music(start_screen)
+
     # ========================================================
-    # SYNCHRONISE SYSTEMS
+    # APPLY NEW LEVEL
     # ========================================================
+
+    progression.level = new_level
 
     sync_level_systems(
         economy,
@@ -1315,63 +1296,39 @@ def run_level_transition(
         mixing_station,
     )
 
-    # ========================================================
-    # UPDATE STATION
-    # ========================================================
+    # --------------------------------------------------------
+    # Reset station state.
+    # --------------------------------------------------------
 
     try:
-
         mixing_station.reset()
-
     except Exception as error:
-
-        print(
-            "[MAIN] Station reset warning:"
-        )
-
-        print(
-            f"       {error}"
-        )
+        print("[MAIN] Station reset warning:")
+        print(f"       {error}")
 
     try:
-
-        mixing_station.set_progression(
-            progression
-        )
-
+        mixing_station.set_progression(progression)
     except Exception:
-
         pass
 
     try:
-
-        mixing_station.set_level(
-            new_level
-        )
-
+        mixing_station.set_level(new_level)
     except Exception:
-
         pass
 
     # ========================================================
     # NEW BACKGROUND
     # ========================================================
 
-    active_bg = (
-        load_level_background(
-            new_level
-        )
-    )
+    active_bg = load_level_background(new_level)
 
     # ========================================================
     # NEW CUSTOMER
     # ========================================================
 
-    active_customer = (
-        refresh_customer(
-            new_level,
-            mixing_station,
-        )
+    active_customer = refresh_customer(
+        new_level,
+        mixing_station,
     )
 
     # ========================================================
@@ -1379,84 +1336,552 @@ def run_level_transition(
     # ========================================================
 
     try:
-
-        economy.sync_progression(
-            progression
-        )
-
+        economy.sync_progression(progression)
     except Exception:
-
         pass
 
     try:
-
         economy.save_economy_data()
-
     except Exception as error:
-
-        print(
-            "[MAIN] Level save warning:"
-        )
-
-        print(
-            f"       {error}"
-        )
+        print("[MAIN] Level save warning:")
+        print(f"       {error}")
 
     # ========================================================
-    # SHOW NEW LEVEL ONCE
+    # FINAL GAMEPLAY FRAME
     # ========================================================
 
     screen.blit(
         active_bg,
-        (
-            0,
-            0,
-        ),
+        (0, 0),
     )
 
     try:
-
-        active_customer.draw(
-            screen
-        )
-
+        active_customer.draw(screen)
     except Exception:
-
         pass
 
     try:
-
-        mixing_station.draw(
-            screen
-        )
-
+        mixing_station.draw(screen)
     except Exception:
-
         pass
 
     pygame.display.flip()
 
-    # ========================================================
-    # FINAL MUSIC CHECK
-    # ========================================================
-
-    ensure_game_music()
+    ensure_game_music(start_screen)
 
     print(
-        f"[MAIN] LEVEL {new_level} "
-        "TRANSITION COMPLETE."
+        f"[MAIN] LEVEL {new_level} TRANSITION COMPLETE."
     )
-
-    print(
-        "[MAIN] Returning to gameplay."
-    )
-
+    print("[MAIN] Returning to gameplay.")
     print()
 
-    return (
-        active_bg,
-        active_customer,
+    return active_bg, active_customer
+
+
+def _show_transition_image(
+    screen,
+    image,
+    duration,
+    fallback_title,
+    fallback_subtitle,
+):
+    """
+    Show a full-screen transition image for an exact minimum
+    duration while continuing to process the OS event queue.
+    """
+
+    width, height = screen.get_size()
+
+    # Prepare the image once.
+    prepared = None
+
+    if image is not None:
+
+        try:
+            image_width, image_height = image.get_size()
+
+            scale = max(
+                width / image_width,
+                height / image_height,
+            )
+
+            new_size = (
+                int(image_width * scale),
+                int(image_height * scale),
+            )
+
+            prepared = pygame.transform.smoothscale(
+                image,
+                new_size,
+            )
+
+        except Exception:
+            prepared = None
+
+    font_big = pygame.font.SysFont(
+        "Consolas",
+        42,
+        bold=True,
     )
+
+    font_small = pygame.font.SysFont(
+        "Consolas",
+        22,
+        bold=True,
+    )
+
+    start_ticks = pygame.time.get_ticks()
+    end_ticks = start_ticks + int(duration * 1000)
+
+    transition_clock = pygame.time.Clock()
+
+    while pygame.time.get_ticks() < end_ticks:
+
+        # ----------------------------------------------------
+        # Process window events without allowing the transition
+        # to be skipped by a mouse click or key press.
+        # ----------------------------------------------------
+
+        for event in pygame.event.get():
+
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        # ----------------------------------------------------
+        # Draw artwork.
+        # ----------------------------------------------------
+
+        screen.fill((5, 8, 20))
+
+        if prepared is not None:
+
+            rect = prepared.get_rect(
+                center=(
+                    width // 2,
+                    height // 2,
+                )
+            )
+
+            screen.blit(
+                prepared,
+                rect,
+            )
+
+        else:
+
+            title = font_big.render(
+                fallback_title,
+                True,
+                (0, 225, 255),
+            )
+
+            subtitle = font_small.render(
+                fallback_subtitle,
+                True,
+                (255, 120, 220),
+            )
+
+            screen.blit(
+                title,
+                title.get_rect(
+                    center=(
+                        width // 2,
+                        height // 2 - 25,
+                    )
+                ),
+            )
+
+            screen.blit(
+                subtitle,
+                subtitle.get_rect(
+                    center=(
+                        width // 2,
+                        height // 2 + 30,
+                    )
+                ),
+            )
+
+        pygame.display.flip()
+
+        # Keep the transition at a stable frame rate.
+        transition_clock.tick(60)
+
+
+def _show_loading_transition(
+    screen,
+    loading_screen,
+    player_name,
+    level,
+    duration,
+):
+    """
+    Show the existing loading artwork for the complete requested
+    duration.
+
+    The existing LoadingScreen object supplies its loaded
+    background/logo assets, while this function owns the timing.
+    """
+
+    width, height = screen.get_size()
+
+    background = getattr(
+        loading_screen,
+        "background",
+        None,
+    )
+
+    logo = getattr(
+        loading_screen,
+        "logo",
+        None,
+    )
+
+    if background is not None:
+
+        try:
+            bg_width, bg_height = background.get_size()
+
+            scale = max(
+                width / bg_width,
+                height / bg_height,
+            )
+
+            background = pygame.transform.smoothscale(
+                background,
+                (
+                    int(bg_width * scale),
+                    int(bg_height * scale),
+                ),
+            )
+
+        except Exception:
+            background = None
+
+    if logo is not None:
+
+        try:
+            logo_width, logo_height = logo.get_size()
+
+            logo_scale = min(
+                420 / logo_width,
+                150 / logo_height,
+            )
+
+            logo = pygame.transform.smoothscale(
+                logo,
+                (
+                    max(1, int(logo_width * logo_scale)),
+                    max(1, int(logo_height * logo_scale)),
+                ),
+            )
+
+        except Exception:
+            logo = None
+
+    level_info = getattr(
+        loading_screen,
+        "LEVEL_INFO",
+        {},
+    ).get(
+        level,
+        (f"LEVEL {level}", "SECTOR"),
+    )
+
+    location_name, sector_name = level_info
+
+    title_font = getattr(
+        loading_screen,
+        "title_font",
+        pygame.font.SysFont(
+            "Consolas",
+            30,
+            bold=True,
+        ),
+    )
+
+    name_font = getattr(
+        loading_screen,
+        "name_font",
+        pygame.font.SysFont(
+            "Consolas",
+            25,
+            bold=True,
+        ),
+    )
+
+    message_font = getattr(
+        loading_screen,
+        "message_font",
+        pygame.font.SysFont(
+            "Consolas",
+            19,
+            bold=True,
+        ),
+    )
+
+    small_font = getattr(
+        loading_screen,
+        "small_font",
+        pygame.font.SysFont(
+            "Consolas",
+            16,
+        ),
+    )
+
+    percent_font = getattr(
+        loading_screen,
+        "percent_font",
+        pygame.font.SysFont(
+            "Consolas",
+            24,
+            bold=True,
+        ),
+    )
+
+    messages = getattr(
+        loading_screen,
+        "MESSAGES",
+        ["Loading Cyberpunk Café..."],
+    )
+
+    start_ticks = pygame.time.get_ticks()
+    end_ticks = start_ticks + int(duration * 1000)
+
+    transition_clock = pygame.time.Clock()
+
+    while pygame.time.get_ticks() < end_ticks:
+
+        for event in pygame.event.get():
+
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        elapsed = (
+            pygame.time.get_ticks()
+            - start_ticks
+        ) / 1000.0
+
+        progress = min(
+            elapsed / max(duration, 0.001),
+            1.0,
+        )
+
+        # ----------------------------------------------------
+        # BACKGROUND
+        # ----------------------------------------------------
+
+        screen.fill((8, 10, 24))
+
+        if background is not None:
+
+            bg_rect = background.get_rect(
+                center=(
+                    width // 2,
+                    height // 2,
+                )
+            )
+
+            screen.blit(
+                background,
+                bg_rect,
+            )
+
+        # ----------------------------------------------------
+        # DARK OVERLAY
+        # ----------------------------------------------------
+
+        overlay = pygame.Surface(
+            (width, height),
+            pygame.SRCALPHA,
+        )
+
+        overlay.fill(
+            (0, 0, 15, 115)
+        )
+
+        screen.blit(
+            overlay,
+            (0, 0),
+        )
+
+        # ----------------------------------------------------
+        # LOGO
+        # ----------------------------------------------------
+
+        if logo is not None:
+
+            logo_rect = logo.get_rect(
+                center=(
+                    width // 2,
+                    170,
+                )
+            )
+
+            screen.blit(
+                logo,
+                logo_rect,
+            )
+
+        # ----------------------------------------------------
+        # LEVEL / LOCATION
+        # ----------------------------------------------------
+
+        title = title_font.render(
+            f"LEVEL {level}  •  {sector_name}",
+            True,
+            (0, 225, 255),
+        )
+
+        screen.blit(
+            title,
+            title.get_rect(
+                center=(
+                    width // 2,
+                    330,
+                )
+            ),
+        )
+
+        location = name_font.render(
+            location_name,
+            True,
+            (255, 120, 220),
+        )
+
+        screen.blit(
+            location,
+            location.get_rect(
+                center=(
+                    width // 2,
+                    375,
+                )
+            ),
+        )
+
+        # ----------------------------------------------------
+        # PLAYER
+        # ----------------------------------------------------
+
+        player_text = name_font.render(
+            str(player_name),
+            True,
+            (255, 255, 255),
+        )
+
+        screen.blit(
+            player_text,
+            player_text.get_rect(
+                center=(
+                    width // 2,
+                    420,
+                )
+            ),
+        )
+
+        # ----------------------------------------------------
+        # MESSAGE
+        # ----------------------------------------------------
+
+        if messages:
+
+            index = int(
+                elapsed * 2
+            ) % len(messages)
+
+            message = message_font.render(
+                messages[index],
+                True,
+                (190, 245, 255),
+            )
+
+            screen.blit(
+                message,
+                message.get_rect(
+                    center=(
+                        width // 2,
+                        475,
+                    )
+                ),
+            )
+
+        # ----------------------------------------------------
+        # PROGRESS BAR
+        # ----------------------------------------------------
+
+        bar_width = 600
+        bar_height = 18
+
+        bar_x = (
+            width - bar_width
+        ) // 2
+
+        bar_y = 520
+
+        pygame.draw.rect(
+            screen,
+            (20, 25, 45),
+            (
+                bar_x,
+                bar_y,
+                bar_width,
+                bar_height,
+            ),
+            border_radius=9,
+        )
+
+        pygame.draw.rect(
+            screen,
+            (0, 225, 255),
+            (
+                bar_x,
+                bar_y,
+                int(bar_width * progress),
+                bar_height,
+            ),
+            border_radius=9,
+        )
+
+        # ----------------------------------------------------
+        # PERCENTAGE
+        # ----------------------------------------------------
+
+        percent = percent_font.render(
+            f"{int(progress * 100)}%",
+            True,
+            (255, 255, 255),
+        )
+
+        screen.blit(
+            percent,
+            percent.get_rect(
+                center=(
+                    width // 2,
+                    565,
+                )
+            ),
+        )
+
+        hint = small_font.render(
+            "CYBERPUNK CAFÉ SYSTEMS ONLINE",
+            True,
+            (170, 180, 210),
+        )
+
+        screen.blit(
+            hint,
+            hint.get_rect(
+                center=(
+                    width // 2,
+                    605,
+                )
+            ),
+        )
+
+        pygame.display.flip()
+
+        transition_clock.tick(60)
 
 
 # ============================================================
@@ -2814,6 +3239,11 @@ while running:
 print(
     "[MAIN] Shutting down Cyberpunk Café."
 )
+
+try:
+    audio_manager.shutdown()
+except Exception:
+    pass
 
 pygame.quit()
 

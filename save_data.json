@@ -1,9 +1,9 @@
 {
     "lucy": {
-        "credits": 359,
+        "credits": 189,
         "xp": 25,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "rin": {
         "credits": 156,
@@ -70,5 +70,17 @@
         "xp": 35,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "oo": {
+        "credits": 199,
+        "xp": 35,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "avery": {
+        "credits": 424,
+        "xp": 35,
+        "level": 3,
+        "location": "Cyber Penthouse"
     }
 }

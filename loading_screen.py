@@ -1,19 +1,8 @@
 """
-============================================================
 CYBERPUNK CAFÉ
 LOADING SCREEN
-============================================================
 
-Used for:
-
-    Start of game
-    Level 2 transition
-    Level 3 transition
-
-Music is deliberately NOT controlled here.
-
-Therefore the background music continues playing.
-============================================================
+Reusable 1280x720 loading screen for all three levels.
 """
 
 import os
@@ -24,114 +13,63 @@ class LoadingScreen:
 
     WIDTH = 1280
     HEIGHT = 720
-
     FPS = 60
 
-    # ========================================================
-    # LEVEL INFORMATION
-    # ========================================================
-
     LEVEL_INFO = {
-
-        1: (
-            "BACK ALLEY KIOSK",
-            "SECTOR 01",
-        ),
-
-        2: (
-            "NEON LOUNGE",
-            "SECTOR 02",
-        ),
-
-        3: (
-            "CYBER PENTHOUSE",
-            "SECTOR 03",
-        ),
+        1: ("BACK ALLEY KIOSK", "SECTOR 01"),
+        2: ("NEON LOUNGE", "SECTOR 02"),
+        3: ("CYBER PENTHOUSE", "SECTOR 03"),
     }
 
-    # ========================================================
-    # LOADING MESSAGES
-    # ========================================================
-
     MESSAGES = [
-
         "Initializing Café Network...",
-
         "Syncing Customer Database...",
-
         "Calibrating Drink Dispenser...",
-
         "Preparing Neon Menu...",
-
         "Warming Coffee Machines...",
-
         "Connecting Café Systems...",
-
         "Almost Ready...",
     ]
 
-    # ========================================================
-    # CONSTRUCTOR
-    # ========================================================
-
-    def __init__(
-        self,
-        screen,
-    ):
+    def __init__(self, screen):
 
         self.screen = screen
-
         self.clock = pygame.time.Clock()
-
-        # ----------------------------------------------------
-        # PROJECT ROOT
-        # ----------------------------------------------------
 
         self.project_root = os.path.dirname(
             os.path.abspath(__file__)
         )
 
-        self.mahirah_root = os.path.join(
+        self.start_root = os.path.join(
             self.project_root,
             "assets",
             "mahirah",
-        )
-
-        self.start_root = os.path.join(
-            self.mahirah_root,
             "start",
         )
 
         self.loading_root = os.path.join(
-            self.mahirah_root,
+            self.project_root,
+            "assets",
+            "mahirah",
             "loading",
         )
 
-        # ----------------------------------------------------
-        # ASSETS
-        # ----------------------------------------------------
-
-        self.background = self._load_image(
+        self.background = self._load(
             "loading_bg.png",
             self.loading_root,
         )
 
-        # Fallback to start background if necessary.
-        if self.background is None:
-
-            self.background = self._load_image(
-                "start_bg.png",
-                self.start_root,
-            )
-
-        self.logo = self._load_image(
+        self.logo = self._load(
             "logo_cyberpunk_cafe.png",
             self.start_root,
         )
 
-        # ----------------------------------------------------
-        # FONTS
-        # ----------------------------------------------------
+        if self.background is None:
+
+            self.background = self._load(
+                "start_bg.png",
+                self.start_root,
+            )
 
         self.title_font = pygame.font.SysFont(
             "Consolas",
@@ -162,15 +100,7 @@ class LoadingScreen:
             bold=True,
         )
 
-    # ========================================================
-    # IMAGE LOADER
-    # ========================================================
-
-    def _load_image(
-        self,
-        filename,
-        folder,
-    ):
+    def _load(self, filename, folder):
 
         path = os.path.join(
             folder,
@@ -184,8 +114,7 @@ class LoadingScreen:
             ).convert_alpha()
 
             print(
-                f"[LOADING SCREEN] "
-                f"Loaded: {path}"
+                f"[LOADING ASSET] Loaded: {path}"
             )
 
             return image
@@ -196,31 +125,21 @@ class LoadingScreen:
         ) as error:
 
             print(
-                f"[LOADING SCREEN WARNING] "
-                f"Could not load: {path}"
+                f"[LOADING ASSET WARNING] {path}"
             )
 
             print(
-                f"[LOADING SCREEN WARNING] "
-                f"{error}"
+                f"       {error}"
             )
 
             return None
-
-    # ========================================================
-    # BACKGROUND
-    # ========================================================
 
     def _draw_background(self):
 
         if self.background is None:
 
             self.screen.fill(
-                (
-                    18,
-                    15,
-                    35,
-                )
+                (18, 15, 35)
             )
 
             return
@@ -230,47 +149,27 @@ class LoadingScreen:
         )
 
         scale = max(
-            self.WIDTH / float(iw),
-            self.HEIGHT / float(ih),
+            self.WIDTH / iw,
+            self.HEIGHT / ih,
         )
 
-        new_size = (
-            max(
-                1,
-                int(iw * scale),
-            ),
-            max(
-                1,
-                int(ih * scale),
-            ),
+        size = (
+            max(1, int(iw * scale)),
+            max(1, int(ih * scale)),
         )
 
         image = pygame.transform.smoothscale(
             self.background,
-            new_size,
+            size,
         )
-
-        x = (
-            self.WIDTH
-            - new_size[0]
-        ) // 2
-
-        y = (
-            self.HEIGHT
-            - new_size[1]
-        ) // 2
 
         self.screen.blit(
             image,
             (
-                x,
-                y,
+                (self.WIDTH - size[0]) // 2,
+                (self.HEIGHT - size[1]) // 2,
             ),
         )
-
-        # ----------------------------------------------------
-        # SOFT DARK OVERLAY
-        # ----------------------------------------------------
 
         overlay = pygame.Surface(
             (
@@ -281,30 +180,17 @@ class LoadingScreen:
         )
 
         overlay.fill(
-            (
-                5,
-                8,
-                20,
-                35,
-            )
+            (5, 8, 20, 35)
         )
 
         self.screen.blit(
             overlay,
-            (
-                0,
-                0,
-            ),
+            (0, 0),
         )
-
-    # ========================================================
-    # LOGO
-    # ========================================================
 
     def _draw_logo(self):
 
         if self.logo is None:
-
             return
 
         iw, ih = (
@@ -312,19 +198,13 @@ class LoadingScreen:
         )
 
         scale = min(
-            430 / float(iw),
-            145 / float(ih),
+            430 / iw,
+            145 / ih,
         )
 
         size = (
-            max(
-                1,
-                int(iw * scale),
-            ),
-            max(
-                1,
-                int(ih * scale),
-            ),
+            max(1, int(iw * scale)),
+            max(1, int(ih * scale)),
         )
 
         image = pygame.transform.smoothscale(
@@ -332,21 +212,33 @@ class LoadingScreen:
             size,
         )
 
-        rect = image.get_rect(
-            center=(
-                self.WIDTH // 2,
-                105,
-            )
+        self.screen.blit(
+            image,
+            image.get_rect(
+                center=(640, 105)
+            ),
+        )
+
+    def _text_center(
+        self,
+        text,
+        font,
+        color,
+        y,
+    ):
+
+        surface = font.render(
+            text,
+            True,
+            color,
         )
 
         self.screen.blit(
-            image,
-            rect,
+            surface,
+            surface.get_rect(
+                center=(640, y)
+            ),
         )
-
-    # ========================================================
-    # PANEL
-    # ========================================================
 
     def _draw_panel(self):
 
@@ -363,12 +255,7 @@ class LoadingScreen:
         )
 
         panel.fill(
-            (
-                8,
-                12,
-                28,
-                185,
-            )
+            (8, 12, 28, 185)
         )
 
         self.screen.blit(
@@ -378,11 +265,7 @@ class LoadingScreen:
 
         pygame.draw.rect(
             self.screen,
-            (
-                0,
-                220,
-                255,
-            ),
+            (0, 220, 255),
             rect,
             width=2,
             border_radius=14,
@@ -390,92 +273,41 @@ class LoadingScreen:
 
         pygame.draw.rect(
             self.screen,
-            (
-                255,
-                100,
-                200,
-            ),
+            (255, 100, 200),
             rect.inflate(-12, -12),
             width=1,
             border_radius=10,
         )
 
-    # ========================================================
-    # CENTER TEXT
-    # ========================================================
+    def _draw_progress(self, progress):
 
-    def _text_center(
-        self,
-        text,
-        font,
-        color,
-        y,
-    ):
-
-        rendered = font.render(
-            str(text),
-            True,
-            color,
+        x, y, w, h = (
+            400,
+            350,
+            480,
+            26,
         )
-
-        rect = rendered.get_rect(
-            center=(
-                self.WIDTH // 2,
-                y,
-            )
-        )
-
-        self.screen.blit(
-            rendered,
-            rect,
-        )
-
-    # ========================================================
-    # PROGRESS BAR
-    # ========================================================
-
-    def _draw_progress(
-        self,
-        progress,
-    ):
-
-        x = 400
-        y = 350
-        w = 480
-        h = 26
 
         outer = pygame.Rect(
-            x,
-            y,
-            w,
-            h,
+            x, y, w, h
         )
 
         pygame.draw.rect(
             self.screen,
-            (
-                15,
-                20,
-                38,
-            ),
+            (15, 20, 38),
             outer,
             border_radius=13,
         )
 
-        progress = max(
-            0.0,
-            min(
-                1.0,
-                progress,
-            ),
-        )
-
         fill_w = int(
             (w - 6)
-            * progress
+            * max(
+                0.0,
+                min(1.0, progress),
+            )
         )
 
-        if fill_w > 0:
+        if fill_w:
 
             fill = pygame.Rect(
                 x + 3,
@@ -486,11 +318,7 @@ class LoadingScreen:
 
             pygame.draw.rect(
                 self.screen,
-                (
-                    255,
-                    100,
-                    205,
-                ),
+                (255, 100, 205),
                 fill,
                 border_radius=10,
             )
@@ -509,22 +337,14 @@ class LoadingScreen:
 
             pygame.draw.rect(
                 self.screen,
-                (
-                    80,
-                    225,
-                    255,
-                ),
+                (80, 225, 255),
                 highlight,
                 border_radius=10,
             )
 
         pygame.draw.rect(
             self.screen,
-            (
-                0,
-                225,
-                255,
-            ),
+            (0, 225, 255),
             outer,
             width=2,
             border_radius=13,
@@ -533,92 +353,55 @@ class LoadingScreen:
         percent = self.percent_font.render(
             f"{int(progress * 100)}%",
             True,
-            (
-                255,
-                255,
-                255,
-            ),
+            (255, 255, 255),
         )
 
         self.screen.blit(
             percent,
             percent.get_rect(
-                midleft=(
-                    900,
-                    363,
-                )
+                midleft=(900, 363)
             ),
         )
 
-    # ========================================================
-    # MESSAGE
-    # ========================================================
-
-    def _draw_message(
-        self,
-        index,
-    ):
+    def _draw_message(self, index):
 
         message = self.MESSAGES[
-            index
-            % len(self.MESSAGES)
+            index % len(self.MESSAGES)
         ]
 
         prefix = self.small_font.render(
             ">>",
             True,
-            (
-                255,
-                100,
-                205,
-            ),
+            (255, 100, 205),
         )
 
         text = self.message_font.render(
             message,
             True,
-            (
-                220,
-                235,
-                255,
-            ),
+            (220, 235, 255),
         )
 
         self.screen.blit(
             prefix,
-            (
-                410,
-                405,
-            ),
+            (410, 405),
         )
 
         self.screen.blit(
             text,
-            (
-                445,
-                403,
-            ),
+            (445, 403),
         )
-
-    # ========================================================
-    # RUN
-    # ========================================================
 
     def run(
         self,
         player_name="Barista",
         level=1,
-        duration=6.7,
+        duration=3.2,
     ):
         """
         Display the loading screen.
 
-        Music is intentionally untouched.
-
-        Returns:
-
-            True  = finished
-            False = player closed game
+        Returns True when finished normally.
+        Returns False if the player closes the game.
         """
 
         player_name = (
@@ -627,41 +410,32 @@ class LoadingScreen:
         )
 
         try:
-
             level = int(level)
-
         except (
             TypeError,
             ValueError,
         ):
-
             level = 1
 
         level = max(
             1,
-            min(
-                level,
-                3,
-            ),
+            min(level, 3),
         )
 
-        location, sector = (
-            self.LEVEL_INFO[level]
+        location, sector = self.LEVEL_INFO[
+            level
+        ]
+
+        print(
+            f"[LOADING SCREEN] STARTING Level {level}"
         )
 
         print(
-            "[LOADING SCREEN] "
-            f"STARTING Level {level}"
+            f"[LOADING SCREEN] Location: {location}"
         )
 
         print(
-            "[LOADING SCREEN] "
-            f"Location: {location}"
-        )
-
-        print(
-            "[LOADING SCREEN] "
-            f"Duration: {duration:.1f} seconds"
+            f"[LOADING SCREEN] Duration: {duration} seconds"
         )
 
         elapsed = 0.0
@@ -677,37 +451,20 @@ class LoadingScreen:
 
             elapsed += dt
 
-            # ------------------------------------------------
-            # EVENTS
-            # ------------------------------------------------
-
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
-
-                    print(
-                        "[LOADING SCREEN] "
-                        "QUIT received."
-                    )
-
                     return False
-
-            # ------------------------------------------------
-            # PROGRESS
-            # ------------------------------------------------
 
             progress = min(
                 1.0,
-                elapsed / float(duration),
+                elapsed / duration,
             )
 
             smooth = (
                 progress
                 * progress
-                * (
-                    3.0
-                    - 2.0 * progress
-                )
+                * (3.0 - 2.0 * progress)
             )
 
             index = min(
@@ -718,46 +475,28 @@ class LoadingScreen:
                 ),
             )
 
-            # ------------------------------------------------
-            # DRAW
-            # ------------------------------------------------
-
             self._draw_background()
-
             self._draw_logo()
-
             self._draw_panel()
 
             self._text_center(
                 f"WELCOME, {player_name.upper()}!",
                 self.name_font,
-                (
-                    255,
-                    180,
-                    235,
-                ),
+                (255, 180, 235),
                 245,
             )
 
             self._text_center(
                 location,
                 self.title_font,
-                (
-                    0,
-                    235,
-                    255,
-                ),
+                (0, 235, 255),
                 285,
             )
 
             self._text_center(
                 sector,
                 self.small_font,
-                (
-                    210,
-                    220,
-                    245,
-                ),
+                (210, 220, 245),
                 315,
             )
 
@@ -772,30 +511,23 @@ class LoadingScreen:
             self._text_center(
                 "GOOD COFFEE  ✦  BRIGHTER PEOPLE",
                 self.small_font,
-                (
-                    255,
-                    190,
-                    235,
-                ),
+                (255, 190, 235),
                 565,
             )
 
             self._text_center(
                 "Preparing your café experience...",
                 self.small_font,
-                (
-                    180,
-                    205,
-                    235,
-                ),
+                (180, 205, 235),
                 595,
             )
 
             pygame.display.flip()
 
+        pygame.display.flip()
+
         print(
-            "[LOADING SCREEN] "
-            f"Level {level} loading finished."
+            f"[LOADING SCREEN] Level {level} loading finished."
         )
 
         return True
