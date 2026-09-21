@@ -3,18 +3,30 @@
         "credits": 359,
         "xp": 25,
         "level": 3,
-        "location": "Neon Skyline"
+        "location": "Cyber Penthouse"
     },
     "rin": {
         "credits": 156,
         "xp": 0,
         "level": 2,
-        "location": "Cyber District"
+        "location": "Neon Lounge"
     },
     "yoshi": {
         "credits": 218,
         "xp": 90,
         "level": 2,
-        "location": "Cyber District"
+        "location": "Neon Lounge"
+    },
+    "caleb": {
+        "credits": 163,
+        "xp": 0,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "md": {
+        "credits": 11,
+        "xp": 205,
+        "level": 3,
+        "location": "Cyber Penthouse"
     }
 }

@@ -4,7 +4,7 @@ CYBERPUNK CAFÉ
 UI ECONOMY / PLAYER PROFILE SYSTEM
 ============================================================
 
-This file manages the player's:
+This file manages:
 
     • Credits / money
     • Player name
@@ -52,23 +52,6 @@ RewardSystem does that calculation.
 UIEconomy only receives the final credit change
 and stores it.
 
-Example:
-
-    Customer order = 3/4 correct
-
-    RewardSystem calculates:
-
-        Base credits       = +$24
-        Mistake penalty    = -$10
-        Combo bonus        = +$0
-        Speed bonus        = +$0
-
-        Final credit change = +$14
-
-    UIEconomy then does:
-
-        economy.add_credits(14)
-
 ============================================================
 """
 
@@ -101,25 +84,37 @@ class UIEconomy:
     STARTING_LEVEL = 1
 
     # ========================================================
+    # GAME LEVEL LIMIT
+    # ========================================================
+
+    MAX_LEVEL = 3
+
+    # ========================================================
     # CREDIT LIMIT
     # ========================================================
 
     MIN_CREDITS = 0
 
     # ========================================================
-    # LOCATION NAMES
+    # OFFICIAL LOCATION NAMES
+    # ========================================================
     #
-    # These are kept compatible with the existing
-    # map/economy system.
+    # These names must match progression.py.
+    #
+    # Level 1 → Back Alley Kiosk
+    # Level 2 → Neon Lounge
+    # Level 3 → Cyber Penthouse
+    #
+    # These are the ONLY three game locations.
     # ========================================================
 
     LOCATIONS = {
 
-        1: "BACK ALLEY KIOSK",
+        1: "Back Alley Kiosk",
 
-        2: "NEON LOUNGE",
+        2: "Neon Lounge",
 
-        3: "CYBER PENTHOUSE",
+        3: "Cyber Penthouse",
 
     }
 
@@ -135,9 +130,6 @@ class UIEconomy:
 
         # ----------------------------------------------------
         # SCREEN
-        #
-        # Some older systems expect UIEconomy to have
-        # access to the Pygame screen.
         # ----------------------------------------------------
 
         self.screen = screen
@@ -164,8 +156,6 @@ class UIEconomy:
 
         # ----------------------------------------------------
         # PLAYER CREDITS
-        #
-        # Starting money.
         # ----------------------------------------------------
 
         self.credits = (
@@ -175,14 +165,9 @@ class UIEconomy:
         # ----------------------------------------------------
         # XP COMPATIBILITY VALUE
         #
-        # IMPORTANT:
-        #
         # Progression is the real authority for XP.
-        #
-        # This value exists so older systems such as
-        # the leaderboard can still access:
-        #
-        #     economy.xp
+        # This value exists for compatibility with
+        # systems such as the leaderboard.
         # ----------------------------------------------------
 
         self.xp = (
@@ -224,32 +209,15 @@ class UIEconomy:
         amount,
     ):
         """
-        Add credits to the player's wallet.
+        Add or remove credits.
 
-        Positive number:
-            Adds money.
+        Positive amount:
+            Earn credits.
 
-        Negative number:
-            Removes money.
+        Negative amount:
+            Lose credits.
 
-        Credits can NEVER go below zero.
-
-        Example:
-
-            Current credits = $100
-
-            add_credits(30)
-
-            New credits = $130
-
-
-        Example with penalty:
-
-            Current credits = $100
-
-            add_credits(-10)
-
-            New credits = $90
+        Credits can never go below zero.
         """
 
         try:
@@ -305,8 +273,6 @@ class UIEconomy:
     ):
         """
         Directly set the player's credit amount.
-
-        Useful when synchronising systems.
         """
 
         try:
@@ -338,20 +304,11 @@ class UIEconomy:
         amount,
     ):
         """
-        Spend credits on something such as:
+        Spend credits.
 
-            • map upgrades
-            • café upgrades
-            • future cosmetics
-            • future items
+        Returns True if successful.
 
-        Returns:
-
-            True
-                Purchase successful.
-
-            False
-                Not enough credits.
+        Returns False if there are not enough credits.
         """
 
         try:
@@ -404,36 +361,15 @@ class UIEconomy:
         reward_result,
     ):
         """
-        Applies the final credit result produced by
-        RewardSystem.
+        Apply the final credit result produced by RewardSystem.
 
-        Expected RewardResult:
+        The reward object may provide:
 
-            reward_result.total_credits
+            net_credits
 
-        The value may be:
+        or:
 
-            positive
-                player earned credits
-
-            zero
-                no credit change
-
-            negative
-                player lost credits because of a penalty
-
-        Example:
-
-            total_credits = 14
-
-            $100 → $114
-
-
-        Example:
-
-            total_credits = -5
-
-            $100 → $95
+            total_credits
         """
 
         if reward_result is None:
@@ -485,23 +421,14 @@ class UIEconomy:
         """
         Compatibility method for older collaborator code.
 
-        --------------------------------------------------------
-        IMPORTANT
-        --------------------------------------------------------
-
-        The NEW game should NOT use this method for rewards.
-
-        The new system should use:
+        The current game should use:
 
             RewardSystem
                 ↓
             economy.apply_reward()
 
-        This method exists so older code does not immediately
-        break while the new architecture is being integrated.
-
-        It intentionally does NOT award or remove credits,
-        because doing so could cause double rewards.
+        This method intentionally does not give rewards
+        so that the player cannot receive rewards twice.
         """
 
         return True
@@ -515,12 +442,12 @@ class UIEconomy:
         progression,
     ):
         """
-        Synchronises UIEconomy's compatibility values
+        Synchronise the economy compatibility values
         with the real Progression system.
 
         Progression remains the authority.
 
-        This updates:
+        Updates:
 
             economy.level
             economy.xp
@@ -535,20 +462,62 @@ class UIEconomy:
         # LEVEL
         # ----------------------------------------------------
 
-        self.level = int(
-            progression.level
+        try:
+
+            self.level = int(
+                progression.level
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            self.level = (
+                self.STARTING_LEVEL
+            )
+
+        # ----------------------------------------------------
+        # CLAMP LEVEL
+        # ----------------------------------------------------
+
+        self.level = max(
+            1,
+            min(
+                self.level,
+                self.MAX_LEVEL,
+            ),
         )
 
         # ----------------------------------------------------
         # XP
         # ----------------------------------------------------
 
-        self.xp = int(
-            progression.xp
-        )
+        try:
+
+            self.xp = max(
+                0,
+                int(
+                    progression.xp
+                ),
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            self.xp = (
+                self.STARTING_XP
+            )
 
         # ----------------------------------------------------
         # LOCATION
+        # ----------------------------------------------------
+        #
+        # Prefer Progression's location.
+        # If it does not provide one, use this file's
+        # official location table.
         # ----------------------------------------------------
 
         if hasattr(
@@ -556,17 +525,33 @@ class UIEconomy:
             "get_current_location",
         ):
 
-            self.location = (
+            location = (
                 progression.get_current_location()
             )
+
+            # -----------------------------------------------
+            # Make sure the location is one of our official
+            # three locations.
+            # -----------------------------------------------
+
+            if location in self.LOCATIONS.values():
+
+                self.location = location
+
+            else:
+
+                self.location = (
+                    self.LOCATIONS[
+                        self.level
+                    ]
+                )
 
         else:
 
             self.location = (
-                self.LOCATIONS.get(
-                    self.level,
-                    f"SECTOR {self.level} HUB",
-                )
+                self.LOCATIONS[
+                    self.level
+                ]
             )
 
         return True
@@ -580,10 +565,13 @@ class UIEconomy:
         level,
     ):
         """
-        Updates the compatibility level.
+        Update the compatibility level.
 
-        Normally main.py should synchronize this from
-        Progression instead of changing it directly.
+        Level is always restricted to:
+
+            1
+            2
+            3
         """
 
         try:
@@ -597,17 +585,31 @@ class UIEconomy:
 
             return False
 
+        # ----------------------------------------------------
+        # CLAMP LEVEL
+        # ----------------------------------------------------
+
         self.level = max(
             1,
-            level,
+            min(
+                level,
+                self.MAX_LEVEL,
+            ),
         )
 
+        # ----------------------------------------------------
+        # UPDATE LOCATION
+        # ----------------------------------------------------
+
         self.location = (
-            self.LOCATIONS.get(
-                self.level,
-                f"SECTOR {self.level} HUB",
-            )
+            self.LOCATIONS[
+                self.level
+            ]
         )
+
+        # ----------------------------------------------------
+        # SAVE
+        # ----------------------------------------------------
 
         self.save_economy_data()
 
@@ -622,10 +624,9 @@ class UIEconomy:
         xp,
     ):
         """
-        Updates the compatibility XP value.
+        Update the compatibility XP value.
 
-        Progression should normally be used to
-        actually change XP.
+        XP can never become negative.
         """
 
         try:
@@ -690,15 +691,10 @@ class UIEconomy:
 
         Result:
 
-            Credits = $100
-            XP      = 0
-            Level   = 1
+            Credits  = $100
+            XP       = 0
+            Level    = 1
             Location = Back Alley Kiosk
-
-        IMPORTANT:
-
-        Progression.reset() should ALSO be called by main.py
-        when performing a complete game reset.
         """
 
         self.credits = (
@@ -730,6 +726,24 @@ class UIEconomy:
         Save the player's profile into save_data.json.
 
         Multiple player profiles can exist in the same file.
+
+        Example:
+
+        {
+            "Lucy": {
+                "credits": 200,
+                "xp": 75,
+                "level": 1,
+                "location": "Back Alley Kiosk"
+            },
+
+            "Rin": {
+                "credits": 350,
+                "xp": 140,
+                "level": 2,
+                "location": "Neon Lounge"
+            }
+        }
         """
 
         all_profiles = {}
@@ -754,7 +768,8 @@ class UIEconomy:
                         json.load(file)
                     )
 
-                # Make sure the file contains a dictionary.
+                # Make sure the save file contains
+                # a dictionary.
 
                 if not isinstance(
                     all_profiles,
@@ -771,8 +786,146 @@ class UIEconomy:
                 all_profiles = {}
 
         # ----------------------------------------------------
+        # NORMALISE EXISTING PLAYER LOCATIONS
+        # ----------------------------------------------------
+        #
+        # This is important because older save data may
+        # contain:
+        #
+        # "BACK ALLEY KIOSK"
+        # "NEON LOUNGE"
+        # "CYBER PENTHOUSE"
+        #
+        # or even the newer incorrect names.
+        #
+        # We now determine location from LEVEL instead.
+        # ----------------------------------------------------
+
+        for name, profile in all_profiles.items():
+
+            if not isinstance(
+                profile,
+                dict,
+            ):
+
+                continue
+
+            try:
+
+                saved_level = int(
+                    profile.get(
+                        "level",
+                        1,
+                    )
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                saved_level = 1
+
+            saved_level = max(
+                1,
+                min(
+                    saved_level,
+                    self.MAX_LEVEL,
+                ),
+            )
+
+            profile["level"] = (
+                saved_level
+            )
+
+            # -----------------------------------------------
+            # Make the location automatically match the
+            # player's level.
+            # -----------------------------------------------
+
+            profile["location"] = (
+                self.LOCATIONS[
+                    saved_level
+                ]
+            )
+
+            # -----------------------------------------------
+            # Keep XP valid.
+            # -----------------------------------------------
+
+            try:
+
+                profile["xp"] = max(
+                    0,
+                    int(
+                        profile.get(
+                            "xp",
+                            0,
+                        )
+                    ),
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                profile["xp"] = 0
+
+            # -----------------------------------------------
+            # Keep credits valid.
+            # -----------------------------------------------
+
+            try:
+
+                profile["credits"] = max(
+                    self.MIN_CREDITS,
+                    int(
+                        profile.get(
+                            "credits",
+                            self.STARTING_CREDITS,
+                        )
+                    ),
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                profile["credits"] = (
+                    self.STARTING_CREDITS
+                )
+
+        # ----------------------------------------------------
         # SAVE CURRENT PLAYER
         # ----------------------------------------------------
+
+        self.level = max(
+            1,
+            min(
+                int(self.level),
+                self.MAX_LEVEL,
+            ),
+        )
+
+        self.xp = max(
+            0,
+            int(self.xp),
+        )
+
+        self.credits = max(
+            self.MIN_CREDITS,
+            int(self.credits),
+        )
+
+        # Always derive location from level.
+
+        self.location = (
+            self.LOCATIONS[
+                self.level
+            ]
+        )
 
         all_profiles[
             self.player_name
@@ -826,6 +979,13 @@ class UIEconomy:
 
         If no saved profile exists,
         create a new player.
+
+        IMPORTANT:
+
+        Location is always calculated from the saved level.
+
+        This prevents old location names from remaining in
+        the save file.
         """
 
         # ----------------------------------------------------
@@ -870,57 +1030,109 @@ class UIEconomy:
                         ]
                     )
 
+                    if not isinstance(
+                        player_data,
+                        dict,
+                    ):
+
+                        player_data = {}
+
                     # --------------------------------------------
                     # CREDITS
                     # --------------------------------------------
 
-                    self.credits = max(
-                        self.MIN_CREDITS,
-                        int(
-                            player_data.get(
-                                "credits",
-                                self.STARTING_CREDITS,
-                            )
-                        ),
-                    )
+                    try:
+
+                        self.credits = max(
+                            self.MIN_CREDITS,
+                            int(
+                                player_data.get(
+                                    "credits",
+                                    self.STARTING_CREDITS,
+                                )
+                            ),
+                        )
+
+                    except (
+                        TypeError,
+                        ValueError,
+                    ):
+
+                        self.credits = (
+                            self.STARTING_CREDITS
+                        )
 
                     # --------------------------------------------
-                    # COMPATIBILITY XP
+                    # XP
                     # --------------------------------------------
 
-                    self.xp = max(
-                        0,
-                        int(
-                            player_data.get(
-                                "xp",
-                                self.STARTING_XP,
-                            )
-                        ),
-                    )
+                    try:
+
+                        self.xp = max(
+                            0,
+                            int(
+                                player_data.get(
+                                    "xp",
+                                    self.STARTING_XP,
+                                )
+                            ),
+                        )
+
+                    except (
+                        TypeError,
+                        ValueError,
+                    ):
+
+                        self.xp = (
+                            self.STARTING_XP
+                        )
 
                     # --------------------------------------------
-                    # COMPATIBILITY LEVEL
+                    # LEVEL
                     # --------------------------------------------
 
-                    self.level = max(
-                        1,
-                        int(
+                    try:
+
+                        self.level = int(
                             player_data.get(
                                 "level",
                                 self.STARTING_LEVEL,
                             )
+                        )
+
+                    except (
+                        TypeError,
+                        ValueError,
+                    ):
+
+                        self.level = (
+                            self.STARTING_LEVEL
+                        )
+
+                    # --------------------------------------------
+                    # LEVEL MUST BE 1–3
+                    # --------------------------------------------
+
+                    self.level = max(
+                        1,
+                        min(
+                            self.level,
+                            self.MAX_LEVEL,
                         ),
                     )
 
                     # --------------------------------------------
                     # LOCATION
+                    #
+                    # DO NOT TRUST OLD SAVED LOCATION.
+                    #
+                    # Calculate it from the level.
                     # --------------------------------------------
 
                     self.location = (
-                        self.LOCATIONS.get(
-                            self.level,
-                            f"SECTOR {self.level} HUB",
-                        )
+                        self.LOCATIONS[
+                            self.level
+                        ]
                     )
 
                     print(
@@ -928,6 +1140,15 @@ class UIEconomy:
                         f"Loaded profile for "
                         f"'{self.player_name}'"
                     )
+
+                    # ------------------------------------------------
+                    # Save once after loading.
+                    #
+                    # This automatically cleans old location names
+                    # from the save file.
+                    # ------------------------------------------------
+
+                    self.save_economy_data()
 
                     return
 
@@ -981,8 +1202,7 @@ class UIEconomy:
 
     def get_level_bg_color(self):
         """
-        Returns a compatible background color
-        for older systems.
+        Return a compatible background color for older systems.
         """
 
         colors = {
@@ -1006,9 +1226,7 @@ class UIEconomy:
 
     def get_data(self):
         """
-        Returns the player's economy data as a dictionary.
-
-        Useful for other systems.
+        Return the player's economy data as a dictionary.
         """
 
         return {
@@ -1027,13 +1245,22 @@ class UIEconomy:
 
             "location":
                 self.location,
+
         }
 
     # ========================================================
-    # OLD ECONOMY HUD REMOVED
+    # OLD ECONOMY HUD
+    # ========================================================
+    #
+    # The current game draws its HUD elsewhere.
+    #
+    # This empty method remains for compatibility with
+    # older code that may still call:
+    #
+    #     economy.draw()
+    #
     # ========================================================
 
     def draw(self):
-      
 
         pass
