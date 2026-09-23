@@ -87,7 +87,7 @@ class LeaderboardScreen:
             pygame.draw.rect(self.screen, (40, 20, 45), close_rect, border_radius=8)
             pygame.draw.rect(self.screen, (0, 255, 204), close_rect, width=2, border_radius=8)
             
-            close_surf = self.font_body.render("CLOSE [L / ESC]", True, (0, 255, 204))
+            close_surf = self.font_body.render("CLOSE [L]", True, (0, 255, 204))
             close_r = close_surf.get_rect(center=close_rect.center)
             self.screen.blit(close_surf, close_r)
 

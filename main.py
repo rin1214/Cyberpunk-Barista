@@ -274,6 +274,21 @@ active_customer = refresh_customer(progression.level, mixing_station)
 spawn_timer = 0.0
 SPAWN_DELAY = 1.5
 
+# --- Pause Menu State & Styling Variables ---
+is_paused = False
+font_title = pygame.font.SysFont("Arial", 28, bold=True)
+font_button = pygame.font.SysFont("Arial", 18, bold=True)
+
+# Perfectly sized layout rects centered on screen
+pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 120, 360, 240)
+resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 - 35, 280, 48)
+exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 25, 280, 48)
+
+CYAN = (75, 225, 255)
+PINK = (255, 80, 190)
+WHITE = (245, 248, 255)
+PANEL_BG = (12, 18, 40)
+
 # Main Game Loop
 running = True
 while running:
@@ -286,6 +301,22 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             continue
+
+        # Toggle pause state with ESC key
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                is_paused = not is_paused
+                continue
+
+        # Handle Pause Menu Mouse Clicks
+        if is_paused:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = event.pos
+                if resume_button_rect.collidepoint(mouse_pos):
+                    is_paused = False
+                elif exit_button_rect.collidepoint(mouse_pos):
+                    running = False
+            continue  # Skip all gameplay events while paused
 
         try:
             mixing_station.handle_event(event)
@@ -364,6 +395,46 @@ while running:
                     )
                     spawn_timer = 0.0
 
+    # Skip updating game physics/timers if paused
+    if is_paused:
+        # Draw background and UI elements frozen behind overlay
+        screen.blit(active_bg, (0, 0))
+        if active_customer is not None:
+            active_customer.draw(screen)
+        mixing_station.draw(screen)
+
+        # Draw Pause Menu Overlay on Top
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((5, 8, 20, 190))
+        screen.blit(overlay, (0, 0))
+
+        pygame.draw.rect(screen, PANEL_BG, pause_panel_rect, border_radius=14)
+        pygame.draw.rect(screen, CYAN, pause_panel_rect, width=2, border_radius=14)
+
+        title_surf = font_title.render("GAME PAUSED", True, CYAN)
+        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 40)))
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        # Resume Button
+        resume_hover = resume_button_rect.collidepoint(mouse_pos)
+        resume_color = PINK if resume_hover else CYAN
+        pygame.draw.rect(screen, (30, 20, 50), resume_button_rect, border_radius=10)
+        pygame.draw.rect(screen, resume_color, resume_button_rect, width=2, border_radius=10)
+        resume_text = font_button.render("RESUME GAME", True, WHITE)
+        screen.blit(resume_text, resume_text.get_rect(center=resume_button_rect.center))
+
+        # Exit Button
+        exit_hover = exit_button_rect.collidepoint(mouse_pos)
+        exit_color = PINK if exit_hover else CYAN
+        pygame.draw.rect(screen, (30, 20, 50), exit_button_rect, border_radius=10)
+        pygame.draw.rect(screen, exit_color, exit_button_rect, width=2, border_radius=10)
+        exit_text = font_button.render("EXIT TO DESKTOP", True, WHITE)
+        screen.blit(exit_text, exit_text.get_rect(center=exit_button_rect.center))
+
+        pygame.display.flip()
+        continue
+
     try:
         mixing_station.update(dt)
     except Exception as error:
@@ -390,7 +461,6 @@ while running:
                     accuracy_result, served_quickly=served_quickly
                 )
 
-                # Track XP/Credits for economy & leaderboard, but DO NOT trigger level ups automatically.
                 progression.add_xp(reward_result.total_xp)
 
                 try:
