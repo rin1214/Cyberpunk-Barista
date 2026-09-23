@@ -1,25 +1,49 @@
+import os
 import pygame
 
+
 class LeaderboardScreen:
-    def __init__(self, screen, leaderboard_manager, economy):
+    def __init__(self, screen, leaderboard_manager, economy, project_root=None):
         self.screen = screen
         self.lb_manager = leaderboard_manager
         self.economy = economy
+
+        # Set up the project directory path if not provided
+        if project_root is None:
+            project_root = os.path.dirname(os.path.abspath(__file__))
+        self.project_root = project_root
+
+        # Fonts for the UI layout
         self.font_title = pygame.font.SysFont("Consolas", 28, bold=True)
         self.font_body = pygame.font.SysFont("Consolas", 18)
         self.font_small = pygame.font.SysFont("Consolas", 14)
+
+        # Load any custom graphics like the leaderboard background
+        self._load_visuals()
+
+    def _load_visuals(self):
+        bg_path = os.path.join(self.project_root, "assets", "images", "leaderboard_bg.png")
+
+        try:
+            if os.path.exists(bg_path):
+                self.bg_image = pygame.image.load(bg_path).convert_alpha()
+            else:
+                self.bg_image = None
+        except pygame.error:
+            self.bg_image = None
 
     def run(self):
         clock = pygame.time.Clock()
         running = True
 
-        # Ensure current player stats are synced before displaying
+        # Make sure player stats are fresh before opening the screen
         self.lb_manager.update_current_player_score()
 
         while running:
             clock.tick(60)
             screen_w, screen_h = self.screen.get_size()
 
+            # Handle user inputs (keyboard shortcuts and mouse clicks)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return False
@@ -28,27 +52,32 @@ class LeaderboardScreen:
                         running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
-                        # Close button rect at bottom center
                         close_rect = pygame.Rect(screen_w // 2 - 100, screen_h - 90, 200, 45)
                         if close_rect.collidepoint(event.pos):
                             running = False
 
-            # Render Background Overlay
+            # Draw a dark transparent overlay to dim the gameplay underneath
             overlay = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
             overlay.fill((10, 8, 20, 230))
             self.screen.blit(overlay, (0, 0))
 
-            # Title Header
+            # Draw the background image if available
+            if self.bg_image:
+                scaled_bg = pygame.transform.smoothscale(self.bg_image, (screen_w, screen_h))
+                scaled_bg.set_alpha(80)
+                self.screen.blit(scaled_bg, (0, 0))
+
+            # Title banner at the top
             title_surf = self.font_title.render("DISTRICT LEADERBOARD // TOP BARISTAS", True, (255, 0, 128))
             title_rect = title_surf.get_rect(center=(screen_w // 2, 70))
             self.screen.blit(title_surf, title_rect)
 
-            # Table Container Box
+            # Main container box for the leaderboard entries
             table_rect = pygame.Rect(screen_w // 2 - 350, 130, 700, 430)
             pygame.draw.rect(self.screen, (25, 15, 35), table_rect, border_radius=12)
             pygame.draw.rect(self.screen, (255, 0, 128), table_rect, width=2, border_radius=12)
 
-            # Table Headers
+            # Table column headers
             header_y = 155
             rank_h = self.font_body.render("RANK", True, (150, 150, 180))
             name_h = self.font_body.render("BARISTA", True, (150, 150, 180))
@@ -60,13 +89,15 @@ class LeaderboardScreen:
             self.screen.blit(level_h, (table_rect.x + 400, header_y))
             self.screen.blit(xp_h, (table_rect.x + 530, header_y))
 
+            # Divider line below headers
             pygame.draw.line(self.screen, (70, 40, 70), (table_rect.x + 20, header_y + 30), (table_rect.right - 20, header_y + 30), 2)
 
-            # Render Player Rows (Top 8)
+            # Grab top 8 ranked players and render each row
             players = self.lb_manager.get_ranked_players()[:8]
             row_y = header_y + 45
 
             for idx, p in enumerate(players):
+                # Highlight the current player's row in neon cyan, others in white
                 is_current_player = p["name"].lower() == self.economy.player_name.lower()
                 row_color = (0, 255, 204) if is_current_player else (255, 255, 255)
 
@@ -82,7 +113,7 @@ class LeaderboardScreen:
 
                 row_y += 42
 
-            # Close Button
+            # Render the close button at the bottom
             close_rect = pygame.Rect(screen_w // 2 - 100, screen_h - 90, 200, 45)
             pygame.draw.rect(self.screen, (40, 20, 45), close_rect, border_radius=8)
             pygame.draw.rect(self.screen, (0, 255, 204), close_rect, width=2, border_radius=8)
