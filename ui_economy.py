@@ -1,5 +1,6 @@
 import json
 import os
+import pygame
 
 class UIEconomy:
     SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "save_data.json")
@@ -10,11 +11,27 @@ class UIEconomy:
     MAX_LEVEL = 3
     MIN_CREDITS = 0
 
+    # XP targets required per level
+    LEVEL_XP_REQUIREMENTS = {
+        1: 500,
+        2: 1200,
+        3: 2500
+    }
+
     LOCATIONS = {
         1: "Back Alley Kiosk",
         2: "Neon Lounge",
         3: "Cyber Penthouse",
     }
+
+    # Cyberpunk Theme Palette
+    COLOR_BG_SOLID = (12, 14, 22)       # Solid dark chassis
+    COLOR_BORDER = (0, 240, 255)       # Cyan border glow
+    COLOR_TEXT = (240, 245, 255)       # Soft white text
+    COLOR_GOLD = (255, 200, 0)         # Credits gold
+    COLOR_PINK = (255, 0, 110)         # Combo pink / XP high-fill
+    COLOR_CYAN = (0, 240, 255)         # XP low-fill
+    COLOR_SEG_EMPTY = (30, 35, 50)    # Empty XP segment
 
     def __init__(self, screen, player_name="Player"):
         self.screen = screen
@@ -105,10 +122,11 @@ class UIEconomy:
             if location in self.LOCATIONS.values():
                 self.location = location
             else:
-                self.location = self.LOCATIONS[self.level]
+                self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
         else:
-            self.location = self.LOCATIONS[self.level]
+            self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
 
+        self.save_economy_data()
         return True
 
     def set_level(self, level):
@@ -118,7 +136,7 @@ class UIEconomy:
             return False
 
         self.level = max(1, min(level, self.MAX_LEVEL))
-        self.location = self.LOCATIONS[self.level]
+        self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
         self.save_economy_data()
         return True
 
@@ -172,7 +190,7 @@ class UIEconomy:
 
             saved_level = max(1, min(saved_level, self.MAX_LEVEL))
             profile["level"] = saved_level
-            profile["location"] = self.LOCATIONS[saved_level]
+            profile["location"] = self.LOCATIONS.get(saved_level, self.LOCATIONS[1])
 
             try:
                 profile["xp"] = max(0, int(profile.get("xp", 0)))
@@ -187,7 +205,7 @@ class UIEconomy:
         self.level = max(1, min(int(self.level), self.MAX_LEVEL))
         self.xp = max(0, int(self.xp))
         self.credits = max(self.MIN_CREDITS, int(self.credits))
-        self.location = self.LOCATIONS[self.level]
+        self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
 
         all_profiles[self.player_name] = {
             "credits": self.credits,
@@ -231,7 +249,7 @@ class UIEconomy:
                         self.level = self.STARTING_LEVEL
 
                     self.level = max(1, min(self.level, self.MAX_LEVEL))
-                    self.location = self.LOCATIONS[self.level]
+                    self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
 
                     self.save_economy_data()
                     return
@@ -261,5 +279,96 @@ class UIEconomy:
             "location": self.location,
         }
 
-    def draw(self):
-        pass
+    # =========================================================================
+    # CYBERPUNK HUD DRAWING IMPLEMENTATION
+    # =========================================================================
+    def draw_hud(self, combo_count=1):
+        """Draws the top Cyber-Deck HUD header constrained before MAP/LEADERBOARD buttons."""
+        screen_w = self.screen.get_width()
+        
+        # Dimensions (Constrained width to stop before MAP & LEADERBOARD buttons)
+        hud_height = 65
+        hud_width = min(680, screen_w - 320)
+        hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
+
+        # Draw SOLID background panel
+        pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
+
+        # Cyber Chassis Border & Corner Cut Accents
+        pygame.draw.rect(self.screen, self.COLOR_BORDER, hud_rect, 2, border_radius=4)
+        pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.x + 5, hud_rect.y), (hud_rect.x + 35, hud_rect.y), 4)
+        pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.right - 35, hud_rect.bottom), (hud_rect.right - 5, hud_rect.bottom), 4)
+
+        # Fonts
+        font_main = pygame.font.SysFont("Consolas", 15, bold=True)
+        font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
+
+        # 1. Barista Name & 2. Location (Left Block)
+        name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
+        loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
+        self.screen.blit(name_txt, (hud_rect.x + 12, hud_rect.y + 12))
+        self.screen.blit(loc_txt, (hud_rect.x + 12, hud_rect.y + 36))
+
+        # Divider line 1
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 10), (hud_rect.x + 220, hud_rect.bottom - 10), 1)
+
+        # 3. Level & 4. XP Bar (Center Block)
+        xp_x = hud_rect.x + 232
+        target_xp = self.LEVEL_XP_REQUIREMENTS.get(self.level, 2500)
+        
+        lvl_txt = font_main.render(f"LVL {self.level}", True, self.COLOR_CYAN)
+        xp_num_txt = font_sub.render(f"{self.xp}/{target_xp} XP", True, self.COLOR_TEXT)
+        
+        self.screen.blit(lvl_txt, (xp_x, hud_rect.y + 12))
+        self.screen.blit(xp_num_txt, (xp_x + 65, hud_rect.y + 14))
+
+        # Segmented XP Bar
+        bar_x = xp_x
+        bar_y = hud_rect.y + 38
+        bar_w = 175
+        bar_h = 12
+        num_segments = 10
+        seg_gap = 2
+        seg_w = (bar_w - (seg_gap * (num_segments - 1))) // num_segments
+
+        # Calculate filled segments ratio
+        xp_ratio = min(1.0, max(0.0, self.xp / float(target_xp)))
+        filled_segments = int(xp_ratio * num_segments)
+
+        for i in range(num_segments):
+            seg_x = bar_x + i * (seg_w + seg_gap)
+            seg_rect = pygame.Rect(seg_x, bar_y, seg_w, bar_h)
+
+            if i < filled_segments:
+                color = self.COLOR_PINK if i >= 7 else self.COLOR_CYAN
+                pygame.draw.rect(self.screen, color, seg_rect)
+            else:
+                pygame.draw.rect(self.screen, self.COLOR_SEG_EMPTY, seg_rect)
+            
+            pygame.draw.rect(self.screen, (10, 15, 25), seg_rect, 1)
+
+        # Divider line 2
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 425, hud_rect.y + 10), (hud_rect.x + 425, hud_rect.bottom - 10), 1)
+
+        # 5. Credits Display
+        cred_x = hud_rect.x + 438
+        cred_lbl = font_sub.render("CREDITS", True, (150, 160, 180))
+        cred_val = font_main.render(f"${self.credits:,}", True, self.COLOR_GOLD)
+
+        self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 12))
+        self.screen.blit(cred_val, (cred_x, hud_rect.y + 32))
+
+        # Divider line 3
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 550, hud_rect.y + 10), (hud_rect.x + 550, hud_rect.bottom - 10), 1)
+
+        # 6. Combo Counter Display (Inside HUD Chassis)
+        combo_x = hud_rect.x + 562
+        combo_txt = font_main.render("COMBO", True, self.COLOR_PINK)
+        combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
+
+        self.screen.blit(combo_txt, (combo_x, hud_rect.y + 12))
+        self.screen.blit(combo_val, (combo_x, hud_rect.y + 32))
+
+    def draw(self, combo_count=1, dt=0):
+        """Standard draw call forwarder."""
+        self.draw_hud(combo_count=combo_count)

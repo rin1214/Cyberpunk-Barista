@@ -1,3 +1,12 @@
+"""
+============================================================
+CYBERPUNK CAFÉ
+PROGRESSION SYSTEM
+============================================================
+
+This file stores and manages the player's level and XP progression.
+"""
+
 from drink import get_unlocked_drinks
 
 
@@ -6,10 +15,11 @@ class Progression:
 
     MAX_LEVEL = 3
 
+    # Scaled to match RewardSystem target requirements (10 segments total per level)
     XP_REQUIREMENTS = {
-        1: 100,  
-        2: 250,  
-        3: 450,  
+        1: 500,
+        2: 1200,
+        3: 2500,
     }
 
     LOCATION_UNLOCKS = {
@@ -55,8 +65,9 @@ class Progression:
         xp = self._safe_int(xp, 0)
         xp = max(0, xp)
 
-        maximum = self.XP_REQUIREMENTS.get(level)
+        maximum = self.XP_REQUIREMENTS.get(level, 500)
 
+        # Allow XP to reach the full target requirement for the current level
         if maximum is not None:
             xp = min(xp, maximum)
 
@@ -71,12 +82,12 @@ class Progression:
     def add_xp(self, amount):
         """
         Add or deduct XP.
-        Automatic level-ups are disabled; XP is tracked for score/leaderboard only.
+        Automatic level-ups are disabled; XP is tracked for score/leaderboard and level targets.
         """
         amount = self._safe_int(amount, 0)
         self.level_up = False
 
-        # Add or deduct XP without triggering level-ups
+        # Add or deduct XP without triggering auto level-ups
         self.xp += amount
         self._clamp_xp()
         return False
@@ -84,7 +95,7 @@ class Progression:
     def check_level_up(self):
         """
         Disabled automatic level transitions based on XP.
-        Levels are now unlocked exclusively via map nodes using credits.
+        Levels are unlocked via map nodes using credits.
         """
         self.level_up = False
         self._clamp_xp()
@@ -93,7 +104,8 @@ class Progression:
     def get_xp_required(self):
         """Return XP required for the player's current level."""
         return self.XP_REQUIREMENTS.get(
-            self.level
+            self.level,
+            500
         )
 
     def get_xp_progress(self):

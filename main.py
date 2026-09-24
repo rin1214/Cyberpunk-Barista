@@ -151,12 +151,14 @@ def refresh_customer(level, mixing_station):
 
 
 def sync_level_systems(economy, progression, mixing_station):
-    try:
-        economy.sync_progression(progression)
-    except Exception as error:
-        print(f"[MAIN] Economy sync warning: {error}")
+    """Syncs player level & XP across Economy, Progression, and MixingStation components."""
+    if economy is not None and progression is not None:
+        try:
+            economy.sync_progression(progression)
+        except Exception as error:
+            print(f"[MAIN] Economy sync warning: {error}")
 
-    if mixing_station is not None:
+    if mixing_station is not None and progression is not None:
         try:
             mixing_station.set_progression(progression)
         except Exception as error:
@@ -236,11 +238,26 @@ if player_name is None:
 ensure_game_music(start_screen)
 
 economy = UIEconomy(screen=screen, player_name=player_name)
-progression = Progression(level=economy.level, xp=economy.xp)
-progression.level = max(1, min(int(progression.level), 3))
+
+# Ensure level retrieved from economy correctly parses as an integer up to level 3
+try:
+    current_saved_level = int(economy.level)
+except (ValueError, TypeError):
+    current_saved_level = 1
+current_saved_level = max(1, min(current_saved_level, 3))
+
+progression = Progression(level=current_saved_level, xp=economy.xp)
+progression.level = current_saved_level
 
 reward_system = RewardSystem()
 map_manager = MapManager(economy_ref=economy)
+
+# Force unlocks on map manager if level requirements are met
+if progression.level >= 2 and "cyber_dock" in map_manager.nodes:
+    map_manager.nodes["cyber_dock"].is_unlocked = True
+if progression.level >= 3 and "high_rise" in map_manager.nodes:
+    map_manager.nodes["high_rise"].is_unlocked = True
+
 leaderboard_manager = LeaderboardManager(economy_ref=economy)
 level_unlock_screen = LevelUnlockScreen(screen)
 loading_screen = LoadingScreen(screen)
@@ -266,6 +283,12 @@ mixing_station = MixingStation(
     economy=economy,
 )
 
+# Disable redundant top header on mixing station if supported
+if hasattr(mixing_station, "show_header"):
+    mixing_station.show_header = False
+if hasattr(mixing_station, "draw_header"):
+    mixing_station.draw_header = False
+
 sync_level_systems(economy, progression, mixing_station)
 
 active_bg = load_level_background(progression.level)
@@ -276,13 +299,12 @@ SPAWN_DELAY = 1.5
 
 # --- Pause Menu State & Styling Variables ---
 is_paused = False
-font_title = pygame.font.SysFont("Arial", 28, bold=True)
-font_button = pygame.font.SysFont("Arial", 18, bold=True)
+font_title = pygame.font.SysFont("Arial", 42, bold=True)
+font_button = pygame.font.SysFont("Arial", 26, bold=True)
 
-# Perfectly sized layout rects centered on screen
-pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 120, 360, 240)
-resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 - 35, 280, 48)
-exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 25, 280, 48)
+pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 220, SCREEN_HEIGHT // 2 - 150, 440, 300)
+resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 170, SCREEN_HEIGHT // 2 - 35, 340, 56)
+exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 170, SCREEN_HEIGHT // 2 + 35, 340, 56)
 
 CYAN = (75, 225, 255)
 PINK = (255, 80, 190)
@@ -296,6 +318,9 @@ while running:
 
     if not pygame.mixer.music.get_busy():
         ensure_game_music(start_screen)
+
+    # Safely retrieve active combo multiplier from reward_system or fallback to 1
+    current_combo = getattr(reward_system, "combo", getattr(reward_system, "combo_multiplier", 1))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -373,7 +398,7 @@ while running:
 
             elif event.key == pygame.K_1:
                 node = map_manager.nodes.get("neon_alley")
-                if node is not None and node.is_unlocked:
+                if node is None or node.is_unlocked or progression.level >= 1:
                     active_bg, active_customer = switch_level(
                         1, economy, progression, mixing_station
                     )
@@ -381,7 +406,7 @@ while running:
 
             elif event.key == pygame.K_2:
                 node = map_manager.nodes.get("cyber_dock")
-                if node is not None and node.is_unlocked:
+                if (node is not None and node.is_unlocked) or progression.level >= 2:
                     active_bg, active_customer = switch_level(
                         2, economy, progression, mixing_station
                     )
@@ -389,7 +414,7 @@ while running:
 
             elif event.key == pygame.K_3:
                 node = map_manager.nodes.get("high_rise")
-                if node is not None and node.is_unlocked:
+                if (node is not None and node.is_unlocked) or progression.level >= 3:
                     active_bg, active_customer = switch_level(
                         3, economy, progression, mixing_station
                     )
@@ -397,13 +422,13 @@ while running:
 
     # Skip updating game physics/timers if paused
     if is_paused:
-        # Draw background and UI elements frozen behind overlay
         screen.blit(active_bg, (0, 0))
         if active_customer is not None:
             active_customer.draw(screen)
         mixing_station.draw(screen)
+        economy.draw(combo_count=current_combo, dt=dt)
 
-        # Draw Pause Menu Overlay on Top
+        # Draw Pause Menu Overlay
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((5, 8, 20, 190))
         screen.blit(overlay, (0, 0))
@@ -412,7 +437,7 @@ while running:
         pygame.draw.rect(screen, CYAN, pause_panel_rect, width=2, border_radius=14)
 
         title_surf = font_title.render("GAME PAUSED", True, CYAN)
-        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 40)))
+        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 45)))
 
         mouse_pos = pygame.mouse.get_pos()
 
@@ -457,8 +482,11 @@ while running:
                 except Exception:
                     served_quickly = False
 
+                # Pass current level into calculate_reward to scale combo bar XP properly
                 reward_result = reward_system.calculate_reward(
-                    accuracy_result, served_quickly=served_quickly
+                    accuracy_result,
+                    served_quickly=served_quickly,
+                    level=progression.level
                 )
 
                 progression.add_xp(reward_result.total_xp)
@@ -469,9 +497,7 @@ while running:
                     print(f"[ECONOMY] Reward warning: {error}")
 
                 try:
-                    economy.sync_progression(progression)
-                    mixing_station.set_progression(progression)
-                    mixing_station.set_level(progression.level)
+                    sync_level_systems(economy, progression, mixing_station)
                     economy.save_economy_data()
                 except Exception as error:
                     print(f"[MAIN] Sync/Save warning: {error}")
@@ -536,6 +562,7 @@ while running:
     if not running:
         break
 
+    # --- RENDER STEP ---
     screen.blit(active_bg, (0, 0))
 
     if active_customer is not None:
@@ -544,10 +571,17 @@ while running:
         except Exception as error:
             print(f"[CUSTOMER DRAW ERROR] {error}")
 
+    # Draw mixing station interactive elements first
     try:
         mixing_station.draw(screen)
     except Exception as error:
         print(f"[STATION DRAW ERROR] {error}")
+
+    # Draw single active UIEconomy HUD on top
+    try:
+        economy.draw(combo_count=current_combo, dt=dt)
+    except Exception as error:
+        print(f"[UI ECONOMY DRAW ERROR] {error}")
 
     pygame.display.flip()
 
