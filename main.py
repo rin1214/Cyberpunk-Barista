@@ -17,6 +17,7 @@ from map_manager import MapManager
 from map_screen import MapScreen
 from leaderboard_manager import LeaderboardManager
 from leaderboard_screen import LeaderboardScreen
+from game_end_screen import GameEndScreen
 
 pygame.init()
 
@@ -274,6 +275,40 @@ active_customer = refresh_customer(progression.level, mixing_station)
 spawn_timer = 0.0
 SPAWN_DELAY = 1.5
 
+# ------------------------------------------------------------
+# SUCCESSFUL DRINK PROGRESSION
+# ------------------------------------------------------------
+# Only a perfect 4/4 order counts as a successful drink.
+# Level 1 requires 4 successful drinks.
+# Level 2 requires 7 successful drinks.
+# Level 3 requires 10 successful drinks.
+
+SUCCESS_TARGETS = {
+    1: 4,
+    2: 7,
+    3: 10,
+}
+
+successful_drinks = 0
+game_finished = False
+
+
+def get_success_target(level):
+    try:
+        level = int(level)
+    except (TypeError, ValueError):
+        level = 1
+    return SUCCESS_TARGETS.get(level, 10)
+
+
+def set_level_without_xp_progression(level, economy, progression, mixing_station):
+    """Change the gameplay level without changing the player's XP."""
+    level = max(1, min(int(level), 3))
+    progression.level = level
+    economy.set_level(level)
+    sync_level_systems(economy, progression, mixing_station)
+    return load_level_background(level)
+
 # --- Pause Menu State & Styling Variables ---
 is_paused = False
 font_title = pygame.font.SysFont("Arial", 28, bold=True)
@@ -461,7 +496,43 @@ while running:
                     accuracy_result, served_quickly=served_quickly
                 )
 
+                # XP and credits still use the existing reward system.
+                # Level unlocks now depend ONLY on successful 4/4 drinks.
+                current_level_before_order = progression.level
                 progression.add_xp(reward_result.total_xp)
+
+                successful_order = (
+                    accuracy_result.correct_count == 4
+                )
+
+                if successful_order:
+                    successful_drinks += 1
+
+                target = get_success_target(current_level_before_order)
+
+                if current_level_before_order < 3:
+                    if successful_drinks >= target:
+                        next_level = current_level_before_order + 1
+                        successful_drinks = 0
+                        active_bg = set_level_without_xp_progression(
+                            next_level,
+                            economy,
+                            progression,
+                            mixing_station,
+                        )
+                        print(
+                            f"[SUCCESS PROGRESSION] Level "
+                            f"{current_level_before_order} complete -> "
+                            f"Level {next_level}"
+                        )
+                    else:
+                        # Stop XP from unlocking the level early.
+                        progression.level = current_level_before_order
+                        economy.set_level(current_level_before_order)
+                else:
+                    # Level 3 is the final level.
+                    if successful_drinks >= 10:
+                        game_finished = True
 
                 try:
                     economy.apply_reward(reward_result)
@@ -492,9 +563,43 @@ while running:
                 print("----------------------------------------")
                 print("[ORDER COMPLETE]")
                 print(f"Accuracy: {accuracy_result.correct_count}/{accuracy_result.total_count} ({accuracy_result.percentage:.0f}%)")
+                print(f"Successful Drinks This Level: {successful_drinks}/{get_success_target(progression.level)}")
                 print(f"XP Earned: {reward_result.total_xp:+}")
                 print(f"Credits Change: {reward_result.net_credits:+}")
                 print("----------------------------------------")
+
+                # ------------------------------------------------
+                # FINAL GAME CHECK
+                # ------------------------------------------------
+                if game_finished:
+                    print("[GAME COMPLETE] Level 3 finished with 10 successful drinks.")
+
+                    end_screen = GameEndScreen(screen)
+                    end_result = end_screen.run(
+                        player_name=economy.player_name,
+                        level=progression.level,
+                        successful_drinks=21,
+                        xp=progression.xp,
+                        credits=economy.credits,
+                    )
+
+                    if end_result == "play_again":
+                        print("[GAME END] Starting a new game.")
+                        economy.reset_economy()
+                        progression.reset()
+                        reward_system.reset()
+                        mixing_station.reset()
+                        successful_drinks = 0
+                        game_finished = False
+                        progression.level = 1
+                        progression.xp = 0
+                        sync_level_systems(economy, progression, mixing_station)
+                        active_bg = load_level_background(1)
+                        active_customer = refresh_customer(1, mixing_station)
+                        spawn_timer = 0.0
+                        ensure_game_music(start_screen)
+                    else:
+                        running = False
 
         if running:
             try:
@@ -502,7 +607,7 @@ while running:
             except Exception as error:
                 print(f"[STATION RESET ERROR] {error}")
 
-    if running and active_customer is not None:
+    if running and not game_finished and active_customer is not None:
         old_state = active_customer.state
         try:
             active_customer.update(dt)
@@ -526,7 +631,7 @@ while running:
         except Exception as error:
             print(f"[CUSTOMER FINISHED ERROR] {error}")
 
-    if running and active_customer is None:
+    if running and not game_finished and active_customer is None:
         spawn_timer -= dt
         if spawn_timer <= 0:
             active_bg = load_level_background(progression.level)
