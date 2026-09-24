@@ -1,41 +1,6 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-GAME END SCREEN
-============================================================
-
-This file controls the final game ending screen.
-
-The ending sequence is:
-
-    Final successful drink
-            ↓
-    Café closing animation
-            ↓
-    Cyber-cat celebration
-            ↓
-    Thank-you message
-            ↓
-    Final statistics
-            ↓
-    PLAY AGAIN / MAIN MENU
-
-IMPORTANT:
-
-This file does NOT control:
-
-    • XP
-    • Credits
-    • Level progression
-    • Customer orders
-    • Drink mixing
-
-Those systems remain in their existing files.
-
-This screen only displays the final game result.
-"""
 
 import math
+import os
 import pygame
 
 
@@ -45,16 +10,30 @@ import pygame
 
 class GameEndScreen:
 
-    # --------------------------------------------------------
+    # ========================================================
     # INITIALISATION
-    # --------------------------------------------------------
+    # ========================================================
 
-    def __init__(self, screen):
+    def __init__(self, screen, project_root=None):
 
         self.screen = screen
 
         self.width = screen.get_width()
         self.height = screen.get_height()
+
+        # ----------------------------------------------------
+        # PROJECT ROOT
+        # ----------------------------------------------------
+
+        if project_root is not None:
+
+            self.project_root = project_root
+
+        else:
+
+            self.project_root = os.path.dirname(
+                os.path.abspath(__file__)
+            )
 
         # ----------------------------------------------------
         # CLOCK
@@ -67,64 +46,104 @@ class GameEndScreen:
         # ----------------------------------------------------
 
         self.running = True
-
         self.result = None
 
         # ----------------------------------------------------
-        # ANIMATION TIMER
-        # ----------------------------------------------------
-
-        self.elapsed = 0.0
-
-        # ----------------------------------------------------
         # ENDING PHASE
-        # ----------------------------------------------------
         #
-        # 0 = café closing
-        # 1 = cat appears
+        # 0 = closing message
+        # 1 = cat waving
         # 2 = thank-you message
-        # 3 = final statistics
-        #
+        # 3 = statistics/buttons
+        # ----------------------------------------------------
 
         self.phase = 0
 
-        # ----------------------------------------------------
-        # PHASE TIMERS
-        # ----------------------------------------------------
-
         self.phase_timer = 0.0
+        self.elapsed = 0.0
 
         # ----------------------------------------------------
-        # BUTTON RECTANGLES
+        # FINAL PLAYER INFORMATION
         # ----------------------------------------------------
+
+        self.player_name = "BARISTA"
+
+        self.final_level = 3
+
+        self.successful_drinks = 21
+
+        self.final_xp = 0
+
+        self.final_credits = 0
+
+        # ====================================================
+        # BACKGROUND
+        # ====================================================
+
+        self.background = None
+
+        # ====================================================
+        # CYBER-CAT
+        # ====================================================
+
+        self.cat_frames = []
+
+        self.cat_frame_index = 0
+
+        self.cat_frame_timer = 0.0
+
+        # Time between animation frames.
+        #
+        # Smaller number = faster waving.
+        #
+
+        self.cat_frame_speed = 0.10
+
+        # Cat size on the game screen.
+
+        self.cat_size = (
+            330,
+            330,
+        )
+
+        # Cat position.
+
+        self.cat_position = (
+            int(self.width * 0.25),
+            int(self.height * 0.60),
+        )
+
+        # ====================================================
+        # BUTTONS
+        # ====================================================
 
         self.play_again_rect = pygame.Rect(
-            self.width // 2 - 170,
-            575,
-            340,
-            55,
+            285,
+            625,
+            310,
+            58,
         )
 
         self.main_menu_rect = pygame.Rect(
-            self.width // 2 - 170,
-            645,
-            340,
-            55,
+            685,
+            625,
+            310,
+            58,
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # FONTS
-        # ----------------------------------------------------
+        # ====================================================
 
         self.font_title = pygame.font.SysFont(
             "Arial",
-            48,
+            50,
             bold=True,
         )
 
         self.font_large = pygame.font.SysFont(
             "Arial",
-            34,
+            32,
             bold=True,
         )
 
@@ -141,30 +160,18 @@ class GameEndScreen:
 
         self.font_button = pygame.font.SysFont(
             "Arial",
-            21,
+            22,
             bold=True,
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # COLOURS
-        # ----------------------------------------------------
+        # ====================================================
 
-        self.background = (
-            7,
-            10,
-            27,
-        )
-
-        self.panel = (
-            15,
-            20,
-            43,
-        )
-
-        self.panel_light = (
-            23,
-            30,
-            58,
+        self.white = (
+            245,
+            248,
+            255,
         )
 
         self.cyan = (
@@ -175,63 +182,169 @@ class GameEndScreen:
 
         self.pink = (
             255,
-            80,
-            190,
+            95,
+            205,
         )
 
         self.purple = (
-            175,
-            100,
+            185,
+            125,
             255,
         )
 
-        self.yellow = (
+        self.gold = (
             255,
             220,
-            100,
-        )
-
-        self.white = (
-            245,
-            248,
-            255,
+            115,
         )
 
         self.grey = (
-            160,
-            170,
-            195,
+            185,
+            190,
+            210,
         )
 
-        # ----------------------------------------------------
-        # CAT ANIMATION
-        # ----------------------------------------------------
+        self.panel = (
+            18,
+            21,
+            43,
+        )
 
-        self.cat_x = self.width // 2
-        self.cat_y = 245
+        # ====================================================
+        # LOAD ASSETS
+        # ====================================================
 
-        self.cat_scale = 1.0
+        self.load_assets()
 
-        self.cat_bob = 0.0
-        self.cat_wave = 0.0
+    # ========================================================
+    # ASSET PATH
+    # ========================================================
 
-        # ----------------------------------------------------
-        # LIGHTS
-        # ----------------------------------------------------
+    def asset_path(
+        self,
+        *parts,
+    ):
 
-        self.lights = []
+        return os.path.join(
+            self.project_root,
+            "assets",
+            "mahirah",
+            "end_game",
+            *parts,
+        )
 
-        for i in range(12):
+    # ========================================================
+    # LOAD ASSETS
+    # ========================================================
 
-            x = 70 + i * 105
+    def load_assets(self):
 
-            self.lights.append(
-                {
-                    "x": x,
-                    "y": 75,
-                    "phase": i * 0.5,
-                }
+        # ====================================================
+        # BACKGROUND
+        # ====================================================
+
+        background_path = self.asset_path(
+            "end_game_background.png"
+        )
+
+        try:
+
+            image = pygame.image.load(
+                background_path
+            ).convert()
+
+            self.background = (
+                pygame.transform.smoothscale(
+                    image,
+                    (
+                        self.width,
+                        self.height,
+                    ),
+                )
             )
+
+            print(
+                "[END SCREEN] Background loaded."
+            )
+
+        except (
+            pygame.error,
+            FileNotFoundError,
+        ) as error:
+
+            print(
+                "[END SCREEN] Background could not "
+                f"be loaded: {error}"
+            )
+
+            self.background = pygame.Surface(
+                (
+                    self.width,
+                    self.height,
+                )
+            )
+
+            self.background.fill(
+                (
+                    8,
+                    10,
+                    25,
+                )
+            )
+
+        # ====================================================
+        # CAT WAVE FRAMES
+        # ====================================================
+
+        self.cat_frames.clear()
+
+        for number in range(
+            1,
+            9,
+        ):
+
+            frame_path = self.asset_path(
+                "cat_wave",
+                f"{number:02d}.png",
+            )
+
+            try:
+
+                frame = pygame.image.load(
+                    frame_path
+                ).convert_alpha()
+
+                frame = (
+                    pygame.transform.smoothscale(
+                        frame,
+                        self.cat_size,
+                    )
+                )
+
+                self.cat_frames.append(
+                    frame
+                )
+
+                print(
+                    f"[END SCREEN] Cat frame "
+                    f"{number} loaded."
+                )
+
+            except (
+                pygame.error,
+                FileNotFoundError,
+            ) as error:
+
+                print(
+                    f"[END SCREEN] Cat frame "
+                    f"{number} could not be loaded: "
+                    f"{error}"
+                )
+
+        print(
+            "[END SCREEN] Total cat frames loaded:",
+            len(self.cat_frames),
+        )
 
     # ========================================================
     # RESET
@@ -243,17 +356,18 @@ class GameEndScreen:
 
         self.result = None
 
-        self.elapsed = 0.0
-
         self.phase = 0
 
         self.phase_timer = 0.0
 
-        self.cat_bob = 0.0
-        self.cat_wave = 0.0
+        self.elapsed = 0.0
+
+        self.cat_frame_index = 0
+
+        self.cat_frame_timer = 0.0
 
     # ========================================================
-    # START
+    # RUN
     # ========================================================
 
     def run(
@@ -289,12 +403,17 @@ class GameEndScreen:
 
         while self.running:
 
+            # ------------------------------------------------
+            # DELTA TIME
+            # ------------------------------------------------
+
             dt = (
                 self.clock.tick(60)
                 / 1000.0
             )
 
             self.elapsed += dt
+
             self.phase_timer += dt
 
             # ------------------------------------------------
@@ -329,7 +448,9 @@ class GameEndScreen:
             # UPDATE
             # ------------------------------------------------
 
-            self.update(dt)
+            self.update(
+                dt
+            )
 
             # ------------------------------------------------
             # DRAW
@@ -350,6 +471,13 @@ class GameEndScreen:
         mouse_pos,
     ):
 
+        # Buttons are only active once
+        # final statistics appear.
+
+        if self.phase < 3:
+
+            return
+
         # ----------------------------------------------------
         # PLAY AGAIN
         # ----------------------------------------------------
@@ -358,7 +486,9 @@ class GameEndScreen:
             mouse_pos
         ):
 
-            self.result = "play_again"
+            self.result = (
+                "play_again"
+            )
 
             self.running = False
 
@@ -372,7 +502,9 @@ class GameEndScreen:
             mouse_pos
         ):
 
-            self.result = "main_menu"
+            self.result = (
+                "main_menu"
+            )
 
             self.running = False
 
@@ -385,21 +517,46 @@ class GameEndScreen:
         dt,
     ):
 
-        # ----------------------------------------------------
-        # CAT BOBBING
-        # ----------------------------------------------------
+        # ====================================================
+        # CAT WAVE ANIMATION
+        # ====================================================
 
-        self.cat_bob += dt * 3.0
+        if (
+            self.phase >= 1
+            and self.cat_frames
+        ):
 
-        self.cat_wave += dt * 7.0
+            self.cat_frame_timer += dt
 
-        # ----------------------------------------------------
+            if (
+                self.cat_frame_timer
+                >= self.cat_frame_speed
+            ):
+
+                self.cat_frame_timer -= (
+                    self.cat_frame_speed
+                )
+
+                self.cat_frame_index += 1
+
+                if (
+                    self.cat_frame_index
+                    >= len(
+                        self.cat_frames
+                    )
+                ):
+
+                    self.cat_frame_index = 0
+
+        # ====================================================
         # ENDING PHASES
+        # ====================================================
+
+        # ----------------------------------------------------
+        # PHASE 0
         # ----------------------------------------------------
 
         if self.phase == 0:
-
-            # Café closing animation.
 
             if self.phase_timer >= 2.5:
 
@@ -407,19 +564,23 @@ class GameEndScreen:
 
                 self.phase_timer = 0.0
 
+        # ----------------------------------------------------
+        # PHASE 1
+        # ----------------------------------------------------
+
         elif self.phase == 1:
 
-            # Cat appears.
-
-            if self.phase_timer >= 2.0:
+            if self.phase_timer >= 3.5:
 
                 self.phase = 2
 
                 self.phase_timer = 0.0
 
-        elif self.phase == 2:
+        # ----------------------------------------------------
+        # PHASE 2
+        # ----------------------------------------------------
 
-            # Thank-you message.
+        elif self.phase == 2:
 
             if self.phase_timer >= 2.0:
 
@@ -427,9 +588,13 @@ class GameEndScreen:
 
                 self.phase_timer = 0.0
 
+        # ----------------------------------------------------
+        # PHASE 3
+        # ----------------------------------------------------
+
         elif self.phase == 3:
 
-            # Final statistics remain visible.
+            # Final screen remains open.
 
             pass
 
@@ -437,117 +602,369 @@ class GameEndScreen:
     # DRAW BACKGROUND
     # ========================================================
 
-    def draw_background(self):
-
-        self.screen.fill(
-            self.background
-        )
+    def draw_background(
+        self,
+    ):
 
         # ----------------------------------------------------
-        # FLOOR
+        # BACKGROUND ART
         # ----------------------------------------------------
 
-        pygame.draw.rect(
-            self.screen,
-            (
-                10,
-                14,
-                32,
-            ),
+        self.screen.blit(
+            self.background,
             (
                 0,
-                470,
-                self.width,
-                250,
+                0,
             ),
         )
 
         # ----------------------------------------------------
-        # CYBERPUNK HORIZONTAL LINES
+        # DARK OVERLAY
         # ----------------------------------------------------
+        #
+        # Makes the background slightly darker so the
+        # animated cat and UI stand out clearly.
+        #
 
-        for y in range(
-            500,
-            720,
-            35,
-        ):
+        overlay = pygame.Surface(
+            (
+                self.width,
+                self.height,
+            ),
+            pygame.SRCALPHA,
+        )
 
-            pygame.draw.line(
-                self.screen,
-                (
-                    20,
-                    28,
-                    55,
-                ),
-                (
-                    0,
-                    y,
-                ),
-                (
-                    self.width,
-                    y,
-                ),
-                1,
+        overlay.fill(
+            (
+                4,
+                5,
+                18,
+                72,
             )
+        )
+
+        self.screen.blit(
+            overlay,
+            (
+                0,
+                0,
+            ),
+        )
+
+    # ========================================================
+    # DRAW TOP TITLE
+    # ========================================================
+
+    def draw_title(
+        self,
+    ):
+
+        heading = self.font_medium.render(
+            "CYBERPUNK CAFÉ",
+            True,
+            self.cyan,
+        )
+
+        heading_rect = (
+            heading.get_rect(
+                center=(
+                    self.width // 2,
+                    55,
+                )
+            )
+        )
+
+        self.screen.blit(
+            heading,
+            heading_rect,
+        )
 
         # ----------------------------------------------------
-        # NEON LIGHTS
+        # NEON LINE
         # ----------------------------------------------------
 
-        for light in self.lights:
+        pygame.draw.line(
+            self.screen,
+            self.purple,
+            (
+                385,
+                82,
+            ),
+            (
+                895,
+                82,
+            ),
+            2,
+        )
 
-            pulse = (
+    # ========================================================
+    # DRAW CLOSING MESSAGE
+    # ========================================================
+
+    def draw_closing_message(
+        self,
+    ):
+
+        if self.phase != 0:
+
+            return
+
+        title = self.font_title.render(
+            "THE LAST ORDER HAS BEEN SERVED...",
+            True,
+            self.white,
+        )
+
+        self.screen.blit(
+            title,
+            title.get_rect(
+                center=(
+                    self.width // 2,
+                    135,
+                )
+            ),
+        )
+
+        subtitle = self.font_small.render(
+            "The café is closing for tonight.",
+            True,
+            self.grey,
+        )
+
+        self.screen.blit(
+            subtitle,
+            subtitle.get_rect(
+                center=(
+                    self.width // 2,
+                    175,
+                )
+            ),
+        )
+
+    # ========================================================
+    # DRAW CAT
+    # ========================================================
+
+    def draw_cat(
+        self,
+    ):
+
+        if not self.cat_frames:
+
+            return
+
+        # ----------------------------------------------------
+        # CURRENT FRAME
+        # ----------------------------------------------------
+
+        frame = self.cat_frames[
+            self.cat_frame_index
+        ]
+
+        # ----------------------------------------------------
+        # SMALL FLOATING MOTION
+        # ----------------------------------------------------
+
+        bob = int(
+            math.sin(
+                self.elapsed * 2.5
+            ) * 4
+        )
+
+        x = (
+            self.cat_position[0]
+            - frame.get_width() // 2
+        )
+
+        y = (
+            self.cat_position[1]
+            - frame.get_height() // 2
+            + bob
+        )
+
+        # ----------------------------------------------------
+        # SOFT CYAN GLOW
+        # ----------------------------------------------------
+
+        glow_surface = pygame.Surface(
+            (
+                frame.get_width() + 40,
+                frame.get_height() + 40,
+            ),
+            pygame.SRCALPHA,
+        )
+
+        glow_alpha = int(
+            30
+            + (
                 math.sin(
                     self.elapsed * 3
-                    + light["phase"]
                 )
                 + 1
-            ) / 2
-
-            radius = int(
-                4 + pulse * 3
             )
+            * 15
+        )
 
-            pygame.draw.circle(
-                self.screen,
-                self.cyan,
+        pygame.draw.ellipse(
+            glow_surface,
+            (
+                75,
+                225,
+                255,
+                glow_alpha,
+            ),
+            glow_surface.get_rect(),
+        )
+
+        self.screen.blit(
+            glow_surface,
+            (
+                x - 20,
+                y - 20,
+            ),
+        )
+
+        # ----------------------------------------------------
+        # CAT
+        # ----------------------------------------------------
+
+        self.screen.blit(
+            frame,
+            (
+                x,
+                y,
+            ),
+        )
+
+    # ========================================================
+    # DRAW BYEEEE BUBBLE
+    # ========================================================
+
+    def draw_bye_bubble(
+        self,
+    ):
+
+        if self.phase < 1:
+
+            return
+
+        # ----------------------------------------------------
+        # GENTLE APPEAR ANIMATION
+        # ----------------------------------------------------
+
+        progress = min(
+            self.phase_timer / 0.7,
+            1.0,
+        )
+
+        bubble_width = int(
+            285
+            * (
+                0.85
+                + 0.15 * progress
+            )
+        )
+
+        bubble_height = int(
+            82
+            * (
+                0.85
+                + 0.15 * progress
+            )
+        )
+
+        bubble_x = 85
+
+        bubble_y = 205
+
+        bubble = pygame.Rect(
+            bubble_x,
+            bubble_y,
+            bubble_width,
+            bubble_height,
+        )
+
+        # ----------------------------------------------------
+        # BUBBLE
+        # ----------------------------------------------------
+
+        pygame.draw.rect(
+            self.screen,
+            (
+                15,
+                17,
+                38,
+            ),
+            bubble,
+            border_radius=24,
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            self.pink,
+            bubble,
+            width=3,
+            border_radius=24,
+        )
+
+        # ----------------------------------------------------
+        # TEXT
+        # ----------------------------------------------------
+
+        text = self.font_large.render(
+            "BYEEEE!!",
+            True,
+            self.white,
+        )
+
+        self.screen.blit(
+            text,
+            text.get_rect(
+                center=bubble.center
+            ),
+        )
+
+        # ----------------------------------------------------
+        # BUBBLE TAIL
+        # ----------------------------------------------------
+
+        pygame.draw.polygon(
+            self.screen,
+            (
+                15,
+                17,
+                38,
+            ),
+            [
                 (
-                    light["x"],
-                    light["y"],
+                    bubble.centerx - 12,
+                    bubble.bottom - 2,
                 ),
-                radius,
-            )
+                (
+                    bubble.centerx + 10,
+                    bubble.bottom - 2,
+                ),
+                (
+                    bubble.centerx - 2,
+                    bubble.bottom + 22,
+                ),
+            ],
+        )
 
     # ========================================================
-    # DRAW CAFÉ SIGN
+    # DRAW THANK YOU
     # ========================================================
 
-    def draw_cafe_sign(self):
+    def draw_thank_you(
+        self,
+    ):
 
-        sign_rect = pygame.Rect(
-            self.width // 2 - 280,
-            30,
-            560,
-            80,
-        )
+        if self.phase < 2:
 
-        pygame.draw.rect(
-            self.screen,
-            self.panel,
-            sign_rect,
-            border_radius=18,
-        )
+            return
 
-        pygame.draw.rect(
-            self.screen,
-            self.cyan,
-            sign_rect,
-            width=2,
-            border_radius=18,
-        )
-
-        title = self.font_medium.render(
-            "CYBERPUNK CAFÉ",
+        title = self.font_title.render(
+            "THANK YOU FOR PLAYING!",
             True,
             self.cyan,
         )
@@ -555,415 +972,93 @@ class GameEndScreen:
         self.screen.blit(
             title,
             title.get_rect(
-                center=sign_rect.center
+                center=(
+                    self.width // 2,
+                    125,
+                )
             ),
         )
 
-    # ========================================================
-    # DRAW CLOSING MESSAGE
-    # ========================================================
-
-    def draw_closing_message(self):
-
-        if self.phase == 0:
-
-            title = self.font_title.render(
-                "CAFÉ CLOSING...",
-                True,
-                self.pink,
-            )
-
-            self.screen.blit(
-                title,
-                title.get_rect(
-                    center=(
-                        self.width // 2,
-                        145,
-                    )
-                ),
-            )
-
-            subtitle = self.font_small.render(
-                "The last order has been served.",
-                True,
-                self.white,
-            )
-
-            self.screen.blit(
-                subtitle,
-                subtitle.get_rect(
-                    center=(
-                        self.width // 2,
-                        180,
-                    )
-                ),
-            )
-
-        elif self.phase >= 1:
-
-            title = self.font_title.render(
-                "THANK YOU FOR PLAYING!",
-                True,
-                self.cyan,
-            )
-
-            self.screen.blit(
-                title,
-                title.get_rect(
-                    center=(
-                        self.width // 2,
-                        145,
-                    )
-                ),
-            )
-
-    # ========================================================
-    # DRAW CAT
-    # ========================================================
-
-    def draw_cat(self):
-
-        # ----------------------------------------------------
-        # BOBBING
-        # ----------------------------------------------------
-
-        bob = int(
-            math.sin(
-                self.cat_bob
-            ) * 6
-        )
-
-        cx = self.cat_x
-        cy = self.cat_y + bob
-
-        # ----------------------------------------------------
-        # GLOW
-        # ----------------------------------------------------
-
-        glow_radius = 105
-
-        glow_surface = pygame.Surface(
-            (
-                glow_radius * 2,
-                glow_radius * 2,
-            ),
-            pygame.SRCALPHA,
-        )
-
-        pygame.draw.circle(
-            glow_surface,
-            (
-                75,
-                225,
-                255,
-                35,
-            ),
-            (
-                glow_radius,
-                glow_radius,
-            ),
-            glow_radius,
+        subtitle = self.font_small.render(
+            "See you again at Cyberpunk Café!",
+            True,
+            self.white,
         )
 
         self.screen.blit(
-            glow_surface,
-            (
-                cx - glow_radius,
-                cy - glow_radius,
+            subtitle,
+            subtitle.get_rect(
+                center=(
+                    self.width // 2,
+                    165,
+                )
             ),
-        )
-
-        # ----------------------------------------------------
-        # BODY
-        # ----------------------------------------------------
-
-        body_rect = pygame.Rect(
-            cx - 60,
-            cy + 45,
-            120,
-            90,
-        )
-
-        pygame.draw.ellipse(
-            self.screen,
-            (
-                125,
-                105,
-                180,
-            ),
-            body_rect,
-        )
-
-        # ----------------------------------------------------
-        # HEAD
-        # ----------------------------------------------------
-
-        head_rect = pygame.Rect(
-            cx - 75,
-            cy - 65,
-            150,
-            130,
-        )
-
-        pygame.draw.ellipse(
-            self.screen,
-            (
-                155,
-                125,
-                205,
-            ),
-            head_rect,
-        )
-
-        # ----------------------------------------------------
-        # EARS
-        # ----------------------------------------------------
-
-        left_ear = [
-            (
-                cx - 65,
-                cy - 50,
-            ),
-            (
-                cx - 85,
-                cy - 105,
-            ),
-            (
-                cx - 30,
-                cy - 75,
-            ),
-        ]
-
-        right_ear = [
-            (
-                cx + 65,
-                cy - 50,
-            ),
-            (
-                cx + 85,
-                cy - 105,
-            ),
-            (
-                cx + 30,
-                cy - 75,
-            ),
-        ]
-
-        pygame.draw.polygon(
-            self.screen,
-            (
-                175,
-                100,
-                220,
-            ),
-            left_ear,
-        )
-
-        pygame.draw.polygon(
-            self.screen,
-            (
-                175,
-                100,
-                220,
-            ),
-            right_ear,
-        )
-
-        # ----------------------------------------------------
-        # EYES
-        # ----------------------------------------------------
-
-        pygame.draw.ellipse(
-            self.screen,
-            self.cyan,
-            (
-                cx - 45,
-                cy - 25,
-                28,
-                35,
-            ),
-        )
-
-        pygame.draw.ellipse(
-            self.screen,
-            self.cyan,
-            (
-                cx + 17,
-                cy - 25,
-                28,
-                35,
-            ),
-        )
-
-        # ----------------------------------------------------
-        # PUPILS
-        # ----------------------------------------------------
-
-        pygame.draw.circle(
-            self.screen,
-            (
-                10,
-                15,
-                30,
-            ),
-            (
-                cx - 31,
-                cy - 8,
-            ),
-            7,
-        )
-
-        pygame.draw.circle(
-            self.screen,
-            (
-                10,
-                15,
-                30,
-            ),
-            (
-                cx + 31,
-                cy - 8,
-            ),
-            7,
-        )
-
-        # ----------------------------------------------------
-        # NOSE
-        # ----------------------------------------------------
-
-        pygame.draw.polygon(
-            self.screen,
-            self.pink,
-            [
-                (
-                    cx - 7,
-                    cy + 10,
-                ),
-                (
-                    cx + 7,
-                    cy + 10,
-                ),
-                (
-                    cx,
-                    cy + 18,
-                ),
-            ],
-        )
-
-        # ----------------------------------------------------
-        # MOUTH
-        # ----------------------------------------------------
-
-        pygame.draw.arc(
-            self.screen,
-            (
-                50,
-                30,
-                70,
-            ),
-            (
-                cx - 18,
-                cy + 12,
-                18,
-                18,
-            ),
-            0,
-            math.pi,
-            2,
-        )
-
-        pygame.draw.arc(
-            self.screen,
-            (
-                50,
-                30,
-                70,
-            ),
-            (
-                cx,
-                cy + 12,
-                18,
-                18,
-            ),
-            0,
-            math.pi,
-            2,
-        )
-
-        # ----------------------------------------------------
-        # WAVING PAW
-        # ----------------------------------------------------
-
-        wave_angle = math.sin(
-            self.cat_wave
-        ) * 0.35
-
-        paw_x = int(
-            cx
-            + 95
-            + math.sin(
-                self.cat_wave
-            ) * 12
-        )
-
-        paw_y = int(
-            cy
-            - 20
-            + math.cos(
-                self.cat_wave
-            ) * 8
-        )
-
-        pygame.draw.circle(
-            self.screen,
-            (
-                155,
-                125,
-                205,
-            ),
-            (
-                paw_x,
-                paw_y,
-            ),
-            24,
-        )
-
-        # ----------------------------------------------------
-        # PAW GLOW
-        # ----------------------------------------------------
-
-        pygame.draw.circle(
-            self.screen,
-            self.cyan,
-            (
-                paw_x,
-                paw_y,
-            ),
-            5,
         )
 
     # ========================================================
-    # DRAW STATISTICS
+    # DRAW FINAL STATISTICS
     # ========================================================
 
-    def draw_statistics(self):
+    def draw_statistics(
+        self,
+    ):
 
         if self.phase < 3:
 
             return
 
+        # ----------------------------------------------------
+        # PANEL
+        # ----------------------------------------------------
+
         panel = pygame.Rect(
-            310,
-            320,
-            660,
-            215,
+            625,
+            205,
+            540,
+            355,
         )
+
+        # ----------------------------------------------------
+        # SHADOW
+        # ----------------------------------------------------
+
+        shadow = pygame.Surface(
+            (
+                panel.width + 18,
+                panel.height + 18,
+            ),
+            pygame.SRCALPHA,
+        )
+
+        pygame.draw.rect(
+            shadow,
+            (
+                0,
+                0,
+                0,
+                125,
+            ),
+            shadow.get_rect(),
+            border_radius=22,
+        )
+
+        self.screen.blit(
+            shadow,
+            (
+                panel.x - 9,
+                panel.y + 8,
+            ),
+        )
+
+        # ----------------------------------------------------
+        # MAIN PANEL
+        # ----------------------------------------------------
 
         pygame.draw.rect(
             self.screen,
             self.panel,
             panel,
-            border_radius=18,
+            border_radius=22,
         )
 
         pygame.draw.rect(
@@ -971,13 +1066,17 @@ class GameEndScreen:
             self.purple,
             panel,
             width=2,
-            border_radius=18,
+            border_radius=22,
         )
 
-        title = self.font_medium.render(
+        # ----------------------------------------------------
+        # TITLE
+        # ----------------------------------------------------
+
+        title = self.font_large.render(
             "FINAL CAFÉ STATISTICS",
             True,
-            self.yellow,
+            self.gold,
         )
 
         self.screen.blit(
@@ -985,7 +1084,7 @@ class GameEndScreen:
             title.get_rect(
                 center=(
                     panel.centerx,
-                    panel.y + 35,
+                    panel.y + 40,
                 )
             ),
         )
@@ -994,42 +1093,65 @@ class GameEndScreen:
         # STATISTICS
         # ----------------------------------------------------
 
-        stats = [
+        rows = [
             (
                 "Successful Drinks",
-                str(
-                    self.successful_drinks
-                ),
+                f"{self.successful_drinks} / 21",
+                self.pink,
             ),
             (
                 "Final Level",
-                str(
-                    self.final_level
-                ),
+                f"Level {self.final_level}",
+                self.cyan,
             ),
             (
-                "Final XP",
-                str(
-                    self.final_xp
-                ),
+                "Total XP",
+                str(self.final_xp),
+                self.purple,
             ),
             (
-                "Credits",
+                "Credits Earned",
                 f"${self.final_credits}",
+                self.gold,
             ),
         ]
 
-        start_y = panel.y + 75
+        start_y = (
+            panel.y + 88
+        )
 
         for index, (
             label,
             value,
-        ) in enumerate(stats):
+            accent,
+        ) in enumerate(rows):
 
             y = (
                 start_y
-                + index * 32
+                + index * 60
             )
+
+            # Divider.
+
+            pygame.draw.line(
+                self.screen,
+                (
+                    55,
+                    60,
+                    90,
+                ),
+                (
+                    panel.x + 35,
+                    y + 42,
+                ),
+                (
+                    panel.right - 35,
+                    y + 42,
+                ),
+                1,
+            )
+
+            # Label.
 
             label_surface = (
                 self.font_small.render(
@@ -1039,27 +1161,31 @@ class GameEndScreen:
                 )
             )
 
-            value_surface = (
-                self.font_small.render(
-                    value,
-                    True,
-                    self.white,
-                )
-            )
-
             self.screen.blit(
                 label_surface,
                 (
-                    panel.x + 50,
+                    panel.x + 35,
                     y,
                 ),
             )
 
+            # Value.
+
+            value_surface = (
+                self.font_medium.render(
+                    value,
+                    True,
+                    accent,
+                )
+            )
+
             self.screen.blit(
                 value_surface,
-                (
-                    panel.right - 150,
-                    y,
+                value_surface.get_rect(
+                    midright=(
+                        panel.right - 35,
+                        y + 10,
+                    )
                 ),
             )
 
@@ -1070,53 +1196,59 @@ class GameEndScreen:
     def draw_button(
         self,
         rect,
-        text,
+        label,
         accent,
-        hover,
+        hovered,
     ):
 
-        if hover:
+        if hovered:
 
             fill = (
-                35,
-                35,
-                65,
+                34,
+                27,
+                62,
             )
 
         else:
 
             fill = (
-                22,
-                25,
-                50,
+                15,
+                18,
+                40,
             )
+
+        # ----------------------------------------------------
+        # BUTTON
+        # ----------------------------------------------------
 
         pygame.draw.rect(
             self.screen,
             fill,
             rect,
-            border_radius=12,
+            border_radius=15,
         )
 
         pygame.draw.rect(
             self.screen,
             accent,
             rect,
-            width=2,
-            border_radius=12,
+            width=3,
+            border_radius=15,
         )
 
-        text_surface = (
-            self.font_button.render(
-                text,
-                True,
-                self.white,
-            )
+        # ----------------------------------------------------
+        # TEXT
+        # ----------------------------------------------------
+
+        text = self.font_button.render(
+            label,
+            True,
+            self.white,
         )
 
         self.screen.blit(
-            text_surface,
-            text_surface.get_rect(
+            text,
+            text.get_rect(
                 center=rect.center
             ),
         )
@@ -1125,59 +1257,72 @@ class GameEndScreen:
     # DRAW BUTTONS
     # ========================================================
 
-    def draw_buttons(self):
+    def draw_buttons(
+        self,
+    ):
 
         if self.phase < 3:
 
             return
 
-        mouse_pos = pygame.mouse.get_pos()
-
-        play_hover = (
-            self.play_again_rect.collidepoint(
-                mouse_pos
-            )
-        )
-
-        menu_hover = (
-            self.main_menu_rect.collidepoint(
-                mouse_pos
-            )
+        mouse_pos = (
+            pygame.mouse.get_pos()
         )
 
         self.draw_button(
             self.play_again_rect,
             "PLAY AGAIN",
-            self.cyan,
-            play_hover,
+            self.pink,
+            self.play_again_rect.collidepoint(
+                mouse_pos
+            ),
         )
 
         self.draw_button(
             self.main_menu_rect,
             "MAIN MENU",
-            self.pink,
-            menu_hover,
+            self.cyan,
+            self.main_menu_rect.collidepoint(
+                mouse_pos
+            ),
         )
 
     # ========================================================
     # DRAW EVERYTHING
     # ========================================================
 
-    def draw(self):
+    def draw(
+        self,
+    ):
+
+        # Background first.
 
         self.draw_background()
 
-        self.draw_cafe_sign()
+        # Top title.
+
+        self.draw_title()
+
+        # Initial closing message.
 
         self.draw_closing_message()
 
-        # Cat becomes visible after
-        # the café closing phase.
+        # Cat and speech bubble.
 
         if self.phase >= 1:
 
             self.draw_cat()
 
+            self.draw_bye_bubble()
+
+        # Thank-you message.
+
+        self.draw_thank_you()
+
+        # Final statistics.
+
         self.draw_statistics()
+
+        # Buttons.
 
         self.draw_buttons()
