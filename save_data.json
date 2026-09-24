@@ -5,57 +5,33 @@
         "level": 3,
         "location": "Cyber Penthouse"
     },
-    "rin": {
-        "credits": 156,
-        "xp": 0,
+    "Rin": {
+        "credits": 180,
+        "xp": 20,
         "level": 2,
         "location": "Neon Lounge"
     },
-    "yoshi": {
-        "credits": 218,
-        "xp": 90,
+    "kian": {
+        "credits": 165,
+        "xp": 140,
         "level": 2,
         "location": "Neon Lounge"
     },
-    "caleb": {
-        "credits": 163,
-        "xp": 0,
-        "level": 2,
-        "location": "Neon Lounge"
+    "yin": {
+        "credits": 10,
+        "xp": 100,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     },
-    "md": {
-        "credits": 189,
-        "xp": 25,
+    "mahi": {
+        "credits": 80,
+        "xp": 210,
         "level": 2,
         "location": "Neon Lounge"
     },
     "alex": {
-        "credits": 189,
-        "xp": 25,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "kale": {
-        "credits": 193,
-        "xp": 25,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "day": {
-        "credits": 199,
-        "xp": 35,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "ali": {
-        "credits": 199,
-        "xp": 35,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "dave": {
-        "credits": 160,
-        "xp": 80,
+        "credits": 0,
+        "xp": 90,
         "level": 1,
         "location": "Back Alley Kiosk"
     },
