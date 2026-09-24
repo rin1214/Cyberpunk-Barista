@@ -646,7 +646,7 @@ while running:
     if active_customer is not None:
         try:
             active_customer.draw(screen)
-        except Exception as error:
+        except Exception as erroir:
             print(f"[CUSTOMER DRAW ERROR] {error}")
 
     try:

@@ -82,5 +82,11 @@
         "xp": 100,
         "level": 1,
         "location": "Back Alley Kiosk"
+    },
+    "you": {
+        "credits": 1360,
+        "xp": 450,
+        "level": 3,
+        "location": "Cyber Penthouse"
     }
 }
