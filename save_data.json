@@ -1,9 +1,9 @@
 {
     "lucy": {
-        "credits": 747,
-        "xp": 25,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 820,
+        "xp": 130,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "Rin": {
         "credits": 180,
@@ -76,5 +76,11 @@
         "xp": 15,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "TJ yuh": {
+        "credits": 793,
+        "xp": 100,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     }
 }
