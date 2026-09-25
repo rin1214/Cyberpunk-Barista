@@ -103,7 +103,7 @@ class MixingStation:
         }
 
         self.blend_start_time = 0.0
-        self.blend_duration = 1.8
+        self.blend_duration = 1.7
         self.blender_angle = 0.0
         self.blender_pulse = 0.0
 
@@ -422,7 +422,7 @@ class MixingStation:
         if self.assembly_phase == "empty":
             return
         elapsed = time.monotonic() - self.assembly_started
-        phases = (("ice", 1.25), ("pour", 1.25), ("topping", 0.9))
+        phases = (("ice", 1.25), ("pour", 1.25), ("topping", 1.25))
         total = 0.0
         for name, duration in phases:
             if elapsed < total + duration:

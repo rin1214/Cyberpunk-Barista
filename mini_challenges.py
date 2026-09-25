@@ -1,161 +1,994 @@
-"""Compact ingredient-themed mini challenges for Cyberpunk Café."""
-import math, random, time
+"""
+mini_challenges.py
+Cyberpunk Café - Ingredient Match-3 Mini Challenge
+
+This file is a drop-in replacement for the old reaction/action mini-games.
+
+Gameplay:
+    1. Select a drink in the Mixing Station.
+    2. A 5x5 ingredient puzzle appears.
+    3. Click one tile, then click an adjacent tile to swap.
+    4. If the swap creates a match of 3 or more, the match is cleared.
+    5. Make 3 successful matches.
+    6. The challenge finishes and the Mixing Station unlocks the next step.
+    7. The player has 25 seconds for each attempt.
+
+Mouse controls only. One simple timer, no lives, keyboard actions, or
+complicated combos.
+"""
+
+import random
 import pygame
 
+
+# ---------------------------------------------------------------------------
+# DRINK THEMES
+# ---------------------------------------------------------------------------
+
 CHALLENGES = {
-    "Neon Latte":      ("MILK DROP", "milk", "catch", (235,245,255)),
-    "Milkyway":        ("STAR ALIGN", "star", "target", (190,180,255)),
-    "Void Chai":       ("SPICE SWIRL", "spice", "orbit", (255,185,120)),
-    "Cyber Fuel":      ("POWER CELLS", "battery", "sequence", (120,220,255)),
-    "Hologram Frappe": ("HOLO MATCH", "orb", "match", (220,150,255)),
-    "Pixel Lemint":    ("MINT CATCH", "mint", "catch", (120,245,190)),
-    "Caramel Byte":    ("COOKIE STACK", "cookie", "stack", (220,155,90)),
-    "Stardust Matcha": ("STAR BURST", "star", "burst", (210,225,120)),
-    "Meteorite":       ("METEOR TAP", "meteor", "tap", (210,235,255)),
+    "Neon Latte": {
+        "title": "MILK MATCH",
+        "ingredient": "MILK",
+        "accent": (120, 235, 255),
+        "tile_colors": [
+            (245, 248, 255),
+            (175, 225, 255),
+            (210, 190, 255),
+            (255, 220, 235),
+            (150, 245, 220),
+        ],
+    },
+    "Milkyway": {
+        "title": "STARDUST MATCH",
+        "ingredient": "STARDUST",
+        "accent": (205, 170, 255),
+        "tile_colors": [
+            (235, 220, 255),
+            (175, 145, 255),
+            (120, 210, 255),
+            (255, 235, 150),
+            (245, 175, 225),
+        ],
+    },
+    "Void Chai": {
+        "title": "SPICE MATCH",
+        "ingredient": "SPICE",
+        "accent": (255, 175, 125),
+        "tile_colors": [
+            (255, 205, 150),
+            (205, 155, 255),
+            (255, 150, 185),
+            (175, 235, 190),
+            (245, 220, 150),
+        ],
+    },
+    "Cyber Fuel": {
+        "title": "POWER MATCH",
+        "ingredient": "POWER",
+        "accent": (100, 190, 255),
+        "tile_colors": [
+            (115, 210, 255),
+            (110, 140, 255),
+            (185, 235, 255),
+            (170, 255, 215),
+            (245, 225, 100),
+        ],
+    },
+    "Hologram Frappe": {
+        "title": "HOLO MATCH",
+        "ingredient": "HOLO",
+        "accent": (235, 160, 255),
+        "tile_colors": [
+            (255, 175, 230),
+            (170, 225, 255),
+            (190, 175, 255),
+            (150, 255, 225),
+            (255, 235, 150),
+        ],
+    },
+    "Pixel Lemint": {
+        "title": "MINT MATCH",
+        "ingredient": "MINT",
+        "accent": (115, 245, 200),
+        "tile_colors": [
+            (120, 245, 205),
+            (190, 255, 220),
+            (120, 215, 255),
+            (235, 225, 110),
+            (190, 170, 255),
+        ],
+    },
+    "Caramel Byte": {
+        "title": "COOKIE MATCH",
+        "ingredient": "COOKIE",
+        "accent": (255, 190, 120),
+        "tile_colors": [
+            (225, 160, 100),
+            (255, 205, 130),
+            (190, 135, 105),
+            (245, 180, 200),
+            (170, 215, 255),
+        ],
+    },
+    "Stardust Matcha": {
+        "title": "MATCHA MATCH",
+        "ingredient": "MATCHA",
+        "accent": (170, 245, 145),
+        "tile_colors": [
+            (155, 230, 145),
+            (200, 250, 165),
+            (125, 210, 180),
+            (235, 220, 120),
+            (180, 165, 245),
+        ],
+    },
+    "Meteorite": {
+        "title": "METEOR MATCH",
+        "ingredient": "METEOR",
+        "accent": (125, 205, 255),
+        "tile_colors": [
+            (235, 245, 255),
+            (145, 205, 255),
+            (175, 175, 235),
+            (255, 195, 120),
+            (205, 220, 245),
+        ],
+    },
 }
 
+
+# ---------------------------------------------------------------------------
+# MINI CHALLENGE
+# ---------------------------------------------------------------------------
+
 class MiniChallenge:
-    """One reusable mini-game engine; each drink supplies a different mode."""
+    """
+    Small mouse-controlled Match-3 puzzle.
+
+    The Mixing Station only needs these public members/methods:
+        challenge.done
+        start_challenge(drink_name)
+        update(dt)
+        handle_event(event)
+        draw(screen)
+    """
+
+    GRID_SIZE = 5
+    TILE_SIZE = 62
+    GAP = 6
+
+    TARGET_STRIKES = 3
+    TILE_TYPES = 5
+    CHALLENGE_TIME = 25.0
+
     def __init__(self):
-        self.active = False; self.done = False; self.drink = None
-        self.title = ""; self.icon = ""; self.mode = ""; self.accent = (75,225,255)
-        self.strikes = 0; self.target = 3; self.start = 0.0; self.round = 0
-        self.pos = [0,0]; self.goal = [0,0]; self.options = []; self.sequence = []
-        self.flash = 0.0; self.message = ""; self.message_color = (245,248,255); self.done_at = 0.0
-        self.area = pygame.Rect(310, 125, 660, 470)
-        self.fonts = {}
+        self.active = False
+        self.done = False
 
-    def _fonts(self):
-        if self.fonts: return
-        self.fonts = {
-            "title": pygame.font.SysFont("Arial", 28, bold=True),
-            "head": pygame.font.SysFont("Arial", 20, bold=True),
-            "body": pygame.font.SysFont("Arial", 16, bold=True),
-            "big": pygame.font.SysFont("Arial", 34, bold=True),
-        }
+        self.drink = ""
+        self.title = "INGREDIENT MATCH"
+        self.ingredient = "INGREDIENT"
+        self.accent = (120, 235, 255)
+        self.tile_colors = []
 
-    def start_challenge(self, drink):
-        data = CHALLENGES.get(drink)
-        if not data: return
-        self._fonts(); self.drink = drink; self.title,self.icon,self.mode,self.accent = data
-        self.active=True; self.done=False; self.strikes=0; self.round=0; self.start=time.monotonic()
-        self.flash=0; self.message=""; self._new_round()
+        self.board = []
+        self.selected = None
 
-    def _new_round(self):
-        self.round += 1; self.flash=0
-        if self.mode == "catch":
-            self.pos=[random.randint(390,890),180]
-        elif self.mode in ("target","orbit"):
-            self.goal=[random.randint(430,850),random.randint(250,470)]
-        elif self.mode == "sequence":
-            self.sequence=[random.randint(0,2) for _ in range(3)]; self.options=[]
-        elif self.mode == "match":
-            self.goal=[random.randint(430,850),random.randint(250,470)]
-            self.pos=[random.randint(390,850),random.randint(250,470)]
-        elif self.mode == "stack":
-            self.pos=[random.randint(430,850),330]
-        elif self.mode == "burst":
-            self.options=[(random.randint(420,860),random.randint(240,470)) for _ in range(5)]
-        elif self.mode == "tap":
-            self.pos=[random.randint(430,850),random.randint(250,470)]
+        self.strikes = 0
+        self.message = "MATCH 3 INGREDIENTS"
+        self.message_timer = 0.0
+        self.time_left = self.CHALLENGE_TIME
+        self.time_up = False
 
-    def update(self, dt):
-        if not self.active:
-            if self.done and time.monotonic()-self.done_at > 0.9: self.done=False
-            return
-        now=time.monotonic(); self.flash=max(0,self.flash-dt)
-        if self.mode == "catch":
-            self.pos[1] += 170*dt
-            if self.pos[1] > 500: self._miss()
-        elif self.mode == "orbit":
-            a=now*2.3; self.pos=[self.area.centerx+int(math.cos(a)*190), self.area.centery+int(math.sin(a)*135)]
-        elif self.mode == "target":
-            a=now*1.8; self.pos=[self.area.centerx+int(math.cos(a)*180), self.area.centery+int(math.sin(a)*115)]
-        elif self.mode == "match":
-            a=now*2; self.pos=[self.area.centerx+int(math.sin(a)*210), self.area.centery+int(math.cos(a*1.3)*125)]
-        elif self.mode == "tap":
-            a=now*1.7; self.pos=[self.area.centerx+int(math.cos(a)*205), self.area.centery+int(math.sin(a*1.4)*125)]
+        # Animation for the finished state.
+        self.done_timer = 0.0
+        self.pulse = 0.0
 
-    def _hit(self, ok=True):
-        if ok:
-            self.strikes += 1; self.flash=.35; self.message="NICE!"; self.message_color=(90,235,165)
-            if self.strikes >= self.target:
-                self.active=False; self.done=True; self.done_at=time.monotonic(); self.message="LIQUID UNLOCKED!"
-            else: self._new_round()
-        else: self._miss()
+        self.panel_rect = pygame.Rect(280, 95, 720, 535)
+        self.grid_rect = pygame.Rect(375, 215, 0, 0)
 
-    def _miss(self):
-        self.flash=.25; self.message="MISS!"; self.message_color=(255,120,190); self._new_round()
+        self.font_title = None
+        self.font_text = None
+        self.font_small = None
+        self.font_big = None
 
-    def handle_event(self,event):
-        if not self.active or event.type != pygame.MOUSEBUTTONDOWN or event.button != 1: return False
-        p=event.pos
-        if not self.area.collidepoint(p): return True
-        if self.mode in ("catch","target","orbit","match","tap"):
-            r=42 if self.mode != "tap" else 48; self._hit(math.dist(p,self.pos)<=r)
-        elif self.mode == "sequence":
-            self._hit(self.area.collidepoint(p))
-        elif self.mode == "stack":
-            self._hit(abs(p[0]-self.pos[0])<70 and abs(p[1]-self.pos[1])<55)
-        elif self.mode == "burst":
-            hit=None
-            for i,q in enumerate(self.options):
-                if math.dist(p,q)<35: hit=i; break
-            self._hit(hit is not None)
+        self._build_fonts()
+
+    # -----------------------------------------------------------------------
+    # SETUP
+    # -----------------------------------------------------------------------
+
+    def _build_fonts(self):
+        """Create fonts without requiring an external font file."""
+        self.font_title = pygame.font.SysFont("arial", 28, bold=True)
+        self.font_text = pygame.font.SysFont("arial", 20, bold=True)
+        self.font_small = pygame.font.SysFont("arial", 16, bold=True)
+        self.font_big = pygame.font.SysFont("arial", 38, bold=True)
+
+    def start_challenge(self, drink_name):
+        """Start a fresh puzzle for the selected drink."""
+        data = CHALLENGES.get(drink_name, {
+            "title": "INGREDIENT MATCH",
+            "ingredient": "INGREDIENT",
+            "accent": (120, 235, 255),
+            "tile_colors": [
+                (120, 235, 255),
+                (205, 170, 255),
+                (255, 180, 210),
+                (150, 245, 210),
+                (255, 225, 130),
+            ],
+        })
+
+        self.drink = drink_name
+        self.title = data["title"]
+        self.ingredient = data["ingredient"]
+        self.accent = data["accent"]
+        self.tile_colors = data["tile_colors"]
+
+        self.active = True
+        self.done = False
+        self.selected = None
+        self.strikes = 0
+        self.message = "MATCH 3 INGREDIENTS"
+        self.message_timer = 0.0
+        self.time_left = self.CHALLENGE_TIME
+        self.time_up = False
+        self.done_timer = 0.0
+        self.pulse = 0.0
+
+        self.board = self._create_board()
+
+        board_size = (
+            self.GRID_SIZE * self.TILE_SIZE
+            + (self.GRID_SIZE - 1) * self.GAP
+        )
+
+        self.grid_rect = pygame.Rect(
+            375,
+            215,
+            board_size,
+            board_size,
+        )
+
+    # -----------------------------------------------------------------------
+    # BOARD CREATION
+    # -----------------------------------------------------------------------
+
+    def _create_board(self):
+        """
+        Create a board with no automatic matches.
+
+        This prevents the player from getting a free match before making
+        a move.
+        """
+        for _ in range(200):
+            board = [
+                [
+                    random.randrange(self.TILE_TYPES)
+                    for _ in range(self.GRID_SIZE)
+                ]
+                for _ in range(self.GRID_SIZE)
+            ]
+
+            if not self._find_matches(board):
+                return board
+
+        # Extremely unlikely fallback.
+        return self._safe_board()
+
+    def _safe_board(self):
+        """Deterministic no-match fallback."""
+        board = []
+
+        for row in range(self.GRID_SIZE):
+            current = []
+
+            for col in range(self.GRID_SIZE):
+                current.append((row * 2 + col) % self.TILE_TYPES)
+
+            board.append(current)
+
+        return board
+
+    # -----------------------------------------------------------------------
+    # MATCH LOGIC
+    # -----------------------------------------------------------------------
+
+    def _find_matches(self, board=None):
+        """
+        Return a set of (row, col) cells belonging to horizontal or
+        vertical groups of 3 or more.
+        """
+        if board is None:
+            board = self.board
+
+        matches = set()
+
+        # Horizontal matches.
+        for row in range(self.GRID_SIZE):
+            start = 0
+
+            while start < self.GRID_SIZE:
+                value = board[row][start]
+                end = start + 1
+
+                while (
+                    end < self.GRID_SIZE
+                    and board[row][end] == value
+                ):
+                    end += 1
+
+                if value is not None and end - start >= 3:
+                    for col in range(start, end):
+                        matches.add((row, col))
+
+                start = end
+
+        # Vertical matches.
+        for col in range(self.GRID_SIZE):
+            start = 0
+
+            while start < self.GRID_SIZE:
+                value = board[start][col]
+                end = start + 1
+
+                while (
+                    end < self.GRID_SIZE
+                    and board[end][col] == value
+                ):
+                    end += 1
+
+                if value is not None and end - start >= 3:
+                    for row in range(start, end):
+                        matches.add((row, col))
+
+                start = end
+
+        return matches
+
+    def _swap(self, first, second):
+        """Swap two board cells."""
+        r1, c1 = first
+        r2, c2 = second
+
+        self.board[r1][c1], self.board[r2][c2] = (
+            self.board[r2][c2],
+            self.board[r1][c1],
+        )
+
+    def _is_adjacent(self, first, second):
+        """Check whether two cells share an edge."""
+        r1, c1 = first
+        r2, c2 = second
+
+        return abs(r1 - r2) + abs(c1 - c2) == 1
+
+    def _resolve_match(self):
+        """
+        Remove the current match, collapse columns, refill the board,
+        and count one successful strike.
+        """
+        matches = self._find_matches()
+
+        if not matches:
+            return False
+
+        for row, col in matches:
+            self.board[row][col] = None
+
+        # Collapse each column downward.
+        for col in range(self.GRID_SIZE):
+            remaining = [
+                self.board[row][col]
+                for row in range(self.GRID_SIZE)
+                if self.board[row][col] is not None
+            ]
+
+            missing = self.GRID_SIZE - len(remaining)
+            new_values = [
+                random.randrange(self.TILE_TYPES)
+                for _ in range(missing)
+            ]
+
+            values = new_values + remaining
+
+            for row in range(self.GRID_SIZE):
+                self.board[row][col] = values[row]
+
+        self.strikes += 1
+        self.message = f"MATCH {self.strikes} / {self.TARGET_STRIKES}"
+        self.message_timer = 0.8
+
+        if self.strikes >= self.TARGET_STRIKES:
+            self._finish()
+
         return True
 
-    def draw(self,screen):
-        if not self.active and not self.done: return
-        overlay=pygame.Surface(screen.get_size(),pygame.SRCALPHA); overlay.fill((3,6,20,205)); screen.blit(overlay,(0,0))
-        pygame.draw.rect(screen,(9,15,38),self.area,border_radius=24)
-        pygame.draw.rect(screen,self.accent,self.area,2,border_radius=24)
-        f=self.fonts
-        screen.blit(f["title"].render(self.title,True,self.accent), (self.area.x+28,self.area.y+22))
-        screen.blit(f["body"].render(f"STRIKES  {self.strikes}/{self.target}",True,(245,248,255)), (self.area.right-170,self.area.y+28))
+    def _try_swap(self, first, second):
+        """
+        Attempt a swap.
+
+        A swap only counts if it creates a match.
+        Otherwise the tiles are immediately returned to their original
+        positions.
+        """
+        self._swap(first, second)
+
+        if self._find_matches():
+            self._resolve_match()
+            return True
+
+        self._swap(first, second)
+        self.message = "TRY ANOTHER SWAP"
+        self.message_timer = 0.8
+        return False
+
+    # -----------------------------------------------------------------------
+    # INPUT
+    # -----------------------------------------------------------------------
+
+    def _cell_from_mouse(self, position):
+        """Convert a mouse position into a board cell."""
+        x, y = position
+
+        if not self.grid_rect.collidepoint(position):
+            return None
+
+        step = self.TILE_SIZE + self.GAP
+
+        col = (x - self.grid_rect.x) // step
+        row = (y - self.grid_rect.y) // step
+
+        if not (
+            0 <= row < self.GRID_SIZE
+            and 0 <= col < self.GRID_SIZE
+        ):
+            return None
+
+        local_x = (x - self.grid_rect.x) % step
+        local_y = (y - self.grid_rect.y) % step
+
+        # Ignore the small gap between tiles.
+        if local_x >= self.TILE_SIZE or local_y >= self.TILE_SIZE:
+            return None
+
+        return int(row), int(col)
+
+    def handle_event(self, event):
+        """Handle mouse interaction for the puzzle."""
+        if not self.active:
+            return
+
+        if event.type != pygame.MOUSEBUTTONDOWN:
+            return
+
+        if event.button != 1:
+            return
+
+        cell = self._cell_from_mouse(event.pos)
+
+        if cell is None:
+            return
+
+        if self.selected is None:
+            self.selected = cell
+            self.message = "CHOOSE A NEIGHBOUR"
+            self.message_timer = 0.6
+            return
+
+        if cell == self.selected:
+            self.selected = None
+            self.message = "MATCH 3 INGREDIENTS"
+            self.message_timer = 0.5
+            return
+
+        if self._is_adjacent(self.selected, cell):
+            first = self.selected
+            self.selected = None
+            self._try_swap(first, cell)
+            return
+
+        # Clicking another non-adjacent tile simply moves the selection.
+        self.selected = cell
+        self.message = "CHOOSE A NEIGHBOUR"
+        self.message_timer = 0.6
+
+    # -----------------------------------------------------------------------
+    # UPDATE
+    # -----------------------------------------------------------------------
+
+    def update(self, dt):
+        """Update UI animations and the 25-second puzzle timer."""
+        if not self.active and not self.done:
+            return
+
+        self.pulse += dt
+
+        if self.message_timer > 0:
+            self.message_timer = max(0.0, self.message_timer - dt)
+
+        if self.active:
+            self.time_left = max(0.0, self.time_left - dt)
+
+            if self.time_left <= 0:
+                self._time_up()
+
         if self.done:
-            self._done(screen); return
-        self._draw_mode(screen)
-        if self.message:
-            screen.blit(f["head"].render(self.message,True,self.message_color), f["head"].render(self.message,True,self.message_color).get_rect(center=(self.area.centerx,545)))
-        hint=f["body"].render(self._hint(),True,(190,202,225)); screen.blit(hint,hint.get_rect(center=(self.area.centerx,575)))
+            self.done_timer += dt
 
-    def _hint(self):
-        return {"catch":"Catch the ingredient!","target":"Click the moving ingredient inside the target.","orbit":"Hit the spice while it circles the core.","sequence":"Click the highlighted power cells in order.","match":"Catch the matching holo ingredient.","stack":"Build the topping stack.","burst":"Collect one ingredient before it vanishes.","tap":"Tap the meteor fragment!"}.get(self.mode,"Hit the ingredient!")
+    def _time_up(self):
+        """Reset the puzzle when the player runs out of time."""
+        self.time_up = True
+        self.active = False
+        self.selected = None
+        self.strikes = 0
+        self.message = "TIME'S UP - TRY AGAIN!"
+        self.message_timer = 0.0
+        self.time_left = self.CHALLENGE_TIME
+        self.board = self._create_board()
 
-    def _draw_mode(self,s):
-        cx,cy=self.area.centerx,350
-        if self.mode=="catch": self._ingredient(s,self.pos,self.icon,1.0)
-        elif self.mode in ("target","match"):
-            pygame.draw.circle(s,(*self.accent,70),self.goal,52,2); self._ingredient(s,self.pos,self.icon,1.0)
-        elif self.mode=="orbit":
-            pygame.draw.circle(s,(35,50,80), (cx,350),115,2); pygame.draw.circle(s,self.accent,(cx,350),18); self._ingredient(s,self.pos,self.icon,1.0)
-        elif self.mode=="sequence":
-            for i,x in enumerate((520,640,760)):
-                col=self.accent if i==self.round%3 else (50,65,95)
-                pygame.draw.rect(s,col,(x-35,300,70,70),border_radius=15); self._ingredient(s,(x,335),"battery",.65)
-        elif self.mode=="stack":
-            for i in range(self.strikes): self._ingredient(s,(self.area.centerx,450-i*55),"cookie",.8)
-            self._ingredient(s,self.pos,"cookie",1)
-        elif self.mode=="burst":
-            for p in self.options: self._ingredient(s,p,"star",.75)
-        elif self.mode=="tap": self._ingredient(s,self.pos,"meteor",1.1)
+        # Start a fresh attempt immediately so the player gets another
+        # full 25 seconds rather than being trapped on a failure screen.
+        self.active = True
+        self.time_up = False
 
-    def _ingredient(self,s,pos,kind,scale=1):
-        x,y=map(int,pos); c=self.accent
-        if kind=="milk": pygame.draw.ellipse(s,(240,248,255),(x-25,y-18,x+25,y+18))
-        elif kind=="star":
-            pts=[]
+    def _finish(self):
+        """Finish the challenge and unlock the Mixing Station."""
+        self.active = False
+        self.done = True
+        self.selected = None
+        self.done_timer = 0.0
+        self.message = "INGREDIENT READY!"
+
+    # -----------------------------------------------------------------------
+    # DRAWING
+    # -----------------------------------------------------------------------
+
+    def draw(self, screen):
+        """
+        Draw the challenge over the existing Mixing Station.
+
+        The background station remains visible underneath a translucent
+        dark overlay, so the mini-game feels like part of the same game.
+        """
+        if not self.active and not self.done:
+            return
+
+        self._draw_overlay(screen)
+        self._draw_panel(screen)
+
+        if self.done:
+            self._draw_done(screen)
+        else:
+            self._draw_active(screen)
+
+    def _draw_overlay(self, screen):
+        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((5, 8, 22, 175))
+        screen.blit(overlay, (0, 0))
+
+    def _draw_panel(self, screen):
+        # Soft outer glow.
+        glow_rect = self.panel_rect.inflate(14, 14)
+        pygame.draw.rect(
+            screen,
+            (self.accent[0], self.accent[1], self.accent[2]),
+            glow_rect,
+            border_radius=22,
+        )
+
+        pygame.draw.rect(
+            screen,
+            (18, 22, 43),
+            self.panel_rect,
+            border_radius=20,
+        )
+
+        pygame.draw.rect(
+            screen,
+            self.accent,
+            self.panel_rect,
+            width=2,
+            border_radius=20,
+        )
+
+    def _draw_active(self, screen):
+        # Title.
+        title = self.font_title.render(
+            self.title,
+            True,
+            self.accent,
+        )
+
+        title_rect = title.get_rect(
+            center=(640, 128)
+        )
+
+        screen.blit(title, title_rect)
+
+        # Drink name.
+        drink = self.font_text.render(
+            self.drink.upper(),
+            True,
+            (235, 240, 255),
+        )
+
+        screen.blit(
+            drink,
+            drink.get_rect(center=(640, 158)),
+        )
+
+        # Ingredient + progress.
+        ingredient = self.font_small.render(
+            f"{self.ingredient}   •   MATCH 3 INGREDIENTS",
+            True,
+            (185, 195, 220),
+        )
+
+        screen.blit(
+            ingredient,
+            ingredient.get_rect(center=(640, 188)),
+        )
+
+        # Timer.
+        self._draw_timer(screen)
+
+        # Strike indicators.
+        self._draw_strikes(screen)
+
+        # Board.
+        self._draw_board(screen)
+
+        # Bottom instruction.
+        if self.message_timer > 0:
+            message_text = self.message
+        else:
+            message_text = "CLICK TWO ADJACENT TILES TO SWAP"
+
+        message = self.font_small.render(
+            message_text,
+            True,
+            (220, 225, 245),
+        )
+
+        screen.blit(
+            message,
+            message.get_rect(center=(640, 572)),
+        )
+
+        hint = self.font_small.render(
+            "Mouse only  •  No timer  •  No penalty for trying",
+            True,
+            (125, 140, 175),
+        )
+
+        screen.blit(
+            hint,
+            hint.get_rect(center=(640, 595)),
+        )
+
+    def _draw_timer(self, screen):
+        """Draw the remaining 25-second challenge time."""
+        seconds = max(0, int(self.time_left + 0.999))
+
+        timer_color = self.accent
+        if self.time_left <= 5:
+            timer_color = (255, 145, 165)
+
+        label = self.font_small.render(
+            f"TIME  {seconds}s",
+            True,
+            timer_color,
+        )
+
+        screen.blit(
+            label,
+            label.get_rect(center=(640, 650)),
+        )
+
+    def _draw_strikes(self, screen):
+        label = self.font_small.render(
+            "INGREDIENT MATCHES",
+            True,
+            (165, 175, 205),
+        )
+
+        screen.blit(
+            label,
+            label.get_rect(center=(640, 206)),
+        )
+
+        start_x = 575
+        y = 207
+
+        for index in range(self.TARGET_STRIKES):
+            rect = pygame.Rect(
+                start_x + index * 65,
+                y,
+                50,
+                8,
+            )
+
+            if index < self.strikes:
+                color = self.accent
+            else:
+                color = (55, 62, 85)
+
+            pygame.draw.rect(
+                screen,
+                color,
+                rect,
+                border_radius=4,
+            )
+
+    def _draw_board(self, screen):
+        mouse_cell = self._cell_from_mouse(pygame.mouse.get_pos())
+
+        for row in range(self.GRID_SIZE):
+            for col in range(self.GRID_SIZE):
+                x = (
+                    self.grid_rect.x
+                    + col * (self.TILE_SIZE + self.GAP)
+                )
+
+                y = (
+                    self.grid_rect.y
+                    + row * (self.TILE_SIZE + self.GAP)
+                )
+
+                rect = pygame.Rect(
+                    x,
+                    y,
+                    self.TILE_SIZE,
+                    self.TILE_SIZE,
+                )
+
+                value = self.board[row][col]
+
+                # Tile background.
+                pygame.draw.rect(
+                    screen,
+                    (27, 32, 57),
+                    rect,
+                    border_radius=12,
+                )
+
+                # Hover highlight.
+                if mouse_cell == (row, col):
+                    pygame.draw.rect(
+                        screen,
+                        (90, 105, 145),
+                        rect.inflate(4, 4),
+                        width=2,
+                        border_radius=14,
+                    )
+
+                # Selected tile.
+                if self.selected == (row, col):
+                    pygame.draw.rect(
+                        screen,
+                        self.accent,
+                        rect.inflate(6, 6),
+                        width=3,
+                        border_radius=15,
+                    )
+
+                self._draw_tile(
+                    screen,
+                    rect,
+                    value,
+                    row,
+                    col,
+                )
+
+    def _draw_tile(self, screen, rect, value, row, col):
+        color = self.tile_colors[value % len(self.tile_colors)]
+
+        center = rect.center
+
+        # Tile glow.
+        glow = pygame.Surface(
+            (rect.width + 18, rect.height + 18),
+            pygame.SRCALPHA,
+        )
+
+        pygame.draw.circle(
+            glow,
+            (*color, 35),
+            (glow.get_width() // 2, glow.get_height() // 2),
+            24,
+        )
+
+        screen.blit(
+            glow,
+            (
+                rect.centerx - glow.get_width() // 2,
+                rect.centery - glow.get_height() // 2,
+            ),
+        )
+
+        # Main rounded tile.
+        inner = rect.inflate(-8, -8)
+
+        pygame.draw.rect(
+            screen,
+            color,
+            inner,
+            border_radius=14,
+        )
+
+        # Ingredient symbol.
+        self._draw_symbol(
+            screen,
+            center,
+            value,
+            color,
+        )
+
+    def _draw_symbol(self, screen, center, value, tile_color):
+        """
+        Five simple symbols are reused across the themed puzzles.
+        The tile colors provide the drink-specific visual identity.
+        """
+        cx, cy = center
+
+        dark = (
+            max(20, tile_color[0] - 80),
+            max(20, tile_color[1] - 80),
+            max(20, tile_color[2] - 80),
+        )
+
+        if value == 0:
+            # Circle / milk orb.
+            pygame.draw.circle(screen, (250, 252, 255), center, 14)
+            pygame.draw.circle(screen, dark, center, 14, 2)
+
+        elif value == 1:
+            # Star.
+            points = []
             for i in range(10):
-                a=-math.pi/2+i*math.pi/5; r=24 if i%2==0 else 10; pts.append((x+math.cos(a)*r,y+math.sin(a)*r))
-            pygame.draw.polygon(s,c,pts)
-        elif kind=="spice": pygame.draw.circle(s,(230,150,90),(x,y),18); pygame.draw.circle(s,(255,220,130),(x-5,y-5),5)
-        elif kind=="battery": pygame.draw.rect(s,c,(x-22,y-28,x+44,y+56),border_radius=7); pygame.draw.rect(s,(20,35,55),(x-12,y-16,x+24,y+30),border_radius=4)
-        elif kind=="orb": pygame.draw.circle(s,c,(x,y),24); pygame.draw.circle(s,(255,255,255),(x-7,y-7),6)
-        elif kind=="mint":
-            pygame.draw.ellipse(s,(90,235,165),(x-9,y-25,x+9,y+5)); pygame.draw.ellipse(s,(120,255,190),(x-2,y-5,x+16,y+25)); pygame.draw.line(s,(30,130,90),(x,y-12),(x+8,y+18),3)
-        elif kind=="cookie": pygame.draw.circle(s,(205,140,80),(x,y),25); [pygame.draw.circle(s,(70,45,35),(x+dx,y+dy),4) for dx,dy in ((-8,-7),(9,-4),(-3,9))]
-        else: pygame.draw.circle(s,(235,245,255),(x,y),25); pygame.draw.polygon(s,(100,170,255),[(x-25,y),(x+20,y-10),(x+8,y+18)])
+                angle = -90 + i * 36
+                radius = 17 if i % 2 == 0 else 7
+                import math
+                x = cx + math.cos(math.radians(angle)) * radius
+                y = cy + math.sin(math.radians(angle)) * radius
+                points.append((x, y))
 
-    def _done(self,s):
-        f=self.fonts; text=f["big"].render("LIQUID UNLOCKED!",True,(90,235,165)); s.blit(text,text.get_rect(center=self.area.center))
-        sub=f["body"].render("Your drink base is ready for the blender.",True,(220,230,245)); s.blit(sub,sub.get_rect(center=(self.area.centerx,self.area.centery+50)))
+            pygame.draw.polygon(screen, (255, 250, 210), points)
+            pygame.draw.polygon(screen, dark, points, 2)
+
+        elif value == 2:
+            # Diamond / spice crystal.
+            points = [
+                (cx, cy - 17),
+                (cx + 15, cy),
+                (cx, cy + 17),
+                (cx - 15, cy),
+            ]
+            pygame.draw.polygon(screen, (255, 235, 200), points)
+            pygame.draw.polygon(screen, dark, points, 2)
+
+        elif value == 3:
+            # Battery / power block.
+            body = pygame.Rect(cx - 13, cy - 15, 26, 30)
+            pygame.draw.rect(
+                screen,
+                (235, 250, 255),
+                body,
+                border_radius=5,
+            )
+            pygame.draw.rect(
+                screen,
+                dark,
+                body,
+                width=2,
+                border_radius=5,
+            )
+
+            bolt = [
+                (cx + 2, cy - 11),
+                (cx - 7, cy + 2),
+                (cx, cy + 2),
+                (cx - 3, cy + 12),
+                (cx + 8, cy - 3),
+                (cx + 1, cy - 3),
+            ]
+
+            pygame.draw.polygon(screen, dark, bolt)
+
+        else:
+            # Mint/cookie/matcha/meteor orb.
+            pygame.draw.circle(screen, (245, 248, 255), center, 15)
+            pygame.draw.circle(screen, dark, center, 15, 2)
+            pygame.draw.circle(screen, tile_color, center, 9)
+
+            # Small highlight.
+            pygame.draw.circle(
+                screen,
+                (255, 255, 255),
+                (cx - 4, cy - 5),
+                3,
+            )
+
+    def _draw_done(self, screen):
+        pulse = (1.0 + __import__("math").sin(self.done_timer * 4.0)) * 0.5
+
+        title_color = self.accent
+
+        title = self.font_big.render(
+            "INGREDIENT READY!",
+            True,
+            title_color,
+        )
+
+        screen.blit(
+            title,
+            title.get_rect(center=(640, 245)),
+        )
+
+        subtitle = self.font_text.render(
+            f"{self.ingredient} is ready for the blender.",
+            True,
+            (235, 240, 255),
+        )
+
+        screen.blit(
+            subtitle,
+            subtitle.get_rect(center=(640, 292)),
+        )
+
+        # Large ingredient icon.
+        center = (640, 390)
+        radius = int(58 + pulse * 6)
+
+        pygame.draw.circle(
+            screen,
+            (25, 32, 58),
+            center,
+            radius + 12,
+        )
+
+        pygame.draw.circle(
+            screen,
+            self.accent,
+            center,
+            radius + 12,
+            width=3,
+        )
+
+        pygame.draw.circle(
+            screen,
+            (230, 240, 255),
+            center,
+            radius - 6,
+        )
+
+        self._draw_symbol(
+            screen,
+            center,
+            1,
+            (230, 240, 255),
+        )
+
+        ready = self.font_text.render(
+            "Your drink base is ready.",
+            True,
+            (190, 200, 225),
+        )
+
+        screen.blit(
+            ready,
+            ready.get_rect(center=(640, 505)),
+        )
+
+        continue_text = self.font_small.render(
+            "Returning to the Mixing Station...",
+            True,
+            (125, 140, 175),
+        )
+
+        screen.blit(
+            continue_text,
+            continue_text.get_rect(center=(640, 555)),
+        )
