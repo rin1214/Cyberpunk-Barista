@@ -332,6 +332,33 @@ def set_level_without_xp_progression(level, economy, progression, mixing_station
     sync_level_systems(economy, progression, mixing_station)
     return load_level_background(level)
 
+
+def run_level_transition(new_level, economy, progression, mixing_station, player_name):
+    """Show the unlock/loading screens, then prepare the new level."""
+    new_level = max(1, min(int(new_level), 3))
+
+    if new_level >= 2:
+        print(f"[LEVEL] Showing Level {new_level} unlock screen.")
+        ensure_game_music()
+        level_unlock_screen.run(level=new_level, duration=4.5)
+
+    ensure_game_music()
+    print(f"[LEVEL] Loading Level {new_level}.")
+    loading_screen.run(
+        player_name=player_name,
+        level=new_level,
+        duration=6.7,
+    )
+
+    active_bg, active_customer = switch_level(
+        new_level, economy, progression, mixing_station
+    )
+    mixing_station.reset()
+    sync_station_order(mixing_station, active_customer)
+    economy.save_economy_data()
+    ensure_game_music()
+    return active_bg, active_customer
+
 # --- Pause Menu State & Styling Variables ---
 is_paused = False
 font_title = pygame.font.SysFont("Arial", 42, bold=True)
@@ -528,6 +555,7 @@ while running:
                 # Level unlocks now depend ONLY on successful 4/4 drinks.
                 current_level_before_order = progression.level
                 progression.add_xp(reward_result.total_xp)
+                next_level_to_enter = None
 
                 successful_order = (
                     accuracy_result.correct_count == 4
@@ -540,18 +568,12 @@ while running:
 
                 if current_level_before_order < 3:
                     if successful_drinks >= target:
-                        next_level = current_level_before_order + 1
+                        next_level_to_enter = current_level_before_order + 1
                         successful_drinks = 0
-                        active_bg = set_level_without_xp_progression(
-                            next_level,
-                            economy,
-                            progression,
-                            mixing_station,
-                        )
                         print(
                             f"[SUCCESS PROGRESSION] Level "
                             f"{current_level_before_order} complete -> "
-                            f"Level {next_level}"
+                            f"Level {next_level_to_enter}"
                         )
                     else:
                         # Stop XP from unlocking the level early.
@@ -594,6 +616,22 @@ while running:
                 print(f"Credits Change: {reward_result.net_credits:+}")
                 print("----------------------------------------")
 
+                if running:
+                    try:
+                        mixing_station.reset()
+                    except Exception as error:
+                        print(f"[STATION RESET ERROR] {error}")
+
+                if running and next_level_to_enter is not None:
+                    active_bg, active_customer = run_level_transition(
+                        next_level_to_enter,
+                        economy,
+                        progression,
+                        mixing_station,
+                        economy.player_name,
+                    )
+                    spawn_timer = 0.0
+
                 # ------------------------------------------------
                 # FINAL GAME CHECK
                 # ------------------------------------------------
@@ -604,7 +642,7 @@ while running:
                     end_result = end_screen.run(
                         player_name=economy.player_name,
                         level=progression.level,
-                        successful_drinks=21,
+                        successful_drinks=successful_drinks,
                         xp=progression.xp,
                         credits=economy.credits,
                     )
@@ -626,12 +664,6 @@ while running:
                         ensure_game_music(start_screen)
                     else:
                         running = False
-
-        if running:
-            try:
-                mixing_station.reset()
-            except Exception as error:
-                print(f"[STATION RESET ERROR] {error}")
 
     if running and not game_finished and active_customer is not None:
         old_state = active_customer.state
@@ -673,7 +705,7 @@ while running:
     if active_customer is not None:
         try:
             active_customer.draw(screen)
-        except Exception as erroir:
+        except Exception as error:
             print(f"[CUSTOMER DRAW ERROR] {error}")
 
     # Draw mixing station interactive elements first
