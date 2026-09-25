@@ -10,13 +10,14 @@ Gameplay:
     3. Click one tile, then click an adjacent tile to swap.
     4. If the swap creates a match of 3 or more, the match is cleared.
     5. Make 3 successful matches.
-    6. The challenge finishes and the Mixing Station unlocks the next step.
+    6. The challenge finishes and quickly hands control back to the Mixing Station.
     7. The player has 25 seconds for each attempt.
 
 Mouse controls only. One simple timer, no lives, keyboard actions, or
 complicated combos.
 """
 
+import math
 import random
 import pygame
 
@@ -160,6 +161,7 @@ class MiniChallenge:
     TARGET_STRIKES = 3
     TILE_TYPES = 5
     CHALLENGE_TIME = 25.0
+    DONE_DISPLAY_TIME = 0.35
 
     def __init__(self):
         self.active = False
@@ -170,6 +172,7 @@ class MiniChallenge:
         self.ingredient = "INGREDIENT"
         self.accent = (120, 235, 255)
         self.tile_colors = []
+        self.symbols = ["milk", "syrup", "coffee", "ice", "mint"]
 
         self.board = []
         self.selected = None
@@ -225,6 +228,7 @@ class MiniChallenge:
         self.ingredient = data["ingredient"]
         self.accent = data["accent"]
         self.tile_colors = data["tile_colors"]
+        self.symbols = ["milk", "syrup", "coffee", "ice", "mint"]
 
         self.active = True
         self.done = False
@@ -516,6 +520,9 @@ class MiniChallenge:
 
         if self.done:
             self.done_timer += dt
+            if self.done_timer >= self.DONE_DISPLAY_TIME:
+                self.done = False
+                self.done_timer = 0.0
 
     def _time_up(self):
         """Reset the puzzle when the player runs out of time."""
@@ -658,7 +665,7 @@ class MiniChallenge:
         )
 
         hint = self.font_small.render(
-            "Mouse only  •  No timer  •  No penalty for trying",
+            "Mouse only  •  25-second prep window  •  No penalty for trying",
             True,
             (125, 140, 175),
         )
@@ -828,88 +835,85 @@ class MiniChallenge:
 
     def _draw_symbol(self, screen, center, value, tile_color):
         """
-        Five simple symbols are reused across the themed puzzles.
-        The tile colors provide the drink-specific visual identity.
+        Draw cute café ingredients instead of abstract game symbols.
+
+        The same five ingredient shapes are reused on the board:
+            milk bottle, syrup bottle, coffee bean, ice cube, mint leaf.
+        Drink colours still change the tile palette so every drink keeps
+        its own identity.
         """
         cx, cy = center
+        kind = self.symbols[value % len(self.symbols)]
 
         dark = (
-            max(20, tile_color[0] - 80),
-            max(20, tile_color[1] - 80),
-            max(20, tile_color[2] - 80),
+            max(20, tile_color[0] - 85),
+            max(20, tile_color[1] - 85),
+            max(20, tile_color[2] - 85),
         )
 
-        if value == 0:
-            # Circle / milk orb.
-            pygame.draw.circle(screen, (250, 252, 255), center, 14)
-            pygame.draw.circle(screen, dark, center, 14, 2)
+        if kind == "milk":
+            # Tiny milk bottle / carton.
+            body = pygame.Rect(cx - 11, cy - 13, 22, 26)
+            pygame.draw.rect(screen, (248, 252, 255), body, border_radius=5)
+            pygame.draw.rect(screen, dark, body, width=2, border_radius=5)
+            cap = pygame.Rect(cx - 7, cy - 17, 14, 6)
+            pygame.draw.rect(screen, dark, cap, border_radius=3)
+            pygame.draw.line(screen, tile_color, (cx - 6, cy - 2), (cx + 6, cy - 2), 3)
+            pygame.draw.circle(screen, tile_color, (cx, cy + 7), 3)
 
-        elif value == 1:
-            # Star.
-            points = []
-            for i in range(10):
-                angle = -90 + i * 36
-                radius = 17 if i % 2 == 0 else 7
-                import math
-                x = cx + math.cos(math.radians(angle)) * radius
-                y = cy + math.sin(math.radians(angle)) * radius
-                points.append((x, y))
+        elif kind == "syrup":
+            # Cute syrup bottle with a cap and little label.
+            body = pygame.Rect(cx - 11, cy - 8, 22, 19)
+            pygame.draw.rect(screen, (255, 235, 245), body, border_radius=6)
+            pygame.draw.rect(screen, dark, body, width=2, border_radius=6)
+            neck = pygame.Rect(cx - 6, cy - 15, 12, 8)
+            pygame.draw.rect(screen, tile_color, neck, border_radius=3)
+            pygame.draw.rect(screen, dark, neck, width=1, border_radius=3)
+            pygame.draw.rect(screen, (255, 255, 255), (cx - 6, cy - 2, 12, 7), border_radius=3)
+            pygame.draw.circle(screen, tile_color, (cx, cy + 1), 2)
 
-            pygame.draw.polygon(screen, (255, 250, 210), points)
-            pygame.draw.polygon(screen, dark, points, 2)
+        elif kind == "coffee":
+            # Coffee bean.
+            pygame.draw.ellipse(screen, (105, 65, 48), (cx - 14, cy - 11, 28, 22))
+            pygame.draw.ellipse(screen, dark, (cx - 14, cy - 11, 28, 22), 2)
+            pygame.draw.arc(
+                screen,
+                (235, 190, 145),
+                pygame.Rect(cx - 7, cy - 9, 14, 18),
+                math.radians(65),
+                math.radians(295),
+                2,
+            )
 
-        elif value == 2:
-            # Diamond / spice crystal.
+        elif kind == "ice":
+            # Sparkly ice cube.
             points = [
-                (cx, cy - 17),
-                (cx + 15, cy),
-                (cx, cy + 17),
-                (cx - 15, cy),
+                (cx - 12, cy - 9),
+                (cx + 4, cy - 14),
+                (cx + 13, cy - 5),
+                (cx + 9, cy + 12),
+                (cx - 7, cy + 14),
+                (cx - 14, cy + 4),
             ]
-            pygame.draw.polygon(screen, (255, 235, 200), points)
+            pygame.draw.polygon(screen, (215, 245, 255), points)
             pygame.draw.polygon(screen, dark, points, 2)
-
-        elif value == 3:
-            # Battery / power block.
-            body = pygame.Rect(cx - 13, cy - 15, 26, 30)
-            pygame.draw.rect(
-                screen,
-                (235, 250, 255),
-                body,
-                border_radius=5,
-            )
-            pygame.draw.rect(
-                screen,
-                dark,
-                body,
-                width=2,
-                border_radius=5,
-            )
-
-            bolt = [
-                (cx + 2, cy - 11),
-                (cx - 7, cy + 2),
-                (cx, cy + 2),
-                (cx - 3, cy + 12),
-                (cx + 8, cy - 3),
-                (cx + 1, cy - 3),
-            ]
-
-            pygame.draw.polygon(screen, dark, bolt)
+            pygame.draw.line(screen, (255, 255, 255), (cx - 7, cy - 5), (cx + 4, cy - 9), 2)
+            pygame.draw.line(screen, (255, 255, 255), (cx + 4, cy - 9), (cx + 7, cy + 4), 2)
 
         else:
-            # Mint/cookie/matcha/meteor orb.
-            pygame.draw.circle(screen, (245, 248, 255), center, 15)
-            pygame.draw.circle(screen, dark, center, 15, 2)
-            pygame.draw.circle(screen, tile_color, center, 9)
-
-            # Small highlight.
-            pygame.draw.circle(
-                screen,
-                (255, 255, 255),
-                (cx - 4, cy - 5),
-                3,
-            )
+            # Mint leaf with a little stem.
+            leaf = [
+                (cx, cy + 13),
+                (cx - 12, cy + 2),
+                (cx - 7, cy - 11),
+                (cx + 4, cy - 14),
+                (cx + 11, cy - 4),
+                (cx + 7, cy + 8),
+            ]
+            pygame.draw.polygon(screen, (105, 235, 170), leaf)
+            pygame.draw.polygon(screen, dark, leaf, 2)
+            pygame.draw.line(screen, (55, 155, 115), (cx, cy + 10), (cx + 3, cy - 8), 2)
+            pygame.draw.circle(screen, (255, 255, 255), (cx - 3, cy - 5), 2)
 
     def _draw_done(self, screen):
         pulse = (1.0 + __import__("math").sin(self.done_timer * 4.0)) * 0.5
@@ -964,6 +968,7 @@ class MiniChallenge:
             radius - 6,
         )
 
+        # Use the actual café ingredient set for the finished state.
         self._draw_symbol(
             screen,
             center,

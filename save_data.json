@@ -1,9 +1,9 @@
 {
     "lucy": {
-        "credits": 639,
-        "xp": 400,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 820,
+        "xp": 130,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "Rin": {
         "credits": 180,
@@ -110,12 +110,6 @@
     "Y": {
         "credits": 100,
         "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "Laiba": {
-        "credits": 199,
-        "xp": 170,
         "level": 1,
         "location": "Back Alley Kiosk"
     }
