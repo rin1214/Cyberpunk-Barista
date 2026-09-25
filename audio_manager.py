@@ -1,26 +1,3 @@
-"""
-CYBERPUNK CAFÉ
-CENTRAL AUDIO MANAGER
-
-This file controls:
-
-    - Background music
-    - Sound effects
-    - Music volume
-    - SFX volume
-
-IMPORTANT:
-
-There must NOT be:
-
-    from audio_manager import AudioManager
-
-inside this file.
-
-main.py imports AudioManager FROM this file.
-"""
-
-
 import os
 import pygame
 
