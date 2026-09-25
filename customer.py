@@ -75,7 +75,7 @@ class Customer:
         self.target_caffeine = self._caffeine_to_number(self.order.caffeine)
         self.target_temperature = self._temperature_to_number(self.order.temperature)
         
-        self.max_patience = 18.0
+        self.max_patience = 35.0
         self.current_patience = self.max_patience
         
         # UI fonts and feedback setup
