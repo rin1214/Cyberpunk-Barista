@@ -17,6 +17,7 @@ from game_state import (
     MixingGameState,
     GameState,
 )
+from mini_challenges import MiniChallenge
 
 class MixingStation:
     WIDTH = 1280
@@ -55,6 +56,11 @@ class MixingStation:
         self.level = max(1, int(level))
         self.customer_order = None
         self.served = False
+        self.challenge = MiniChallenge()
+        self.liquid_unlocked = False
+        self.assembly_phase = "empty"
+        self.assembly_started = 0.0
+        self.ingredient_drop_start = 0.0
 
         self.map_requested = False
         self.leaderboard_requested = False
@@ -292,6 +298,9 @@ class MixingStation:
         self.game_state.state = GameState.CUSTOMISE
         self._reset_sliders()
         self.served = False
+        self.liquid_unlocked = False
+        self.assembly_phase = "empty"
+        self.challenge.start_challenge(drink_name)
         self._sync_legacy_values()
 
     def update(self, dt=0.0):
@@ -316,7 +325,11 @@ class MixingStation:
                 elif self.slider_positions[parameter] <= 0.0:
                     self.slider_positions[parameter] = 0.0
                     self.slider_directions[parameter] = 1.0
+        self.challenge.update(dt)
+        if self.challenge.done:
+            self.liquid_unlocked = True
         self._update_blending()
+        self._update_assembly()
 
     def _slider_position(self, parameter):
         return self.slider_positions[parameter]
@@ -405,6 +418,26 @@ class MixingStation:
         self.slider_feedback[parameter] = "CORRECT" if correct else "WRONG"
         self._sync_legacy_values()
 
+    def _update_assembly(self):
+        if self.assembly_phase == "empty":
+            return
+        elapsed = time.monotonic() - self.assembly_started
+        phases = (("ice", 1.25), ("pour", 1.25), ("topping", 0.9))
+        total = 0.0
+        for name, duration in phases:
+            if elapsed < total + duration:
+                self.assembly_phase = name
+                return
+            total += duration
+        self.assembly_phase = "ready"
+        if self.game_state.state == GameState.BLENDING:
+            self.game_state.finish_blending()
+            self._sync_legacy_values()
+
+    def _start_assembly(self):
+        self.assembly_phase = "ice"
+        self.assembly_started = time.monotonic()
+
     def _update_blending(self):
         if self.game_state.state != GameState.BLENDING:
             return
@@ -413,8 +446,7 @@ class MixingStation:
         self.blender_angle = (elapsed * 720) % 360
         self.blender_pulse = math.sin(elapsed * 10) * 0.5 + 0.5
         if elapsed >= self.blend_duration:
-            self.game_state.finish_blending()
-            self._sync_legacy_values()
+            self._start_assembly()
 
     def handle_event(self, event):
         if event.type != pygame.MOUSEBUTTONDOWN:
@@ -423,6 +455,9 @@ class MixingStation:
             return
         mouse = event.pos
         self._update_blending()
+        if self.challenge.active:
+            self.challenge.handle_event(event)
+            return
 
         if self.map_button.collidepoint(mouse):
             self.map_requested = True
@@ -462,7 +497,9 @@ class MixingStation:
                 return
 
         if self.blend_button.collidepoint(mouse):
-            if self.game_state.start_blending():
+            if self.challenge.done:
+                self.liquid_unlocked = True
+            if self.liquid_unlocked and self.game_state.start_blending():
                 self.blend_start_time = time.monotonic()
                 self.blender_angle = 0.0
             return
@@ -486,6 +523,7 @@ class MixingStation:
         self._draw_customise(screen)
         self._draw_blender(screen)
         self._draw_preview(screen)
+        self.challenge.draw(screen)
 
     def _draw_hud(self, screen):
         self._action_button(screen, self.map_button, "MAP  [M]", self.CYAN, True, large=False)
@@ -601,6 +639,35 @@ class MixingStation:
         feedback_text = self.font_small.render(feedback, True, colour)
         screen.blit(feedback_text, (track.right - feedback_text.get_width(), track.y - 26))
 
+    def _ingredients_for(self, drink):
+        return {
+            "Neon Latte": ["milk","coffee","syrup"], "Milkyway": ["milk","chocolate","star"],
+            "Void Chai": ["milk","spice","syrup"], "Cyber Fuel": ["milk","battery","ice"],
+            "Hologram Frappe": ["milk","orb","star"], "Pixel Lemint": ["water","mint","ice"],
+            "Caramel Byte": ["milk","cookie","caramel"], "Stardust Matcha": ["milk","matcha","star"],
+            "Meteorite": ["milk","meteor","ice"],
+        }.get(drink, ["milk"])
+
+    def _draw_ingredient(self, screen, kind, x, y, scale=1.0):
+        c = self.CYAN_LIGHT
+        if kind == "milk": pygame.draw.ellipse(screen,(240,248,255),(x-16,y-10,x+16,y+10))
+        elif kind == "coffee": pygame.draw.circle(screen,(105,65,45),(x,y),12)
+        elif kind == "chocolate": pygame.draw.rect(screen,(90,55,45),(x-12,y-9,24,18),border_radius=4)
+        elif kind == "syrup": pygame.draw.line(screen,(225,135,90),(x-10,y-8),(x+10,y+8),5)
+        elif kind == "mint": pygame.draw.ellipse(screen,(90,235,165),(x-7,y-14,x+8,y+9))
+        elif kind == "cookie": pygame.draw.circle(screen,(205,140,80),(x,y),12)
+        elif kind == "caramel": pygame.draw.line(screen,(240,175,85),(x-12,y),(x+12,y),5)
+        elif kind == "matcha": pygame.draw.circle(screen,(165,195,105),(x,y),12)
+        elif kind == "battery": pygame.draw.rect(screen,(120,220,255),(x-11,y-14,22,28),border_radius=4)
+        elif kind == "orb": pygame.draw.circle(screen,(210,150,255),(x,y),12)
+        elif kind == "ice": pygame.draw.rect(screen,(190,235,255),(x-9,y-9,18,18),border_radius=4)
+        elif kind == "star":
+            pts=[(x+math.cos(-math.pi/2+i*math.pi/2.5)*13,y+math.sin(-math.pi/2+i*math.pi/2.5)*13) for i in range(5)]
+            pygame.draw.polygon(screen,(255,225,110),pts)
+        elif kind == "spice": pygame.draw.circle(screen,(235,155,95),(x,y),10)
+        elif kind == "water": pygame.draw.circle(screen,(130,205,255),(x,y),11)
+        elif kind == "meteor": pygame.draw.polygon(screen,(220,235,250),[(x-13,y),(x+10,y-7),(x+6,y+9)])
+
     def _draw_blender(self, screen):
         self._panel(screen, self.blender_rect, self.PURPLE, (6, 10, 27, 145))
         title = self.font_big_title.render("BLENDER", True, self.CYAN_LIGHT)
@@ -634,7 +701,21 @@ class MixingStation:
         pygame.draw.rect(screen, self.CYAN, handle, width=2, border_radius=13)
 
         drink_name = self.player_drink.drink_name
-        if drink_name:
+        if is_blending and drink_name:
+            recipe = get_recipe(drink_name)
+            liquid_colour = recipe.liquid_color if recipe else (150,150,255)
+            if time.monotonic() - self.blend_start_time < 0.55:
+                pygame.draw.line(screen, liquid_colour, (jug.centerx, jug.y-20), (jug.centerx, jug.y+28), 8)
+                pygame.draw.circle(screen, self.WHITE, (jug.centerx, jug.y+30), 4)
+            ingredients = self._ingredients_for(drink_name)
+            elapsed = time.monotonic() - self.blend_start_time
+            for i, kind in enumerate(ingredients):
+                t = elapsed - i * 0.28
+                if 0 <= t <= 0.7:
+                    x = jug.centerx + (i - (len(ingredients)-1)/2) * 30
+                    y = jug.y - 15 + min(75, t * 150)
+                    self._draw_ingredient(screen, kind, int(x), int(y), 0.65)
+        if drink_name and (self.liquid_unlocked or is_blending):
             recipe = get_recipe(drink_name)
             liquid_colour = recipe.liquid_color if recipe else (150, 150, 255)
 
@@ -682,7 +763,7 @@ class MixingStation:
                     bubble_y = liquid.bottom - 15 - (phase * 32) % max(20, liquid.height - 20)
                     pygame.draw.circle(screen, (240, 250, 255), (int(bubble_x), int(bubble_y)), 3)
         else:
-            text = self.font_small.render("SELECT A DRINK", True, self.MUTED)
+            text = self.font_small.render("COMPLETE INGREDIENT CHALLENGE", True, self.MUTED)
             screen.blit(text, text.get_rect(center=inner.center))
 
         core_x = jug.centerx
@@ -729,35 +810,57 @@ class MixingStation:
             self.blend_button,
             ("BLENDING..." if is_blending else "BLEND"),
             self.PINK,
-            self.game_state.can_blend(),
+            self.game_state.can_blend() and self.liquid_unlocked and self.assembly_phase == "empty",
             large=True,
         )
 
     def _draw_preview(self, screen):
-        self._panel(screen, self.preview_rect, self.PINK, (7, 10, 26, 140))
-        title = self.font_title.render("PREVIEW", True, self.PINK_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.preview_rect.centerx, 431)))
+        self._panel(screen, self.preview_rect, self.PINK, (7, 10, 26, 150))
+        title = self.font_title.render("CUP STATION", True, self.PINK_LIGHT)
+        screen.blit(title, title.get_rect(center=(self.preview_rect.centerx, 420)))
+        self._draw_cup_sequence(screen)
+        ready = self.game_state.state == GameState.READY_TO_SERVE and self.assembly_phase == "ready"
+        label = "READY!" if ready else self.assembly_phase.upper()
+        colour = self.GREEN if ready else self.CYAN_LIGHT
+        txt = self.font_small.render(label, True, colour)
+        screen.blit(txt, txt.get_rect(center=(self.preview_rect.centerx, 600)))
+        self._action_button(screen, self.serve_button, "SERVE", self.CYAN, ready, large=False)
 
-        image = self.drink_images.get(self.player_drink.drink_name)
-        if image is not None:
-            self._image_fit(screen, image, self.preview_image_rect, True)
-        else:
-            text = self.font_small.render("NO DRINK", True, self.MUTED)
-            screen.blit(text, text.get_rect(center=self.preview_image_rect.center))
+    def _draw_cup_sequence(self, screen):
+        r = pygame.Rect(self.preview_rect.x + 20, 455, 70, 125)
+        cx = r.centerx
+        pygame.draw.polygon(screen, (225,235,250), [(r.x+7,r.y),(r.right-7,r.y),(r.right-16,r.bottom),(r.x+16,r.bottom)])
+        pygame.draw.polygon(screen, (35,45,70), [(r.x+12,r.y+8),(r.right-12,r.y+8),(r.right-20,r.bottom-12),(r.x+20,r.bottom-12)])
+        phase = self.assembly_phase
+        if phase in ("ice","pour","topping","ready"):
+            for i in range(5):
+                x = r.x + 18 + (i%2)*25; y = r.y + 18 + (i//2)*24
+                pygame.draw.rect(screen, (205,235,255), (x,y,15,12), border_radius=3)
+        if phase in ("pour","topping","ready") and self.player_drink.drink_name:
+            recipe = get_recipe(self.player_drink.drink_name); c = recipe.liquid_color if recipe else (150,150,255)
+            pygame.draw.polygon(screen,c,[(r.x+16,r.y+45),(r.right-16,r.y+45),(r.right-22,r.bottom-10),(r.x+22,r.bottom-10)])
+            if phase == "pour":
+                pygame.draw.line(screen,c,(cx,425),(cx,r.y+45),8)
+        if phase in ("topping","ready"):
+            self._draw_toppings(screen,cx,r.y+42)
+        if phase == "ice":
+            crusher = pygame.Rect(r.x-5, r.y-28, r.width+10, 18)
+            pygame.draw.rect(screen,(25,35,60),crusher,border_radius=6)
+            pygame.draw.rect(screen,self.CYAN,crusher,2,border_radius=6)
+            yy = int(r.y-8 + math.sin(time.monotonic()*12)*6)
+            pygame.draw.line(screen,self.PINK,(cx,yy),(cx,r.y+10),5)
+        if phase == "ready":
+            pygame.draw.arc(screen,self.CYAN_LIGHT,(r.x-5,r.y-10,r.width+10,35),math.pi,2*math.pi,3)
 
-        ready = self.game_state.state == GameState.READY_TO_SERVE
-        if ready:
-            ready_text = self.font_small.render("READY!", True, self.GREEN)
-            screen.blit(ready_text, ready_text.get_rect(center=(self.preview_rect.centerx, 602)))
-
-        self._action_button(
-            screen,
-            self.serve_button,
-            "SERVE",
-            self.CYAN,
-            self.game_state.can_serve(),
-            large=False,
-        )
+    def _draw_toppings(self,screen,cx,y):
+        toppings = get_recipe(self.player_drink.drink_name).toppings if self.player_drink.drink_name else ()
+        for i,t in enumerate(toppings[:3]):
+            x=cx+(i-1)*18
+            if "mint" in t: pygame.draw.ellipse(screen,(90,235,165),(x-8,y-8,x+8,y+8))
+            elif "chocolate" in t or "cookie" in t: pygame.draw.circle(screen,(90,55,45),(x,y),7)
+            elif "caramel" in t: pygame.draw.line(screen,(235,170,80),(x-8,y-5),(x+8,y+5),4)
+            elif "meteor" in t: pygame.draw.polygon(screen,(210,230,250),[(x-7,y),(x+5,y-6),(x+8,y+6)])
+            else: pygame.draw.circle(screen,(245,245,255),(x,y),8)
 
     def _panel(self, screen, rect, border, fill, radius=14, width=2):
         surface = pygame.Surface(rect.size, pygame.SRCALPHA)
@@ -812,6 +915,10 @@ class MixingStation:
         self.game_state.reset()
         self.customer_order = None
         self.served = False
+        self.challenge = MiniChallenge()
+        self.liquid_unlocked = False
+        self.assembly_phase = "empty"
+        self.assembly_started = 0.0
         self.map_requested = False
         self.leaderboard_requested = False
         self.last_xp_change = 0
