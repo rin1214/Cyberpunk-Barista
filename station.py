@@ -439,13 +439,34 @@ class MixingStation:
         self.assembly_started = time.monotonic()
 
     def _update_blending(self):
+        """
+        Updates the blender animation.
+
+        The blender runs for blend_duration seconds.
+        Once blending finishes, assembly starts ONCE.
+
+        IMPORTANT:
+        We must not call _start_assembly() repeatedly,
+        because that would reset assembly_started every frame.
+        """
         if self.game_state.state != GameState.BLENDING:
             return
+
         current_time = time.monotonic()
         elapsed = current_time - self.blend_start_time
+
+        # Blender animation
         self.blender_angle = (elapsed * 720) % 360
         self.blender_pulse = math.sin(elapsed * 10) * 0.5 + 0.5
-        if elapsed >= self.blend_duration:
+
+        # Start assembly only once.
+        # Without this check, _start_assembly() would reset
+        # assembly_started every frame and the drink would
+        # appear to blend forever.
+        if (
+            elapsed >= self.blend_duration
+            and self.assembly_phase == "empty"
+        ):
             self._start_assembly()
 
     def handle_event(self, event):
