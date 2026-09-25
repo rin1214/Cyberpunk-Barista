@@ -341,7 +341,7 @@ while running:
                     is_paused = False
                 elif exit_button_rect.collidepoint(mouse_pos):
                     running = False
-            continue  # Skip all gameplay events while paused
+            continue  # Skip all gameplay events when paused
 
         try:
             mixing_station.handle_event(event)
