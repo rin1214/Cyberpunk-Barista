@@ -30,10 +30,10 @@
         "location": "Neon Lounge"
     },
     "alex": {
-        "credits": 0,
-        "xp": 90,
-        "level": 1,
-        "location": "Back Alley Kiosk"
+        "credits": 180,
+        "xp": 400,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "leon": {
         "credits": 100,
