@@ -237,7 +237,9 @@ class MiniChallenge:
         self.ingredient = data["ingredient"]
         self.accent = data["accent"]
         self.tile_colors = data["tile_colors"]
-        self.symbols = ["milk", "syrup", "coffee", "ice", "mint"]
+        self.symbols = data.get(
+            "symbols", ["milk", "syrup", "coffee", "ice", "mint"]
+        )
 
         self.active = True
         self.done = False
