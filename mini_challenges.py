@@ -38,6 +38,7 @@ CHALLENGES = {
             (255, 220, 235),
             (150, 245, 220),
         ],
+        "symbols": ["milk", "coffee", "syrup", "foam", "ice"],
     },
     "Milkyway": {
         "title": "STARDUST MATCH",
@@ -50,6 +51,7 @@ CHALLENGES = {
             (255, 235, 150),
             (245, 175, 225),
         ],
+        "symbols": ["milk", "chocolate", "star", "syrup", "ice"],
     },
     "Void Chai": {
         "title": "SPICE MATCH",
@@ -62,6 +64,7 @@ CHALLENGES = {
             (175, 235, 190),
             (245, 220, 150),
         ],
+        "symbols": ["milk", "spice", "syrup", "star", "ice"],
     },
     "Cyber Fuel": {
         "title": "POWER MATCH",
@@ -74,6 +77,7 @@ CHALLENGES = {
             (170, 255, 215),
             (245, 225, 100),
         ],
+        "symbols": ["milk", "battery", "ice", "power", "star"],
     },
     "Hologram Frappe": {
         "title": "HOLO MATCH",
@@ -86,6 +90,7 @@ CHALLENGES = {
             (150, 255, 225),
             (255, 235, 150),
         ],
+        "symbols": ["milk", "orb", "star", "ice", "syrup"],
     },
     "Pixel Lemint": {
         "title": "MINT MATCH",
@@ -98,6 +103,7 @@ CHALLENGES = {
             (235, 225, 110),
             (190, 170, 255),
         ],
+        "symbols": ["water", "mint", "ice", "star", "syrup"],
     },
     "Caramel Byte": {
         "title": "COOKIE MATCH",
@@ -110,6 +116,7 @@ CHALLENGES = {
             (245, 180, 200),
             (170, 215, 255),
         ],
+        "symbols": ["milk", "cookie", "caramel", "chocolate", "ice"],
     },
     "Stardust Matcha": {
         "title": "MATCHA MATCH",
@@ -122,6 +129,7 @@ CHALLENGES = {
             (235, 220, 120),
             (180, 165, 245),
         ],
+        "symbols": ["milk", "matcha", "star", "mint", "ice"],
     },
     "Meteorite": {
         "title": "METEOR MATCH",
@@ -134,6 +142,7 @@ CHALLENGES = {
             (255, 195, 120),
             (205, 220, 245),
         ],
+        "symbols": ["milk", "meteor", "ice", "star", "orb"],
     },
 }
 
@@ -260,40 +269,41 @@ class MiniChallenge:
     # -----------------------------------------------------------------------
 
     def _create_board(self):
-        """
-        Create a board with no automatic matches.
-
-        This prevents the player from getting a free match before making
-        a move.
-        """
+        """Create a clean board: no free matches, at least one legal move."""
         for _ in range(200):
-            board = [
-                [
-                    random.randrange(self.TILE_TYPES)
-                    for _ in range(self.GRID_SIZE)
-                ]
-                for _ in range(self.GRID_SIZE)
-            ]
-
-            if not self._find_matches(board):
+            board = []
+            for row in range(self.GRID_SIZE):
+                line = []
+                for col in range(self.GRID_SIZE):
+                    choices = list(range(self.TILE_TYPES))
+                    random.shuffle(choices)
+                    for value in choices:
+                        if col >= 2 and line[-1] == line[-2] == value:
+                            continue
+                        if row >= 2 and board[row - 1][col] == board[row - 2][col] == value:
+                            continue
+                        line.append(value)
+                        break
+                board.append(line)
+            if self._has_move(board):
                 return board
+        return [[(row * 2 + col) % self.TILE_TYPES for col in range(self.GRID_SIZE)]
+                for row in range(self.GRID_SIZE)]
 
-        # Extremely unlikely fallback.
-        return self._safe_board()
-
-    def _safe_board(self):
-        """Deterministic no-match fallback."""
-        board = []
-
+    def _has_move(self, board):
+        """Check whether one adjacent swap can create a match."""
         for row in range(self.GRID_SIZE):
-            current = []
-
             for col in range(self.GRID_SIZE):
-                current.append((row * 2 + col) % self.TILE_TYPES)
-
-            board.append(current)
-
-        return board
+                for dr, dc in ((0, 1), (1, 0)):
+                    nr, nc = row + dr, col + dc
+                    if nr >= self.GRID_SIZE or nc >= self.GRID_SIZE:
+                        continue
+                    board[row][col], board[nr][nc] = board[nr][nc], board[row][col]
+                    made = bool(self._find_matches(board))
+                    board[row][col], board[nr][nc] = board[nr][nc], board[row][col]
+                    if made:
+                        return True
+        return False
 
     # -----------------------------------------------------------------------
     # MATCH LOGIC
@@ -369,44 +379,46 @@ class MiniChallenge:
         return abs(r1 - r2) + abs(c1 - c2) == 1
 
     def _resolve_match(self):
-        """
-        Remove the current match, collapse columns, refill the board,
-        and count one successful strike.
-        """
+        """Clear the player's match and refill without creating free matches."""
         matches = self._find_matches()
-
         if not matches:
             return False
 
         for row, col in matches:
             self.board[row][col] = None
 
-        # Collapse each column downward.
+        # Collapse each column.
         for col in range(self.GRID_SIZE):
-            remaining = [
-                self.board[row][col]
-                for row in range(self.GRID_SIZE)
-                if self.board[row][col] is not None
-            ]
+            remaining = [self.board[row][col] for row in range(self.GRID_SIZE)
+                         if self.board[row][col] is not None]
+            for row in range(self.GRID_SIZE - 1, -1, -1):
+                self.board[row][col] = remaining.pop() if remaining else None
 
-            missing = self.GRID_SIZE - len(remaining)
-            new_values = [
-                random.randrange(self.TILE_TYPES)
-                for _ in range(missing)
-            ]
+        # Refill only with pieces that do not create a new automatic match.
+        for row in range(self.GRID_SIZE):
+            for col in range(self.GRID_SIZE):
+                if self.board[row][col] is not None:
+                    continue
+                choices = list(range(self.TILE_TYPES))
+                random.shuffle(choices)
+                for value in choices:
+                    if col >= 2 and self.board[row][col - 1] == self.board[row][col - 2] == value:
+                        continue
+                    if row >= 2 and self.board[row - 1][col] == self.board[row - 2][col] == value:
+                        continue
+                    self.board[row][col] = value
+                    break
 
-            values = new_values + remaining
-
-            for row in range(self.GRID_SIZE):
-                self.board[row][col] = values[row]
+        # If the cleared pieces caused a cascade or produced a dead board,
+        # replace it with another clean playable board. No free strike.
+        if self._find_matches() or not self._has_move(self.board):
+            self.board = self._create_board()
 
         self.strikes += 1
         self.message = f"MATCH {self.strikes} / {self.TARGET_STRIKES}"
         self.message_timer = 0.8
-
         if self.strikes >= self.TARGET_STRIKES:
             self._finish()
-
         return True
 
     def _try_swap(self, first, second):
@@ -834,86 +846,56 @@ class MiniChallenge:
         )
 
     def _draw_symbol(self, screen, center, value, tile_color):
-        """
-        Draw cute café ingredients instead of abstract game symbols.
-
-        The same five ingredient shapes are reused on the board:
-            milk bottle, syrup bottle, coffee bean, ice cube, mint leaf.
-        Drink colours still change the tile palette so every drink keeps
-        its own identity.
-        """
+        """Draw a small café/cyberpunk ingredient icon."""
         cx, cy = center
         kind = self.symbols[value % len(self.symbols)]
-
-        dark = (
-            max(20, tile_color[0] - 85),
-            max(20, tile_color[1] - 85),
-            max(20, tile_color[2] - 85),
-        )
+        dark = tuple(max(25, c - 85) for c in tile_color)
+        white = (248, 252, 255)
 
         if kind == "milk":
-            # Tiny milk bottle / carton.
-            body = pygame.Rect(cx - 11, cy - 13, 22, 26)
-            pygame.draw.rect(screen, (248, 252, 255), body, border_radius=5)
-            pygame.draw.rect(screen, dark, body, width=2, border_radius=5)
-            cap = pygame.Rect(cx - 7, cy - 17, 14, 6)
-            pygame.draw.rect(screen, dark, cap, border_radius=3)
-            pygame.draw.line(screen, tile_color, (cx - 6, cy - 2), (cx + 6, cy - 2), 3)
-            pygame.draw.circle(screen, tile_color, (cx, cy + 7), 3)
-
-        elif kind == "syrup":
-            # Cute syrup bottle with a cap and little label.
-            body = pygame.Rect(cx - 11, cy - 8, 22, 19)
-            pygame.draw.rect(screen, (255, 235, 245), body, border_radius=6)
-            pygame.draw.rect(screen, dark, body, width=2, border_radius=6)
-            neck = pygame.Rect(cx - 6, cy - 15, 12, 8)
-            pygame.draw.rect(screen, tile_color, neck, border_radius=3)
-            pygame.draw.rect(screen, dark, neck, width=1, border_radius=3)
-            pygame.draw.rect(screen, (255, 255, 255), (cx - 6, cy - 2, 12, 7), border_radius=3)
-            pygame.draw.circle(screen, tile_color, (cx, cy + 1), 2)
-
+            r = pygame.Rect(cx - 10, cy - 11, 20, 23)
+            pygame.draw.rect(screen, white, r, border_radius=5); pygame.draw.rect(screen, dark, r, 2, border_radius=5)
+            pygame.draw.rect(screen, dark, (cx - 6, cy - 16, 12, 6), border_radius=2)
+            pygame.draw.line(screen, tile_color, (cx - 6, cy - 1), (cx + 6, cy - 1), 2)
         elif kind == "coffee":
-            # Coffee bean.
-            pygame.draw.ellipse(screen, (105, 65, 48), (cx - 14, cy - 11, 28, 22))
-            pygame.draw.ellipse(screen, dark, (cx - 14, cy - 11, 28, 22), 2)
-            pygame.draw.arc(
-                screen,
-                (235, 190, 145),
-                pygame.Rect(cx - 7, cy - 9, 14, 18),
-                math.radians(65),
-                math.radians(295),
-                2,
-            )
-
+            pygame.draw.ellipse(screen, (105, 65, 48), (cx - 13, cy - 10, 26, 20)); pygame.draw.arc(screen, (235, 190, 145), (cx - 7, cy - 8, 14, 16), 1.1, 5.1, 2)
+        elif kind == "chocolate":
+            pygame.draw.rect(screen, (92, 58, 48), (cx - 12, cy - 10, 24, 20), border_radius=5); pygame.draw.line(screen, (190, 125, 105), (cx - 7, cy - 5), (cx + 7, cy + 5), 2)
+        elif kind == "syrup":
+            pygame.draw.rect(screen, (255, 235, 245), (cx - 10, cy - 6, 20, 18), border_radius=5); pygame.draw.rect(screen, dark, (cx - 10, cy - 6, 20, 18), 2, border_radius=5); pygame.draw.rect(screen, tile_color, (cx - 6, cy - 14, 12, 8), border_radius=3)
+        elif kind == "spice":
+            pygame.draw.circle(screen, (190, 105, 70), (cx, cy), 11); pygame.draw.circle(screen, (250, 190, 130), (cx - 3, cy - 3), 3)
+        elif kind == "battery":
+            pygame.draw.rect(screen, (120, 220, 255), (cx - 10, cy - 12, 20, 24), border_radius=4); pygame.draw.rect(screen, dark, (cx - 10, cy - 12, 20, 24), 2, border_radius=4); pygame.draw.rect(screen, (245, 235, 110), (cx - 3, cy - 4, 6, 8), border_radius=2)
+        elif kind == "power":
+            pygame.draw.polygon(screen, (250, 235, 120), [(cx + 2, cy - 14), (cx - 7, cy + 1), (cx, cy + 1), (cx - 4, cy + 14), (cx + 9, cy - 4), (cx + 2, cy - 4)])
+        elif kind == "orb":
+            pygame.draw.circle(screen, (215, 170, 255), (cx, cy), 12); pygame.draw.circle(screen, white, (cx - 4, cy - 4), 3)
+        elif kind == "mint":
+            pts = [(cx, cy + 13), (cx - 12, cy + 2), (cx - 7, cy - 11), (cx + 4, cy - 14), (cx + 11, cy - 4), (cx + 7, cy + 8)]
+            pygame.draw.polygon(screen, (90, 235, 165), pts); pygame.draw.line(screen, (55, 155, 115), (cx, cy + 10), (cx + 3, cy - 8), 2)
+        elif kind == "water":
+            pygame.draw.polygon(screen, (130, 205, 255), [(cx, cy - 14), (cx + 11, cy + 3), (cx, cy + 14), (cx - 11, cy + 3)])
+        elif kind == "cookie":
+            pygame.draw.circle(screen, (205, 140, 80), (cx, cy), 12)
+            for dx, dy in [(-5, -4), (5, -2), (-2, 5), (6, 5)]: pygame.draw.circle(screen, (95, 60, 45), (cx + dx, cy + dy), 2)
+        elif kind == "caramel":
+            pygame.draw.line(screen, (240, 175, 85), (cx - 12, cy - 6), (cx + 12, cy + 6), 4); pygame.draw.line(screen, (255, 220, 130), (cx - 9, cy + 4), (cx + 9, cy - 4), 2)
+        elif kind == "matcha":
+            pygame.draw.circle(screen, (165, 195, 105), (cx, cy), 12); pygame.draw.circle(screen, (225, 245, 170), (cx - 4, cy - 4), 3)
+        elif kind == "star":
+            pts = [(cx + math.cos(-math.pi / 2 + i * math.pi / 2.5) * 14, cy + math.sin(-math.pi / 2 + i * math.pi / 2.5) * 14) for i in range(5)]
+            pygame.draw.polygon(screen, (255, 225, 110), pts); pygame.draw.circle(screen, (255, 250, 205), (cx, cy), 3)
         elif kind == "ice":
-            # Sparkly ice cube.
-            points = [
-                (cx - 12, cy - 9),
-                (cx + 4, cy - 14),
-                (cx + 13, cy - 5),
-                (cx + 9, cy + 12),
-                (cx - 7, cy + 14),
-                (cx - 14, cy + 4),
-            ]
-            pygame.draw.polygon(screen, (215, 245, 255), points)
-            pygame.draw.polygon(screen, dark, points, 2)
-            pygame.draw.line(screen, (255, 255, 255), (cx - 7, cy - 5), (cx + 4, cy - 9), 2)
-            pygame.draw.line(screen, (255, 255, 255), (cx + 4, cy - 9), (cx + 7, cy + 4), 2)
-
+            pts = [(cx - 12, cy - 8), (cx + 4, cy - 14), (cx + 13, cy - 4), (cx + 9, cy + 12), (cx - 7, cy + 14), (cx - 14, cy + 3)]
+            pygame.draw.polygon(screen, (215, 245, 255), pts); pygame.draw.polygon(screen, dark, pts, 2); pygame.draw.line(screen, white, (cx - 7, cy - 5), (cx + 4, cy - 9), 2)
+        elif kind == "foam":
+            for dx, dy, radius in [(-7, 2, 8), (0, -4, 9), (8, 2, 8)]: pygame.draw.circle(screen, white, (cx + dx, cy + dy), radius)
+        elif kind == "meteor":
+            pts = [(cx - 13, cy), (cx - 4, cy - 10), (cx + 10, cy - 6), (cx + 14, cy + 5), (cx + 3, cy + 13), (cx - 9, cy + 8)]
+            pygame.draw.polygon(screen, (220, 235, 250), pts); pygame.draw.polygon(screen, (100, 170, 225), pts, 2); pygame.draw.circle(screen, (150, 195, 235), (cx + 4, cy - 3), 3)
         else:
-            # Mint leaf with a little stem.
-            leaf = [
-                (cx, cy + 13),
-                (cx - 12, cy + 2),
-                (cx - 7, cy - 11),
-                (cx + 4, cy - 14),
-                (cx + 11, cy - 4),
-                (cx + 7, cy + 8),
-            ]
-            pygame.draw.polygon(screen, (105, 235, 170), leaf)
-            pygame.draw.polygon(screen, dark, leaf, 2)
-            pygame.draw.line(screen, (55, 155, 115), (cx, cy + 10), (cx + 3, cy - 8), 2)
-            pygame.draw.circle(screen, (255, 255, 255), (cx - 3, cy - 5), 2)
+            pygame.draw.circle(screen, white, center, 11)
 
     def _draw_done(self, screen):
         pulse = (1.0 + __import__("math").sin(self.done_timer * 4.0)) * 0.5
