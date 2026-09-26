@@ -144,44 +144,47 @@ class MixingStation:
         clean_path = self._find_font(["rajdhani", "segoe", "bahnschrift", "trebuchet", "verdana"])
 
         if cyber_path:
-            self.font_title = pygame.font.Font(cyber_path, 20)
-            self.font_big_title = pygame.font.Font(cyber_path, 22)
-            self.font_menu = pygame.font.Font(cyber_path, 11)
-            self.font_button = pygame.font.Font(cyber_path, 13)
-            self.font_hud = pygame.font.Font(cyber_path, 13)
+            self.font_title = pygame.font.Font(cyber_path, 18)
+            self.font_big_title = pygame.font.Font(cyber_path, 19)
+            self.font_menu = pygame.font.Font(cyber_path, 10)
+            self.font_button = pygame.font.Font(cyber_path, 12)
+            self.font_hud = pygame.font.Font(cyber_path, 12)
         else:
-            self.font_title = pygame.font.SysFont("Arial", 20, bold=True)
-            self.font_big_title = pygame.font.SysFont("Arial", 22, bold=True)
-            self.font_menu = pygame.font.SysFont("Arial", 11, bold=True)
-            self.font_button = pygame.font.SysFont("Arial", 13, bold=True)
-            self.font_hud = pygame.font.SysFont("Arial", 13, bold=True)
+            self.font_title = pygame.font.SysFont("Arial", 18, bold=True)
+            self.font_big_title = pygame.font.SysFont("Arial", 19, bold=True)
+            self.font_menu = pygame.font.SysFont("Arial", 10, bold=True)
+            self.font_button = pygame.font.SysFont("Arial", 12, bold=True)
+            self.font_hud = pygame.font.SysFont("Arial", 12, bold=True)
 
         if clean_path:
-            self.font_category = pygame.font.Font(clean_path, 15)
-            self.font_small = pygame.font.Font(clean_path, 11)
-            self.font_medium = pygame.font.Font(clean_path, 15)
+            self.font_category = pygame.font.Font(clean_path, 13)
+            self.font_small = pygame.font.Font(clean_path, 10)
+            self.font_medium = pygame.font.Font(clean_path, 13)
         else:
-            self.font_category = pygame.font.SysFont("Arial", 15, bold=True)
-            self.font_small = pygame.font.SysFont("Arial", 11, bold=True)
-            self.font_medium = pygame.font.SysFont("Arial", 15, bold=True)
+            self.font_category = pygame.font.SysFont("Arial", 13, bold=True)
+            self.font_small = pygame.font.SysFont("Arial", 10, bold=True)
+            self.font_medium = pygame.font.SysFont("Arial", 13, bold=True)
 
     def _create_layout(self):
         self.hud_rect = pygame.Rect(8, 4, 870, 52)
         self.map_button = pygame.Rect(900, 6, 120, 44)
         self.leaderboard_button = pygame.Rect(1030, 6, 190, 44)
 
-        self.menu_rect = pygame.Rect(530, 62, 740, 165)
+        # Drink menu: lowered enough to clear the XP/HUD bar and enlarged
+        # another ~5% from the previous version.
+        self.menu_rect = pygame.Rect(480, 72, 800, 177)
         self.menu_slots = []
-        slot_width = 77
-        slot_height = 135
-        gap = 5
-        start_x = 538
-        start_y = 75
+        slot_width = 88
+        slot_height = 155
+        gap = 0
+        start_x = 486
+        start_y = 84
         for index, drink_name in enumerate(DRINK_MENU):
-            x = start_x + index * (slot_width + gap)
+            x = start_x + index * slot_width
             self.menu_slots.append((drink_name, pygame.Rect(x, start_y, slot_width, slot_height)))
 
-        self.customise_rect = pygame.Rect(600, 390, 320, 300)
+        # Wider customisation panel (+10% horizontally).
+        self.customise_rect = pygame.Rect(570, 390, 352, 300)
         track_x = self.customise_rect.x + 25
         track_w = self.customise_rect.width - 50
         self.slider_tracks = {
@@ -195,13 +198,15 @@ class MixingStation:
             "sweetness": pygame.Rect(track_x - 12, 602, track_w + 24, 48),
         }
 
-        self.blender_rect = pygame.Rect(935, 390, 215, 300)
-        self.blender_jug_rect = pygame.Rect(970, 465, 140, 130)
-        self.blend_button = pygame.Rect(950, 632, 185, 48)
+        # Blender widened ~5%.
+        self.blender_rect = pygame.Rect(930, 390, 226, 300)
+        self.blender_jug_rect = pygame.Rect(958, 465, 150, 130)
+        self.blend_button = pygame.Rect(950, 632, 186, 48)
 
-        self.preview_rect = pygame.Rect(1160, 390, 110, 300)
-        self.preview_image_rect = pygame.Rect(1170, 445, 90, 130)
-        self.serve_button = pygame.Rect(1168, 632, 94, 48)
+        # Cup station widened ~10%, filling the remaining right-side space.
+        self.preview_rect = pygame.Rect(1159, 390, 121, 300)
+        self.preview_image_rect = pygame.Rect(1167, 445, 105, 140)
+        self.serve_button = pygame.Rect(1168, 632, 103, 48)
 
     def _load_drink_images(self):
         for drink_name in DRINK_MENU:
@@ -534,8 +539,7 @@ class MixingStation:
     def get_player_drink_data(self):
         return self.game_state.get_player_drink_data()
 
-    def get_data(self):
-        return self.get_player_drink_data()
+    get_data = get_player_drink_data
 
     def draw(self, screen):
         self._update_blending()
@@ -553,7 +557,7 @@ class MixingStation:
     def _draw_menu(self, screen):
         self._panel(screen, self.menu_rect, self.CYAN, self.PANEL)
         title = self.font_title.render("CYBERPUNK DRINK MENU", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.menu_rect.centerx, 89)))
+        screen.blit(title, title.get_rect(center=(self.menu_rect.centerx, 99)))
 
         for drink_name, rect in self.menu_slots:
             unlocked = is_drink_unlocked(drink_name, self.level)
@@ -569,11 +573,11 @@ class MixingStation:
                 fill = (6, 9, 22, 135)
             self._panel(screen, rect, border, fill, radius=12, width=1)
             image = self.drink_images.get(drink_name)
-            image_area = pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 112)
+            image_area = pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 130)
             if image is not None:
                 self._image_fit(screen, image, image_area, unlocked)
             if not unlocked:
-                self._draw_lock(screen, rect.centerx, rect.y + 64)
+                self._draw_lock(screen, rect.centerx, rect.y + 74)
             self._draw_drink_name(screen, drink_name, rect, unlocked)
 
     def _draw_drink_name(self, screen, drink_name, rect, unlocked):
@@ -692,7 +696,7 @@ class MixingStation:
     def _draw_blender(self, screen):
         self._panel(screen, self.blender_rect, self.PURPLE, (6, 10, 27, 145))
         title = self.font_big_title.render("BLENDER", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 20)))
+        screen.blit(title, title.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 19)))
 
         jug = self.blender_jug_rect.copy()
         is_blending = self.game_state.state == GameState.BLENDING
@@ -848,30 +852,84 @@ class MixingStation:
         self._action_button(screen, self.serve_button, "SERVE", self.CYAN, ready, large=False)
 
     def _draw_cup_sequence(self, screen):
-        r = pygame.Rect(self.preview_rect.x + 20, 455, 70, 125)
+        # Keep the physical cup animation for ICE -> POUR -> TOPPING.
+        # Once the drink is fully assembled, replace it with the exact
+        # drink artwork used by the top menu so the finished cup visually
+        # matches the selected drink display.
+        r = pygame.Rect(self.preview_rect.x + 22, 455, 77, 125)
         cx = r.centerx
-        pygame.draw.polygon(screen, (225,235,250), [(r.x+7,r.y),(r.right-7,r.y),(r.right-16,r.bottom),(r.x+16,r.bottom)])
-        pygame.draw.polygon(screen, (35,45,70), [(r.x+12,r.y+8),(r.right-12,r.y+8),(r.right-20,r.bottom-12),(r.x+20,r.bottom-12)])
         phase = self.assembly_phase
-        if phase in ("ice","pour","topping","ready"):
-            for i in range(5):
-                x = r.x + 18 + (i%2)*25; y = r.y + 18 + (i//2)*24
-                pygame.draw.rect(screen, (205,235,255), (x,y,15,12), border_radius=3)
-        if phase in ("pour","topping","ready") and self.player_drink.drink_name:
-            recipe = get_recipe(self.player_drink.drink_name); c = recipe.liquid_color if recipe else (150,150,255)
-            pygame.draw.polygon(screen,c,[(r.x+16,r.y+45),(r.right-16,r.y+45),(r.right-22,r.bottom-10),(r.x+22,r.bottom-10)])
-            if phase == "pour":
-                pygame.draw.line(screen,c,(cx,425),(cx,r.y+45),8)
-        if phase in ("topping","ready"):
-            self._draw_toppings(screen,cx,r.y+42)
-        if phase == "ice":
-            crusher = pygame.Rect(r.x-5, r.y-28, r.width+10, 18)
-            pygame.draw.rect(screen,(25,35,60),crusher,border_radius=6)
-            pygame.draw.rect(screen,self.CYAN,crusher,2,border_radius=6)
-            yy = int(r.y-8 + math.sin(time.monotonic()*12)*6)
-            pygame.draw.line(screen,self.PINK,(cx,yy),(cx,r.y+10),5)
+
         if phase == "ready":
-            pygame.draw.arc(screen,self.CYAN_LIGHT,(r.x-5,r.y-10,r.width+10,35),math.pi,2*math.pi,3)
+            drink_image = self.drink_images.get(self.player_drink.drink_name)
+            if drink_image is not None:
+                # Finished drink artwork: same source image as the menu.
+                target = self.preview_image_rect.inflate(-4, -4)
+                self._image_fit(screen, drink_image, target, True)
+            else:
+                # Safe fallback if an image is missing.
+                pygame.draw.polygon(
+                    screen,
+                    (225, 235, 250),
+                    [(r.x + 7, r.y), (r.right - 7, r.y),
+                     (r.right - 16, r.bottom), (r.x + 16, r.bottom)]
+                )
+                recipe = get_recipe(self.player_drink.drink_name)
+                c = recipe.liquid_color if recipe else (150, 150, 255)
+                pygame.draw.polygon(
+                    screen, c,
+                    [(r.x + 16, r.y + 45), (r.right - 16, r.y + 45),
+                     (r.right - 22, r.bottom - 10), (r.x + 22, r.bottom - 10)]
+                )
+            return
+
+        # Physical cup used during assembly.
+        pygame.draw.polygon(
+            screen,
+            (225, 235, 250),
+            [(r.x + 7, r.y), (r.right - 7, r.y),
+             (r.right - 16, r.bottom), (r.x + 16, r.bottom)]
+        )
+        pygame.draw.polygon(
+            screen,
+            (35, 45, 70),
+            [(r.x + 12, r.y + 8), (r.right - 12, r.y + 8),
+             (r.right - 20, r.bottom - 12), (r.x + 20, r.bottom - 12)]
+        )
+
+        if phase in ("ice", "pour", "topping"):
+            for i in range(5):
+                x = r.x + 18 + (i % 2) * 25
+                y = r.y + 18 + (i // 2) * 24
+                pygame.draw.rect(
+                    screen, (205, 235, 255),
+                    (x, y, 15, 12), border_radius=3
+                )
+
+        if phase in ("pour", "topping") and self.player_drink.drink_name:
+            recipe = get_recipe(self.player_drink.drink_name)
+            c = recipe.liquid_color if recipe else (150, 150, 255)
+
+            pygame.draw.polygon(
+                screen, c,
+                [(r.x + 16, r.y + 45), (r.right - 16, r.y + 45),
+                 (r.right - 22, r.bottom - 10), (r.x + 22, r.bottom - 10)]
+            )
+
+            if phase == "pour":
+                pygame.draw.line(
+                    screen, c, (cx, 425), (cx, r.y + 45), 8
+                )
+
+        if phase == "topping":
+            self._draw_toppings(screen, cx, r.y + 42)
+
+        if phase == "ice":
+            crusher = pygame.Rect(r.x - 5, r.y - 28, r.width + 10, 18)
+            pygame.draw.rect(screen, (25, 35, 60), crusher, border_radius=6)
+            pygame.draw.rect(screen, self.CYAN, crusher, 2, border_radius=6)
+            yy = int(r.y - 8 + math.sin(time.monotonic() * 12) * 6)
+            pygame.draw.line(screen, self.PINK, (cx, yy), (cx, r.y + 10), 5)
 
     def _draw_toppings(self,screen,cx,y):
         toppings = get_recipe(self.player_drink.drink_name).toppings if self.player_drink.drink_name else ()
