@@ -391,11 +391,13 @@ class LoadingScreen:
             (445, 403),
         )
 
+    DEFAULT_DURATION = 5.8
+
     def run(
         self,
         player_name="Barista",
         level=1,
-        duration=3.2,
+        duration=DEFAULT_DURATION,
     ):
         """
         Display the loading screen.
@@ -438,21 +440,15 @@ class LoadingScreen:
             f"[LOADING SCREEN] Duration: {duration} seconds"
         )
 
-        elapsed = 0.0
+        start_ticks = pygame.time.get_ticks()
+        self.clock.tick(self.FPS)
 
-        while elapsed < duration:
-
-            dt = (
-                self.clock.tick(
-                    self.FPS
-                )
-                / 1000.0
-            )
-
-            elapsed += dt
+        while True:
+            elapsed = (pygame.time.get_ticks() - start_ticks) / 1000.0
+            if elapsed >= duration:
+                break
 
             for event in pygame.event.get():
-
                 if event.type == pygame.QUIT:
                     return False
 
@@ -523,7 +519,44 @@ class LoadingScreen:
             )
 
             pygame.display.flip()
+            self.clock.tick(self.FPS)
 
+        # Show full 100% progress frame before continuing
+        self._draw_background()
+        self._draw_logo()
+        self._draw_panel()
+        self._text_center(
+            f"WELCOME, {player_name.upper()}!",
+            self.name_font,
+            (255, 180, 235),
+            245,
+        )
+        self._text_center(
+            location,
+            self.title_font,
+            (0, 235, 255),
+            285,
+        )
+        self._text_center(
+            sector,
+            self.small_font,
+            (210, 220, 245),
+            315,
+        )
+        self._draw_progress(1.0)
+        self._draw_message(len(self.MESSAGES) - 1)
+        self._text_center(
+            "GOOD COFFEE  ✦  BRIGHTER PEOPLE",
+            self.small_font,
+            (255, 190, 235),
+            565,
+        )
+        self._text_center(
+            "Preparing your café experience...",
+            self.small_font,
+            (180, 205, 235),
+            595,
+        )
         pygame.display.flip()
 
         print(

@@ -172,18 +172,27 @@ def sync_level_systems(economy, progression, mixing_station):
 
 def open_map(screen, map_manager, economy, progression, mixing_station):
     print("[MAIN] Opening Map.")
+    old_level = progression.level
     map_screen = MapScreen(screen, map_manager, economy)
     map_screen.run()
 
     try:
-        progression.level = max(1, min(int(economy.level), 3))
+        new_level = max(1, min(int(economy.level), 3))
     except Exception:
-        progression.level = 1
+        new_level = 1
+
     try:
         progression.xp = max(0, int(economy.xp))
     except Exception:
         progression.xp = 0
 
+    if new_level > old_level:
+        active_bg, active_customer = run_level_transition(
+            new_level, economy, progression, mixing_station, economy.player_name
+        )
+        return active_bg, active_customer
+
+    progression.level = new_level
     sync_level_systems(economy, progression, mixing_station)
     active_bg = load_level_background(progression.level)
     active_customer = refresh_customer(progression.level, mixing_station)
@@ -267,7 +276,7 @@ sync_level_systems(economy, progression, None)
 
 ensure_game_music(start_screen)
 loading_ok = loading_screen.run(
-    player_name=player_name, level=progression.level, duration=6.7
+    player_name=player_name, level=progression.level, duration=5.8
 )
 if not loading_ok:
     pygame.quit()
@@ -339,16 +348,16 @@ def run_level_transition(new_level, economy, progression, mixing_station, player
     new_level = max(1, min(int(new_level), 3))
 
     if new_level >= 2:
-        print(f"[LEVEL] Showing Level {new_level} unlock screen.")
+        print(f"[LEVEL] Showing Level {new_level} unlock screen (4.5s).")
         ensure_game_music()
         level_unlock_screen.run(level=new_level, duration=4.5)
 
     ensure_game_music()
-    print(f"[LEVEL] Loading Level {new_level}.")
+    print(f"[LEVEL] Loading Level {new_level} (5.8s).")
     loading_screen.run(
         player_name=player_name,
         level=new_level,
-        duration=6.7,
+        duration=5.8,
     )
 
     active_bg, active_customer = switch_level(

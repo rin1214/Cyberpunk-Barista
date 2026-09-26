@@ -38,6 +38,7 @@ class LevelUnlockScreen:
         )
 
         self.images = {}
+        self.scaled_cache = {}
 
         for level, filename in self.LEVEL_IMAGES.items():
 
@@ -116,45 +117,23 @@ class LevelUnlockScreen:
 
             return
 
-        image_width, image_height = (
-            image.get_size()
-        )
+        if image not in self.scaled_cache:
+            image_width, image_height = image.get_size()
+            scale = max(
+                self.WIDTH / image_width,
+                self.HEIGHT / image_height,
+            )
+            new_size = (
+                max(1, int(image_width * scale)),
+                max(1, int(image_height * scale)),
+            )
+            scaled = pygame.transform.smoothscale(image, new_size)
+            x = (self.WIDTH - new_size[0]) // 2
+            y = (self.HEIGHT - new_size[1]) // 2
+            self.scaled_cache[image] = (scaled, (x, y))
 
-        # Fill the 1280x720 screen while preserving
-        # the original artwork aspect ratio.
-        scale = max(
-            self.WIDTH / image_width,
-            self.HEIGHT / image_height,
-        )
-
-        new_size = (
-            max(
-                1,
-                int(image_width * scale),
-            ),
-            max(
-                1,
-                int(image_height * scale),
-            ),
-        )
-
-        scaled = pygame.transform.smoothscale(
-            image,
-            new_size,
-        )
-
-        x = (
-            self.WIDTH - new_size[0]
-        ) // 2
-
-        y = (
-            self.HEIGHT - new_size[1]
-        ) // 2
-
-        self.screen.blit(
-            scaled,
-            (x, y),
-        )
+        scaled_img, pos = self.scaled_cache[image]
+        self.screen.blit(scaled_img, pos)
 
     def _draw_subtle_effect(self, elapsed):
 
@@ -249,33 +228,22 @@ class LevelUnlockScreen:
                 "artwork is unavailable; showing fallback."
             )
 
-        elapsed = 0.0
+        start_ticks = pygame.time.get_ticks()
+        self.clock.tick(self.FPS)
 
-        while elapsed < duration:
-
-            dt = (
-                self.clock.tick(
-                    self.FPS
-                )
-                / 1000.0
-            )
-
-            elapsed += dt
+        while True:
+            elapsed = (pygame.time.get_ticks() - start_ticks) / 1000.0
+            if elapsed >= duration:
+                break
 
             for event in pygame.event.get():
-
                 if event.type == pygame.QUIT:
                     return False
 
-            self._draw_image(
-                image
-            )
-
-            self._draw_subtle_effect(
-                elapsed
-            )
-
+            self._draw_image(image)
+            self._draw_subtle_effect(elapsed)
             pygame.display.flip()
+            self.clock.tick(self.FPS)
 
         # Ensure the final unlock frame is committed before
         # the loading screen starts.

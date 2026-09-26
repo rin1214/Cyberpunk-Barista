@@ -1,45 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-DRINK DATA + RECIPE SYSTEM
-============================================================
-
-This file controls:
-
-    • Official drink menu
-    • Drink unlock levels
-    • Drink recipes
-    • Drink toppings
-    • Drink liquid colours
-    • Temperature options
-    • Caffeine options
-    • Sweetness options
-    • Player's current drink
-    • Drink validation
-
-OFFICIAL DRINK PROGRESSION
-
-LEVEL 1
-    Neon Latte
-    Milkyway
-    Void Chai
-
-LEVEL 2
-    Cyber Fuel
-    Hologram Frappe
-    Pixel Lemint
-
-LEVEL 3
-    Caramel Byte
-    Stardust Matcha
-    Meteorite
-
-There are always 9 drinks shown in the menu.
-
-Locked drinks are handled by the Mixing Station UI.
-"""
-
-
 from dataclasses import dataclass
 
 
@@ -74,13 +32,6 @@ SWEETNESS_OPTIONS = (
 
 @dataclass(frozen=True)
 class DrinkRecipe:
-    """
-    Stores the permanent information about a drink.
-
-    A recipe describes what the drink is.
-
-    It does NOT store the player's current selections.
-    """
 
     name: str
 
@@ -94,11 +45,7 @@ class DrinkRecipe:
         self,
         level,
     ):
-        """
-        Returns True when the drink is unlocked
-        at the supplied player level.
-        """
-
+      
         try:
 
             level = int(level)
@@ -122,16 +69,7 @@ class DrinkRecipe:
 @dataclass
 class PlayerDrink:
 
-    """
-    Stores the drink currently being made.
 
-    Example:
-
-        drink_name = "Milkyway"
-        temperature = "Hot"
-        caffeine = "High"
-        sweetness = "Extra"
-    """
 
     drink_name: str = None
 

@@ -112,5 +112,11 @@
         "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk"
+    },
+    "lola": {
+        "credits": 595,
+        "xp": 900,
+        "level": 3,
+        "location": "Cyber Penthouse"
     }
 }
