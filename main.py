@@ -1,7 +1,6 @@
 import sys
 import os
 import pygame
-from audio_manager import AudioManager
 
 from customer import Customer, CustomerState
 from drink import Drink
@@ -27,8 +26,6 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Cyberpunk Café - Game Engine")
-
-audio_manager = AudioManager(project_root=PROJECT_ROOT)
 
 clock = pygame.time.Clock()
 FPS = 60
@@ -765,9 +762,5 @@ while running:
     pygame.display.flip()
 
 print("[MAIN] Shutting down Cyberpunk Café.")
-try:
-    audio_manager.shutdown()
-except Exception:
-    pass
 pygame.quit()
 sys.exit()
