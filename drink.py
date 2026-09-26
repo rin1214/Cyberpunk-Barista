@@ -32,34 +32,16 @@ SWEETNESS_OPTIONS = (
 
 @dataclass(frozen=True)
 class DrinkRecipe:
-
     name: str
-
     unlock_level: int
-
     toppings: tuple
-
     liquid_color: tuple
 
-    def is_unlocked(
-        self,
-        level,
-    ):
-      
+    def is_unlocked(self, level):
         try:
-
-            level = int(level)
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
+            return int(level) >= self.unlock_level
+        except (TypeError, ValueError):
             return False
-
-        return (
-            level >= self.unlock_level
-        )
 
 
 # ============================================================
@@ -85,10 +67,7 @@ class PlayerDrink:
 
     def has_drink(self):
 
-        return (
-            self.drink_name
-            is not None
-        )
+        return self.drink_name is not None
 
     # ========================================================
     # TEMPERATURE SELECTED?
