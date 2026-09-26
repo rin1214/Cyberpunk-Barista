@@ -114,8 +114,8 @@
         "location": "Back Alley Kiosk"
     },
     "lola": {
-        "credits": 625,
-        "xp": 940,
+        "credits": 658,
+        "xp": 1230,
         "level": 3,
         "location": "Cyber Penthouse"
     },
@@ -148,5 +148,11 @@
         "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk"
+    },
+    ";lucy": {
+        "credits": 907,
+        "xp": 2270,
+        "level": 3,
+        "location": "Cyber Penthouse"
     }
 }
