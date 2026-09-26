@@ -1,7 +1,7 @@
 {
     "lucy": {
-        "credits": 1506,
-        "xp": 2200,
+        "credits": 1536,
+        "xp": 1200,
         "level": 2,
         "location": "Neon Lounge"
     },
@@ -114,8 +114,8 @@
         "location": "Back Alley Kiosk"
     },
     "lola": {
-        "credits": 595,
-        "xp": 900,
+        "credits": 625,
+        "xp": 940,
         "level": 3,
         "location": "Cyber Penthouse"
     },
@@ -138,9 +138,15 @@
         "location": "Neon Lounge"
     },
     "kk": {
-        "credits": 325,
-        "xp": 460,
+        "credits": 505,
+        "xp": 900,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "ll": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     }
 }

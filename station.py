@@ -170,15 +170,17 @@ class MixingStation:
         self.map_button = pygame.Rect(900, 6, 120, 44)
         self.leaderboard_button = pygame.Rect(1030, 6, 190, 44)
 
-        self.menu_rect = pygame.Rect(530, 62, 740, 165)
+        # Drink menu: lowered slightly and enlarged ~10%, while keeping all
+        # nine cards inside the 1280px-wide game window.
+        self.menu_rect = pygame.Rect(520, 72, 760, 175)
         self.menu_slots = []
-        slot_width = 77
-        slot_height = 135
-        gap = 5
-        start_x = 538
-        start_y = 75
+        slot_width = 84
+        slot_height = 148
+        gap = 0
+        start_x = 524
+        start_y = 84
         for index, drink_name in enumerate(DRINK_MENU):
-            x = start_x + index * (slot_width + gap)
+            x = start_x + index * slot_width
             self.menu_slots.append((drink_name, pygame.Rect(x, start_y, slot_width, slot_height)))
 
         self.customise_rect = pygame.Rect(600, 390, 320, 300)
@@ -552,7 +554,7 @@ class MixingStation:
     def _draw_menu(self, screen):
         self._panel(screen, self.menu_rect, self.CYAN, self.PANEL)
         title = self.font_title.render("CYBERPUNK DRINK MENU", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.menu_rect.centerx, 89)))
+        screen.blit(title, title.get_rect(center=(self.menu_rect.centerx, 99)))
 
         for drink_name, rect in self.menu_slots:
             unlocked = is_drink_unlocked(drink_name, self.level)
@@ -568,11 +570,11 @@ class MixingStation:
                 fill = (6, 9, 22, 135)
             self._panel(screen, rect, border, fill, radius=12, width=1)
             image = self.drink_images.get(drink_name)
-            image_area = pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 112)
+            image_area = pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 123)
             if image is not None:
                 self._image_fit(screen, image, image_area, unlocked)
             if not unlocked:
-                self._draw_lock(screen, rect.centerx, rect.y + 64)
+                self._draw_lock(screen, rect.centerx, rect.y + 70)
             self._draw_drink_name(screen, drink_name, rect, unlocked)
 
     def _draw_drink_name(self, screen, drink_name, rect, unlocked):
