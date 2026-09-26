@@ -167,21 +167,33 @@ def sync_level_systems(economy, progression, mixing_station):
             print(f"[MAIN] Station level sync warning: {error}")
 
 
+def sync_saved_progress(economy, progression):
+    try:
+        level = max(1, min(int(economy.level), 3))
+    except Exception:
+        level = 1
+    try:
+        progression.xp = max(0, int(economy.xp))
+    except Exception:
+        progression.xp = 0
+    return level
+
+
+def refresh_active_scene(progression, economy, mixing_station):
+    sync_level_systems(economy, progression, mixing_station)
+    return (
+        load_level_background(progression.level),
+        refresh_customer(progression.level, mixing_station),
+    )
+
+
 def open_map(screen, map_manager, economy, progression, mixing_station):
     print("[MAIN] Opening Map.")
     old_level = progression.level
     map_screen = MapScreen(screen, map_manager, economy)
     map_screen.run()
 
-    try:
-        new_level = max(1, min(int(economy.level), 3))
-    except Exception:
-        new_level = 1
-
-    try:
-        progression.xp = max(0, int(economy.xp))
-    except Exception:
-        progression.xp = 0
+    new_level = sync_saved_progress(economy, progression)
 
     if new_level > old_level:
         active_bg, active_customer = run_level_transition(
@@ -190,9 +202,9 @@ def open_map(screen, map_manager, economy, progression, mixing_station):
         return active_bg, active_customer
 
     progression.level = new_level
-    sync_level_systems(economy, progression, mixing_station)
-    active_bg = load_level_background(progression.level)
-    active_customer = refresh_customer(progression.level, mixing_station)
+    active_bg, active_customer = refresh_active_scene(
+        progression, economy, mixing_station
+    )
     ensure_game_music()
     return active_bg, active_customer
 
@@ -202,18 +214,11 @@ def open_leaderboard(screen, leaderboard_manager, economy, progression, mixing_s
     leaderboard_screen = LeaderboardScreen(screen, leaderboard_manager, economy)
     leaderboard_screen.run()
 
-    try:
-        progression.level = max(1, min(int(economy.level), 3))
-    except Exception:
-        progression.level = 1
-    try:
-        progression.xp = max(0, int(economy.xp))
-    except Exception:
-        progression.xp = 0
+    progression.level = sync_saved_progress(economy, progression)
 
-    sync_level_systems(economy, progression, mixing_station)
-    active_bg = load_level_background(progression.level)
-    active_customer = refresh_customer(progression.level, mixing_station)
+    active_bg, active_customer = refresh_active_scene(
+        progression, economy, mixing_station
+    )
     ensure_game_music()
     return active_bg, active_customer
 
@@ -227,11 +232,7 @@ def switch_level(level, economy, progression, mixing_station):
 
     economy.set_level(level)
     progression.level = level
-
-    sync_level_systems(economy, progression, mixing_station)
-    active_bg = load_level_background(level)
-    active_customer = refresh_customer(level, mixing_station)
-    return active_bg, active_customer
+    return refresh_active_scene(progression, economy, mixing_station)
 
 
 # Start Screen Initialization
@@ -317,6 +318,8 @@ SUCCESS_TARGETS = {
     2: 7,
     3: 10,
 }
+LEVEL_KEYS = {pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3}
+LEVEL_NODES = {1: "neon_alley", 2: "cyber_dock", 3: "high_rise"}
 
 successful_drinks = 0
 total_successful_drinks = 0
@@ -468,27 +471,16 @@ while running:
                 )
                 spawn_timer = 0.0
 
-            elif event.key == pygame.K_1:
-                node = map_manager.nodes.get("neon_alley")
-                if node is None or node.is_unlocked or progression.level >= 1:
+            elif event.key in LEVEL_KEYS:
+                level = LEVEL_KEYS[event.key]
+                node = map_manager.nodes.get(LEVEL_NODES[level])
+                if (
+                    (level == 1 and node is None)
+                    or (node is not None and node.is_unlocked)
+                    or progression.level >= level
+                ):
                     active_bg, active_customer = switch_level(
-                        1, economy, progression, mixing_station
-                    )
-                    spawn_timer = 0.0
-
-            elif event.key == pygame.K_2:
-                node = map_manager.nodes.get("cyber_dock")
-                if (node is not None and node.is_unlocked) or progression.level >= 2:
-                    active_bg, active_customer = switch_level(
-                        2, economy, progression, mixing_station
-                    )
-                    spawn_timer = 0.0
-
-            elif event.key == pygame.K_3:
-                node = map_manager.nodes.get("high_rise")
-                if (node is not None and node.is_unlocked) or progression.level >= 3:
-                    active_bg, active_customer = switch_level(
-                        3, economy, progression, mixing_station
+                        level, economy, progression, mixing_station
                     )
                     spawn_timer = 0.0
 
