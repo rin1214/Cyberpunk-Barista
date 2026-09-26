@@ -60,7 +60,6 @@ class MixingStation:
         self.liquid_unlocked = False
         self.assembly_phase = "empty"
         self.assembly_started = 0.0
-        self.ingredient_drop_start = 0.0
 
         self.map_requested = False
         self.leaderboard_requested = False
@@ -71,36 +70,12 @@ class MixingStation:
 
         self._last_time = time.monotonic()
 
-        self.slider_positions = {
-            "temperature": 0.08,
-            "caffeine": 0.50,
-            "sweetness": 0.92,
-        }
-        self.slider_directions = {
-            "temperature": 1.0,
-            "caffeine": -1.0,
-            "sweetness": 1.0,
-        }
         self.slider_speeds = {
             "temperature": 0.62,
             "caffeine": 0.74,
             "sweetness": 0.86,
         }
-        self.slider_locked = {
-            "temperature": False,
-            "caffeine": False,
-            "sweetness": False,
-        }
-        self.slider_results = {
-            "temperature": None,
-            "caffeine": None,
-            "sweetness": None,
-        }
-        self.slider_feedback = {
-            "temperature": "CLICK",
-            "caffeine": "CLICK",
-            "sweetness": "CLICK",
-        }
+        self._reset_sliders()
 
         self.blend_start_time = 0.0
         self.blend_duration = 0.7
@@ -143,27 +118,20 @@ class MixingStation:
         cyber_path = self._find_font(["audiowide", "orbitron", "oxanium", "rajdhani", "neuropol"])
         clean_path = self._find_font(["rajdhani", "segoe", "bahnschrift", "trebuchet", "verdana"])
 
-        if cyber_path:
-            self.font_title = pygame.font.Font(cyber_path, 18)
-            self.font_big_title = pygame.font.Font(cyber_path, 19)
-            self.font_menu = pygame.font.Font(cyber_path, 10)
-            self.font_button = pygame.font.Font(cyber_path, 12)
-            self.font_hud = pygame.font.Font(cyber_path, 12)
-        else:
-            self.font_title = pygame.font.SysFont("Arial", 18, bold=True)
-            self.font_big_title = pygame.font.SysFont("Arial", 19, bold=True)
-            self.font_menu = pygame.font.SysFont("Arial", 10, bold=True)
-            self.font_button = pygame.font.SysFont("Arial", 12, bold=True)
-            self.font_hud = pygame.font.SysFont("Arial", 12, bold=True)
+        def font(path, size, bold=True):
+            return pygame.font.Font(path, size) if path else pygame.font.SysFont(
+                "Arial", size, bold=bold
+            )
 
-        if clean_path:
-            self.font_category = pygame.font.Font(clean_path, 13)
-            self.font_small = pygame.font.Font(clean_path, 10)
-            self.font_medium = pygame.font.Font(clean_path, 13)
-        else:
-            self.font_category = pygame.font.SysFont("Arial", 13, bold=True)
-            self.font_small = pygame.font.SysFont("Arial", 10, bold=True)
-            self.font_medium = pygame.font.SysFont("Arial", 13, bold=True)
+        self.font_title = font(cyber_path, 18)
+        self.font_big_title = font(cyber_path, 19)
+        self.font_menu = font(cyber_path, 10)
+        self.font_button = font(cyber_path, 12)
+        self.font_hud = font(cyber_path, 12)
+        self.font_cup_title = font(cyber_path, 16)
+        self.font_category = font(clean_path, 13)
+        self.font_small = font(clean_path, 10)
+        self.font_medium = font(clean_path, 13)
 
     def _create_layout(self):
         self.hud_rect = pygame.Rect(8, 4, 870, 52)
@@ -172,19 +140,19 @@ class MixingStation:
 
         # Drink menu: lowered enough to clear the XP/HUD bar and enlarged
         # another ~5% from the previous version.
-        self.menu_rect = pygame.Rect(480, 72, 800, 177)
+        self.menu_rect = pygame.Rect(440, 72, 840, 177)
         self.menu_slots = []
-        slot_width = 88
+        slot_width = 92
         slot_height = 155
         gap = 0
-        start_x = 486
+        start_x = 452
         start_y = 84
         for index, drink_name in enumerate(DRINK_MENU):
             x = start_x + index * slot_width
             self.menu_slots.append((drink_name, pygame.Rect(x, start_y, slot_width, slot_height)))
 
         # Wider customisation panel (+10% horizontally).
-        self.customise_rect = pygame.Rect(570, 390, 352, 300)
+        self.customise_rect = pygame.Rect(539, 390, 370, 300)
         track_x = self.customise_rect.x + 25
         track_w = self.customise_rect.width - 50
         self.slider_tracks = {
@@ -199,14 +167,14 @@ class MixingStation:
         }
 
         # Blender widened ~5%.
-        self.blender_rect = pygame.Rect(930, 390, 226, 300)
-        self.blender_jug_rect = pygame.Rect(958, 465, 150, 130)
-        self.blend_button = pygame.Rect(950, 632, 186, 48)
+        self.blender_rect = pygame.Rect(909, 390, 237, 300)
+        self.blender_jug_rect = pygame.Rect(948, 465, 158, 130)
+        self.blend_button = pygame.Rect(930, 632, 195, 48)
 
-        # Cup station widened ~10%, filling the remaining right-side space.
-        self.preview_rect = pygame.Rect(1159, 390, 121, 300)
-        self.preview_image_rect = pygame.Rect(1167, 445, 105, 140)
-        self.serve_button = pygame.Rect(1168, 632, 103, 48)
+        # Cup station widened another ~6% while staying inside the window.
+        self.preview_rect = pygame.Rect(1146, 390, 134, 300)
+        self.preview_image_rect = pygame.Rect(1155, 445, 117, 140)
+        self.serve_button = pygame.Rect(1156, 632, 115, 48)
 
     def _load_drink_images(self):
         for drink_name in DRINK_MENU:
@@ -278,26 +246,25 @@ class MixingStation:
     def _sync_legacy_values(self):
         if self.drink is None:
             return
-        temperature_map = {"Cold": 25, "Normal": 50, "Hot": 75}
-        caffeine_map = {"Low": 25, "Normal": 50, "High": 75}
-        sweetness_map = {"Less": 25, "Normal": 50, "Extra": 75}
+        values = {
+            "temperature": {"Cold": 25, "Normal": 50, "Hot": 75},
+            "caffeine": {"Low": 25, "Normal": 50, "High": 75},
+            "sweetness": {"Less": 25, "Normal": 50, "Extra": 75},
+        }
         try:
-            self.drink.temperature = temperature_map.get(self.player_drink.temperature, 50)
-            self.drink.caffeine = caffeine_map.get(self.player_drink.caffeine, 50)
-            self.drink.sweetness = sweetness_map.get(self.player_drink.sweetness, 50)
+            for field, mapping in values.items():
+                setattr(self.drink, field, mapping.get(
+                    getattr(self.player_drink, field), 50
+                ))
         except Exception:
             pass
 
     def _change_selected_drink(self, drink_name):
         self.player_drink.drink_name = drink_name
-        self.player_drink.temperature = None
-        self.player_drink.caffeine = None
-        self.player_drink.sweetness = None
-
         self.game_state.selected_drink = drink_name
-        self.game_state.selected_temperature = None
-        self.game_state.selected_caffeine = None
-        self.game_state.selected_sweetness = None
+        for field in ("temperature", "caffeine", "sweetness"):
+            setattr(self.player_drink, field, None)
+            setattr(self.game_state, f"selected_{field}", None)
         self.game_state.blend_finished = False
         self.game_state.served = False
         self.game_state.state = GameState.CUSTOMISE
@@ -336,16 +303,13 @@ class MixingStation:
         self._update_blending()
         self._update_assembly()
 
-    def _slider_position(self, parameter):
-        return self.slider_positions[parameter]
-
     def _slider_option_from_position(self, parameter):
         options = {
             "temperature": TEMPERATURE_OPTIONS,
             "caffeine": CAFFEINE_OPTIONS,
             "sweetness": SWEETNESS_OPTIONS,
         }[parameter]
-        position = self._slider_position(parameter)
+        position = self.slider_positions[parameter]
         centers = (0.08, 0.50, 0.92)
         index = min(range(3), key=lambda i: abs(position - centers[i]))
         return options[index], abs(position - centers[index])
@@ -377,47 +341,25 @@ class MixingStation:
             "sweetness": "CLICK",
         }
 
-    def _get_customer_target(self, parameter):
-        if self.customer_order is None:
-            return None
-        return getattr(self.customer_order, parameter, None)
-
     def _unlock_slider(self, parameter):
         self.slider_locked[parameter] = False
         self.slider_results[parameter] = None
         self.slider_feedback[parameter] = "ADJUSTING"
-        if parameter == "temperature":
-            self.player_drink.temperature = None
-            self.game_state.selected_temperature = None
-        elif parameter == "caffeine":
-            self.player_drink.caffeine = None
-            self.game_state.selected_caffeine = None
-        else:
-            self.player_drink.sweetness = None
-            self.game_state.selected_sweetness = None
+        setattr(self.player_drink, parameter, None)
+        setattr(self.game_state, f"selected_{parameter}", None)
         self.game_state.state = GameState.CUSTOMISE
         self._sync_legacy_values()
 
     def _lock_slider(self, parameter):
         if not self.game_state.can_customize():
             return
-        value, distance = self._slider_option_from_position(parameter)
-        if parameter == "temperature":
-            accepted = self.game_state.select_temperature(value)
-            if accepted:
-                self.player_drink.temperature = value
-        elif parameter == "caffeine":
-            accepted = self.game_state.select_caffeine(value)
-            if accepted:
-                self.player_drink.caffeine = value
-        else:
-            accepted = self.game_state.select_sweetness(value)
-            if accepted:
-                self.player_drink.sweetness = value
+        value, _ = self._slider_option_from_position(parameter)
+        accepted = getattr(self.game_state, f"select_{parameter}")(value)
         if not accepted:
             return
+        setattr(self.player_drink, parameter, value)
         self.slider_locked[parameter] = True
-        target = self._get_customer_target(parameter)
+        target = getattr(self.customer_order, parameter, None) if self.customer_order else None
         correct = target is not None and value == target
         self.slider_results[parameter] = correct
         self.slider_feedback[parameter] = "CORRECT" if correct else "WRONG"
@@ -638,7 +580,7 @@ class MixingStation:
             text = self.font_small.render(option.upper(), True, self.WHITE)
             screen.blit(text, text.get_rect(center=(cx, track.bottom + 18)))
 
-        position = self._slider_position(parameter)
+        position = self.slider_positions[parameter]
         indicator_x = int(track.x + track.width * position)
         pygame.draw.circle(screen, (0, 0, 0), (indicator_x, track.centery), 9)
         pygame.draw.circle(screen, accent, (indicator_x, track.centery), 7)
@@ -696,7 +638,7 @@ class MixingStation:
     def _draw_blender(self, screen):
         self._panel(screen, self.blender_rect, self.PURPLE, (6, 10, 27, 145))
         title = self.font_big_title.render("BLENDER", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 19)))
+        screen.blit(title, title.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 22)))
 
         jug = self.blender_jug_rect.copy()
         is_blending = self.game_state.state == GameState.BLENDING
@@ -841,7 +783,7 @@ class MixingStation:
 
     def _draw_preview(self, screen):
         self._panel(screen, self.preview_rect, self.PINK, (7, 10, 26, 150))
-        title = self.font_title.render("CUP STATION", True, self.PINK_LIGHT)
+        title = self.font_cup_title.render("CUP STATION", True, self.PINK_LIGHT)
         screen.blit(title, title.get_rect(center=(self.preview_rect.centerx, 420)))
         self._draw_cup_sequence(screen)
         ready = self.game_state.state == GameState.READY_TO_SERVE and self.assembly_phase == "ready"
@@ -856,7 +798,7 @@ class MixingStation:
         # Once the drink is fully assembled, replace it with the exact
         # drink artwork used by the top menu so the finished cup visually
         # matches the selected drink display.
-        r = pygame.Rect(self.preview_rect.x + 22, 455, 77, 125)
+        r = pygame.Rect(self.preview_rect.x + 24, 455, 86, 125)
         cx = r.centerx
         phase = self.assembly_phase
 
