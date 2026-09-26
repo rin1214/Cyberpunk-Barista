@@ -1,12 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-PROGRESSION SYSTEM
-============================================================
-
-This file stores and manages the player's level and XP progression.
-"""
-
 from drink import get_unlocked_drinks
 
 
