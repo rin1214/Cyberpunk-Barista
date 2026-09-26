@@ -29,6 +29,11 @@ class GameEndScreen:
         self.phase_start = pygame.time.get_ticks()
         self.running = True
         self.result = None
+        self.player_name = "BARISTA"
+        self.level = 3
+        self.successful_drinks = 0
+        self.xp = 0
+        self.credits = 0
 
     def _image(self, path, size, alpha=True):
         try:
@@ -228,12 +233,20 @@ class GameEndScreen:
             if event.type == pygame.QUIT:
                 self.result, self.running = "quit", False
 
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.result, self.running = "main_menu", False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.result, self.running = "main_menu", False
+                elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
+                    if self.phase < 3:
+                        self.phase += 1
+                        self.phase_start = pygame.time.get_ticks()
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.phase != 3:
+                if self.phase < 3:
+                    self.phase += 1
+                    self.phase_start = pygame.time.get_ticks()
                     continue
+
                 if self.buttons.get("play_again", pygame.Rect(0, 0, 0, 0)).collidepoint(event.pos):
                     self.result, self.running = "play_again", False
                 elif self.buttons.get("main_menu", pygame.Rect(0, 0, 0, 0)).collidepoint(event.pos):

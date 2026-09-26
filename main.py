@@ -313,6 +313,7 @@ SUCCESS_TARGETS = {
 }
 
 successful_drinks = 0
+total_successful_drinks = 0
 game_finished = False
 
 
@@ -439,6 +440,9 @@ while running:
                 except Exception as error:
                     print(f"[MAIN] Reset warning: {error}")
 
+                successful_drinks = 0
+                total_successful_drinks = 0
+                game_finished = False
                 progression.level = economy.level
                 progression.xp = economy.xp
                 sync_level_systems(economy, progression, mixing_station)
@@ -563,6 +567,7 @@ while running:
 
                 if successful_order:
                     successful_drinks += 1
+                    total_successful_drinks += 1
 
                 target = get_success_target(current_level_before_order)
 
@@ -642,7 +647,7 @@ while running:
                     end_result = end_screen.run(
                         player_name=economy.player_name,
                         level=progression.level,
-                        successful_drinks=successful_drinks,
+                        successful_drinks=total_successful_drinks,
                         xp=progression.xp,
                         credits=economy.credits,
                     )
@@ -654,6 +659,7 @@ while running:
                         reward_system.reset()
                         mixing_station.reset()
                         successful_drinks = 0
+                        total_successful_drinks = 0
                         game_finished = False
                         progression.level = 1
                         progression.xp = 0
@@ -662,6 +668,33 @@ while running:
                         active_customer = refresh_customer(1, mixing_station)
                         spawn_timer = 0.0
                         ensure_game_music(start_screen)
+                    elif end_result == "main_menu":
+                        print("[GAME END] Returning to Main Menu.")
+                        start_screen = StartScreen(screen)
+                        new_player_name = start_screen.run()
+                        if new_player_name is not None:
+                            player_name = new_player_name
+                            economy.player_name = player_name
+                            economy.load_economy_data()
+                            try:
+                                current_lvl = int(economy.level)
+                            except (ValueError, TypeError):
+                                current_lvl = 1
+                            progression.reset()
+                            progression.level = max(1, min(current_lvl, 3))
+                            progression.xp = max(0, int(economy.xp))
+                            reward_system.reset()
+                            mixing_station.reset()
+                            successful_drinks = 0
+                            total_successful_drinks = 0
+                            game_finished = False
+                            sync_level_systems(economy, progression, mixing_station)
+                            active_bg = load_level_background(progression.level)
+                            active_customer = refresh_customer(progression.level, mixing_station)
+                            spawn_timer = 0.0
+                            ensure_game_music(start_screen)
+                        else:
+                            running = False
                     else:
                         running = False
 

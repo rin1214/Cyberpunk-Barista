@@ -1,42 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-ORDER ACCURACY SYSTEM
-============================================================
-
-This file checks whether the player's completed drink
-matches the customer's requested order.
-
-There are exactly 4 requirements:
-
-    1. Drink
-    2. Temperature
-    3. Caffeine
-    4. Sweetness
-
-Each requirement is checked independently.
-
-Examples:
-
-    4/4 = Perfect
-    3/4 = 75%
-    2/4 = 50%
-    1/4 = 25%
-    0/4 = 0%
-
-The result is passed to RewardSystem.
-
-RewardSystem then decides:
-
-    • XP
-    • Credits
-    • Combo
-    • Speed bonus
-    • Mistake penalty
-============================================================
-"""
-
-
 from dataclasses import dataclass
 
 
@@ -65,21 +26,7 @@ class AccuracyResult:
 
     @property
     def correct_count(self):
-        """
-        Returns the number of correctly matched
-        requirements.
 
-        There are 4 possible correct requirements.
-
-        Example:
-
-            Drink        = True
-            Temperature  = True
-            Caffeine     = False
-            Sweetness    = True
-
-            Result = 3
-        """
 
         return sum(
             [
@@ -356,13 +303,7 @@ class OrderAccuracy:
         customer_order,
         player_drink,
     ):
-        """
-        Alternative method name for compatibility
-        with the main game system.
 
-        It performs exactly the same check as
-        check_order().
-        """
 
         return OrderAccuracy.check_order(
             customer_order,

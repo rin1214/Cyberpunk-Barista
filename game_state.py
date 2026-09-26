@@ -1,23 +1,3 @@
-"""
-CYBERPUNK CAFÉ
-GAME STATE SYSTEM
-
-This file controls the LOGICAL stage of making a drink.
-
-It does NOT:
-    - draw anything
-    - load images
-    - draw buttons
-    - control the visual mixing station
-
-The MixingStation uses this class to ask:
-
-    "Can I perform this action right now?"
-
-The visual interface remains inside station.py.
-"""
-
-
 from enum import Enum, auto
 
 
@@ -63,15 +43,6 @@ class GameState(Enum):
 class MixingGameState:
     """
     Controls the logical drink-making workflow.
-
-    IMPORTANT:
-
-    This class does not decide whether the player's drink
-    is CORRECT.
-
-    Accuracy is handled by accuracy.py.
-
-    Rewards are handled by rewards.py.
     """
 
     def __init__(self):
@@ -359,9 +330,6 @@ class MixingGameState:
         """
         Start the blender.
 
-        READY_TO_BLEND
-              ↓
-           BLENDING
         """
 
         if not self.can_blend():
@@ -383,16 +351,6 @@ class MixingGameState:
         """
         Finish the blender animation.
 
-        BLENDING
-            ↓
-        READY_TO_SERVE
-
-        There is NO separate:
-            BLENDED
-            CUP_READY
-            PLACE INTO CUP
-
-        step.
         """
 
         if (
@@ -428,10 +386,6 @@ class MixingGameState:
     def serve(self):
         """
         Serve the completed drink.
-
-        READY_TO_SERVE
-              ↓
-           SERVED
         """
 
         if not self.can_serve():
@@ -453,8 +407,6 @@ class MixingGameState:
         """
         Return the drink created by the player.
 
-        accuracy.py uses this information to determine
-        whether the order was correct.
         """
 
         return {
