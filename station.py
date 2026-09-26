@@ -534,8 +534,7 @@ class MixingStation:
     def get_player_drink_data(self):
         return self.game_state.get_player_drink_data()
 
-    def get_data(self):
-        return self.get_player_drink_data()
+    get_data = get_player_drink_data
 
     def draw(self, screen):
         self._update_blending()
