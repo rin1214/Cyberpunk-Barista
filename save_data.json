@@ -130,5 +130,17 @@
         "xp": 260,
         "level": 2,
         "location": "Neon Lounge"
+    },
+    "adel": {
+        "credits": 322,
+        "xp": 490,
+        "level": 2,
+        "location": "Neon Lounge"
+    },
+    "kk": {
+        "credits": 325,
+        "xp": 460,
+        "level": 2,
+        "location": "Neon Lounge"
     }
 }
