@@ -524,7 +524,7 @@ while running:
         pygame.display.flip()
         continue
 
-    # Update active minigames
+    # Update minigames
     if mini_challenge.active or mini_challenge.done:
         mini_challenge.update(dt)
 
