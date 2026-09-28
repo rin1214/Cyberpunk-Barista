@@ -17,6 +17,7 @@ from map_screen import MapScreen
 from leaderboard_manager import LeaderboardManager
 from leaderboard_screen import LeaderboardScreen
 from game_end_screen import GameEndScreen
+from mini_challenges import MiniChallenge  # Added import
 
 pygame.init()
 
@@ -270,6 +271,9 @@ leaderboard_manager = LeaderboardManager(economy_ref=economy)
 level_unlock_screen = LevelUnlockScreen(screen)
 loading_screen = LoadingScreen(screen)
 
+# Instantiate MiniChallenge manager
+mini_challenge = MiniChallenge()
+
 sync_level_systems(economy, progression, None)
 
 ensure_game_music(start_screen)
@@ -304,14 +308,6 @@ active_customer = refresh_customer(progression.level, mixing_station)
 
 spawn_timer = 0.0
 SPAWN_DELAY = 1.5
-
-# ------------------------------------------------------------
-# SUCCESSFUL DRINK PROGRESSION
-# ------------------------------------------------------------
-# Only a perfect 4/4 order counts as a successful drink.
-# Level 1 requires 4 successful drinks.
-# Level 2 requires 7 successful drinks.
-# Level 3 requires 10 successful drinks.
 
 SUCCESS_TARGETS = {
     1: 4,
@@ -398,6 +394,10 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             continue
+
+        # Pass event to active minigame challenge first
+        if mini_challenge.active:
+            mini_challenge.handle_event(event)
 
         # Toggle pause state with ESC key
         if event.type == pygame.KEYDOWN:
@@ -524,6 +524,10 @@ while running:
         pygame.display.flip()
         continue
 
+    # Update active minigames
+    if mini_challenge.active or mini_challenge.done:
+        mini_challenge.update(dt)
+
     try:
         mixing_station.update(dt)
     except Exception as error:
@@ -553,8 +557,6 @@ while running:
                     level=progression.level
                 )
 
-                # XP and credits still use the existing reward system.
-                # Level unlocks now depend ONLY on successful 4/4 drinks.
                 current_level_before_order = progression.level
                 progression.add_xp(reward_result.total_xp)
                 next_level_to_enter = None
@@ -579,11 +581,9 @@ while running:
                             f"Level {next_level_to_enter}"
                         )
                     else:
-                        # Stop XP from unlocking the level early.
                         progression.level = current_level_before_order
                         economy.set_level(current_level_before_order)
                 else:
-                    # Level 3 is the final level.
                     if successful_drinks >= 10:
                         game_finished = True
 
@@ -635,9 +635,6 @@ while running:
                     )
                     spawn_timer = 0.0
 
-                # ------------------------------------------------
-                # FINAL GAME CHECK
-                # ------------------------------------------------
                 if game_finished:
                     print("[GAME COMPLETE] Level 3 finished with 10 successful drinks.")
 
@@ -744,6 +741,10 @@ while running:
         mixing_station.draw(screen)
     except Exception as error:
         print(f"[STATION DRAW ERROR] {error}")
+
+    # Draw Mini-Challenge Overlay on top if active or finished
+    if mini_challenge.active or mini_challenge.done:
+        mini_challenge.draw(screen)
 
     # Draw single active UIEconomy HUD on top
     try:
