@@ -502,7 +502,12 @@ while running:
                             running = False
                     else:
                         running = False
-    if running and not game_finished and active_customer is not None:
+    if (
+        running
+        and not game_finished
+        and active_customer is not None
+        and not mixing_station.challenge.paused
+    ):
         old_state = active_customer.state
         try:
             active_customer.update(dt)
@@ -543,7 +548,7 @@ while running:
         mini_challenge.draw(screen)
     try:
         economy.draw(combo_count=current_combo, dt=dt)
-    except Exception as error:
+    except Exception as rror:
         print(f"[UI ECONOMY DRAW ERROR] {error}")
     pygame.display.flip()
 pygame.quit()
