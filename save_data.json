@@ -1,9 +1,13 @@
 {
     "lucy": {
-        "credits": 2302,
-        "xp": 1240,
+        "credits": 2164,
+        "xp": 2500,
         "level": 3,
-        "location": "Cyber Penthouse"
+        "location": "Cyber Penthouse",
+        "unlocked_levels": {
+            "1": true,
+            "3": true
+        }
     },
     "Rin": {
         "credits": 180,
@@ -118,6 +122,13 @@
         "xp": 830,
         "level": 2,
         "location": "Neon Lounge"
+        "credits": 422,
+        "xp": 950,
+        "level": 2,
+        "location": "Neon Lounge",
+        "unlocked_levels": {
+            "1": true
+        }
     },
     "ww": {
         "credits": 100,
@@ -159,6 +170,12 @@
             "3": true,
             "2": true
         }
+    },
+    "dy": {
+        "credits": 80,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     },
     "sue": {
         "credits": 52,

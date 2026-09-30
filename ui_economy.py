@@ -291,36 +291,12 @@ class UIEconomy:
         
         hud_height = 65
         hud_width = min(680, screen_w - 320)
-        hud_rect = pygame.Rect(10, 2, hud_width, hud_height)  # Moved up to y=2
+        hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
         
         pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
         pygame.draw.rect(self.screen, self.COLOR_BORDER, hud_rect, 2, border_radius=4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.x + 5, hud_rect.y), (hud_rect.x + 35, hud_rect.y), 4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.right - 35, hud_rect.bottom), (hud_rect.right - 5, hud_rect.bottom), 4)
-
-        # -------------------------------------------------------------
-        # Load local Orbitron fonts from assets/fonts/
-        # -------------------------------------------------------------
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        font_dir = os.path.join(base_dir, "assets", "fonts")
-        bold_path = os.path.join(font_dir, "Orbitron-Bold.ttf")
-        medium_path = os.path.join(font_dir, "Orbitron-Medium.ttf")
-
-        font_main = pygame.font.Font(bold_path, 12) if os.path.exists(bold_path) else pygame.font.SysFont("Consolas", 14, bold=True)
-        font_sub = pygame.font.Font(medium_path, 10) if os.path.exists(medium_path) else pygame.font.SysFont("Consolas", 11, bold=True)
-
-        # 1. Barista Name & 2. Location (Left Block)
-        name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
-        loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
-        self.screen.blit(name_txt, (hud_rect.x + 10, hud_rect.y + 8))
-        self.screen.blit(loc_txt, (hud_rect.x + 10, hud_rect.y + 30))
-
-        # Divider line 1
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 215, hud_rect.y + 8), (hud_rect.x + 215, hud_rect.bottom - 8), 1)
-
-        # 3. Level & 4. XP Bar (Center Block)
-        xp_x = hud_rect.x + 225
-        target_xp = self.LEVEL_XP_REQUIREMENTS.get(self.level, 2500)
         
         font_main = pygame.font.SysFont("Consolas", 15, bold=True)
         font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
