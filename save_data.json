@@ -1,9 +1,13 @@
 {
     "lucy": {
-        "credits": 2664,
+        "credits": 2164,
         "xp": 2500,
         "level": 3,
-        "location": "Cyber Penthouse"
+        "location": "Cyber Penthouse",
+        "unlocked_levels": {
+            "1": true,
+            "3": true
+        }
     },
     "Rin": {
         "credits": 180,
@@ -114,10 +118,13 @@
         "location": "Back Alley Kiosk"
     },
     "lola": {
-        "credits": 332,
-        "xp": 830,
+        "credits": 422,
+        "xp": 950,
         "level": 2,
-        "location": "Neon Lounge"
+        "location": "Neon Lounge",
+        "unlocked_levels": {
+            "1": true
+        }
     },
     "ww": {
         "credits": 100,

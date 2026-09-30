@@ -1,8 +1,3 @@
-"""
-mini_challenges.py
-Cyberpunk Café - Mini Challenges (Modern Cyberpunk Arcade Edition v5)
-"""
-
 import math
 import random
 import pygame
@@ -90,6 +85,8 @@ class MiniChallenge:
     def __init__(self):
         pygame.font.init()
         self.panel = pygame.Rect(280, 92, 720, 540)
+        self.exit_button = pygame.Rect(self.panel.right - 72, self.panel.y + 70, 58, 28)
+        self.pause_button = pygame.Rect(self.panel.right - 154, self.panel.y + 70, 76, 28)
         self.grid = pygame.Rect(473, 275, 334, 334)
         self.ft = pygame.font.SysFont("arial", 29, True)
         self.fb = pygame.font.SysFont("arial", 21, True)
@@ -102,6 +99,7 @@ class MiniChallenge:
         self.active = False
         self.done = False
         self.failed = False
+        self.paused = False
         self.drink = ""
         self.title = "INGREDIENT MATCH"
         self.ingredient = "INGREDIENT"
@@ -218,6 +216,7 @@ class MiniChallenge:
         self.active = True
         self.done = False
         self.failed = False
+        self.paused = False
         self.selected = None
         self.strikes = 0
         self.message_timer = 0
@@ -271,6 +270,17 @@ class MiniChallenge:
 
     def handle_event(self, event):
         if not self.active or self.done or self.failed:
+            return
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.exit_button.collidepoint(event.pos):
+                self._exit_challenge()
+                return
+            if self.pause_button.collidepoint(event.pos):
+                self.paused = not self.paused
+                return
+
+        if self.paused:
             return
 
         if self.level_mode == "WASD_RUN" and event.type == pygame.KEYDOWN:
@@ -393,6 +403,9 @@ class MiniChallenge:
                 self.active = False
                 self.done = False
                 return True
+            return False
+
+        if self.paused:
             return False
 
         self.pulse += dt
@@ -942,6 +955,38 @@ class MiniChallenge:
             682,
         )
 
+        if self.paused:
+            pause_overlay = pygame.Surface(self.panel.size, pygame.SRCALPHA)
+            pause_overlay.fill((5, 8, 22, 190))
+            screen.blit(pause_overlay, self.panel.topleft)
+            self._text(screen, "PAUSED", self.strike_big_font, self.accent, self.panel.centery)
+
+        self._draw_challenge_controls(screen)
+
+    def _draw_challenge_controls(self, screen):
+        mouse = pygame.mouse.get_pos()
+        buttons = (
+            (self.exit_button, "EXIT"),
+            (self.pause_button, "RESUME" if self.paused else "PAUSE"),
+        )
+        for rect, label in buttons:
+            hovered = rect.collidepoint(mouse)
+            fill = (45, 20, 50) if hovered else (18, 24, 48)
+            border = (255, 170, 210) if hovered else self.accent
+            pygame.draw.rect(screen, fill, rect, border_radius=7)
+            pygame.draw.rect(screen, border, rect, 2, border_radius=7)
+            text = self.fi.render(label, True, (248, 250, 255))
+            screen.blit(text, text.get_rect(center=rect.center))
+
+    def _exit_challenge(self):
+        self.active = False
+        self.done = False
+        self.failed = False
+        self.paused = False
+        self.selected = None
+        self.particles.clear()
+        self.floating_texts.clear()
+
     def _draw_deflect(self, screen):
         cx, cy = self.center_pos
         pygame.draw.circle(screen, (40, 50, 80), (cx, cy), 70, 2)
@@ -1057,8 +1102,11 @@ class MiniChallenge:
             if valid and self._has_move(b):
                 return b
         return [
-            [random.randrange(self.TYPES) for _ in range(self.N)]
-            for _ in range(self.N)
+            [0, 1, 0, 2, 3],
+            [4, 0, 1, 3, 2],
+            [1, 2, 3, 4, 0],
+            [2, 3, 4, 0, 1],
+            [3, 4, 0, 1, 2],
         ]
 
     def _matches(self, b=None):
@@ -1113,10 +1161,25 @@ class MiniChallenge:
             ]
             for r in range(self.N - 1, -1, -1):
                 self.board[r][c] = vals.pop() if vals else None
+
+        if self._matches():
+            self.board = self._new_board()
+
         for r in range(self.N):
             for c in range(self.N):
                 if self.board[r][c] is None:
-                    self.board[r][c] = random.randrange(self.TYPES)
+                    choices = list(range(self.TYPES))
+                    random.shuffle(choices)
+                    for value in choices:
+                        self.board[r][c] = value
+                        if not self._matches():
+                            break
+                    else:
+                        self.board = self._new_board()
+                        break
+            if self._matches():
+                break
+
         self.strikes += 1
         if self.strikes >= self.TARGET_STRIKES:
             self._finish()
@@ -1208,51 +1271,92 @@ class MiniChallenge:
                     screen,
                     rect.center,
                     self.symbols[v % len(self.symbols)],
-                    col,
                 )
 
-    def _icon(self, s, center, k, col):
+    def _icon(self, s, center, k):
         x, y = center
-        d = tuple(max(25, v - 85) for v in col)
-        w = (248, 252, 255)
+        ink = (68, 76, 98)
+        cream = (255, 252, 246)
         if k == "milk":
-            r = pygame.Rect(x - 10, y - 10, 20, 22)
-            pygame.draw.rect(s, w, r, border_radius=5)
-            pygame.draw.rect(s, d, r, 2, border_radius=5)
+            outline = [(x - 10, y - 8), (x - 3, y - 14), (x + 9, y - 10), (x + 10, y + 11), (x - 10, y + 11)]
+            carton = [(x - 8, y - 7), (x - 2, y - 11), (x + 7, y - 8), (x + 8, y + 9), (x - 8, y + 9)]
+            pygame.draw.polygon(s, ink, outline)
+            pygame.draw.polygon(s, (246, 253, 255), carton)
+            pygame.draw.polygon(s, (151, 216, 235), [(x - 2, y - 10), (x + 7, y - 7), (x + 7, y - 2), (x - 2, y - 4)])
+            self._cute_face(s, x, y + 3)
         elif k == "coffee":
-            pygame.draw.ellipse(s, (105, 65, 48), (x - 13, y - 10, 26, 20))
+            pygame.draw.ellipse(s, ink, (x - 12, y + 7, 24, 7))
+            pygame.draw.circle(s, ink, (x + 9, y - 1), 7)
+            pygame.draw.circle(s, cream, (x + 9, y - 1), 3)
+            pygame.draw.rect(s, ink, (x - 12, y - 9, 21, 19), border_radius=6)
+            pygame.draw.rect(s, (194, 123, 85), (x - 10, y - 7, 17, 14), border_radius=5)
+            pygame.draw.ellipse(s, (104, 62, 50), (x - 10, y - 8, 17, 7))
+            self._cute_face(s, x - 1, y + 1)
         elif k == "syrup":
-            pygame.draw.rect(
-                s, (255, 235, 245), (x - 10, y - 6, 20, 18), border_radius=5
-            )
+            pygame.draw.rect(s, ink, (x - 4, y - 13, 8, 6), border_radius=2)
+            pygame.draw.rect(s, (244, 184, 207), (x - 3, y - 12, 6, 4), border_radius=2)
+            pygame.draw.rect(s, ink, (x - 10, y - 7, 20, 20), border_radius=5)
+            pygame.draw.rect(s, (255, 239, 245), (x - 8, y - 5, 16, 16), border_radius=4)
+            pygame.draw.rect(s, (244, 139, 183), (x - 7, y + 3, 14, 6), border_radius=3)
+            self._cute_face(s, x, y + 1)
         elif k in ("spice", "matcha"):
-            pygame.draw.circle(
-                s,
-                (190, 105, 70) if k == "spice" else (165, 195, 105),
-                (x, y),
-                12,
-            )
+            powder = (198, 119, 78) if k == "spice" else (139, 190, 111)
+            pygame.draw.ellipse(s, ink, (x - 12, y - 8, 24, 21))
+            pygame.draw.ellipse(s, (255, 239, 221), (x - 10, y - 7, 20, 16))
+            pygame.draw.ellipse(s, powder, (x - 9, y - 8, 18, 10))
+            pygame.draw.circle(s, (255, 229, 159), (x - 4, y - 8), 3)
+            self._cute_face(s, x, y + 1)
         elif k == "star":
-            pts = [
-                (
-                    x + math.cos(-math.pi / 2 + i * math.pi / 2.5) * 14,
-                    y + math.sin(-math.pi / 2 + i * math.pi / 2.5) * 14,
-                )
+            points = [
+                (x + math.cos(-math.pi / 2 + i * math.pi / 2.5) * 14,
+                 y + math.sin(-math.pi / 2 + i * math.pi / 2.5) * 14)
                 for i in range(5)
             ]
-            pygame.draw.polygon(s, (255, 225, 110), pts)
-        elif k == "ice":
-            pts = [
-                (x - 12, y - 8),
-                (x + 4, y - 14),
-                (x + 13, y - 4),
-                (x + 9, y + 12),
-                (x - 7, y + 14),
-                (x - 14, y + 3),
+            pygame.draw.polygon(s, ink, points)
+            points = [
+                (x + math.cos(-math.pi / 2 + i * math.pi / 2.5) * 11,
+                 y + math.sin(-math.pi / 2 + i * math.pi / 2.5) * 11)
+                for i in range(5)
             ]
-            pygame.draw.polygon(s, (215, 245, 255), pts)
+            pygame.draw.polygon(s, (255, 222, 105), points)
+            self._cute_face(s, x, y + 2)
+        elif k == "ice":
+            pygame.draw.rect(s, ink, (x - 11, y - 11, 22, 22), border_radius=7)
+            pygame.draw.rect(s, (202, 238, 250), (x - 9, y - 9, 18, 18), border_radius=6)
+            pygame.draw.line(s, (246, 255, 255), (x - 5, y - 6), (x - 2, y - 3), 2)
+            self._cute_face(s, x, y + 2)
+        elif k == "foam":
+            pygame.draw.circle(s, ink, (x - 5, y + 1), 8)
+            pygame.draw.circle(s, ink, (x + 4, y - 2), 10)
+            pygame.draw.circle(s, ink, (x + 10, y + 3), 6)
+            pygame.draw.circle(s, cream, (x - 5, y + 1), 6)
+            pygame.draw.circle(s, cream, (x + 4, y - 2), 8)
+            pygame.draw.circle(s, cream, (x + 10, y + 3), 4)
+            self._cute_face(s, x + 2, y + 3)
+        elif k == "chocolate":
+            pygame.draw.rect(s, ink, (x - 12, y - 10, 24, 20), border_radius=4)
+            pygame.draw.rect(s, (132, 78, 61), (x - 10, y - 8, 20, 16), border_radius=3)
+            pygame.draw.line(s, (194, 130, 101), (x, y - 7), (x, y + 7), 2)
+            pygame.draw.line(s, (194, 130, 101), (x - 8, y), (x + 8, y), 2)
+            self._cute_face(s, x, y + 1)
         else:
-            pygame.draw.circle(s, w, (x, y), 11)
+            pygame.draw.ellipse(s, (164, 214, 139), (x - 11, y - 7, 22, 15))
+            pygame.draw.line(s, (81, 145, 98), (x - 8, y + 8), (x + 8, y - 8), 2)
+            self._cute_face(s, x, y + 2)
+
+    def _cute_face(self, s, x, y):
+        eye_color = (68, 76, 98)
+        pygame.draw.circle(s, eye_color, (x - 3, y - 1), 1)
+        pygame.draw.circle(s, eye_color, (x + 3, y - 1), 1)
+        pygame.draw.lines(
+            s,
+            eye_color,
+            False,
+            [(x - 2, y + 3), (x, y + 4), (x + 2, y + 3)],
+            1,
+        )
+        pygame.draw.circle(s, (255, 164, 177), (x - 6, y + 2), 1)
+        pygame.draw.circle(s, (255, 164, 177), (x + 6, y + 2), 1)
 
     def _draw_done(self, s):
         self._text(
