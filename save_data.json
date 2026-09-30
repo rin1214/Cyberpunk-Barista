@@ -12,16 +12,16 @@
         "location": "Neon Lounge"
     },
     "kian": {
-        "credits": 165,
-        "xp": 140,
+        "credits": 228,
+        "xp": 340,
         "level": 2,
         "location": "Neon Lounge"
     },
     "yin": {
-        "credits": 10,
-        "xp": 100,
-        "level": 1,
-        "location": "Back Alley Kiosk"
+        "credits": 99,
+        "xp": 1090,
+        "level": 3,
+        "location": "Cyber Penthouse"
     },
     "mahi": {
         "credits": 80,
