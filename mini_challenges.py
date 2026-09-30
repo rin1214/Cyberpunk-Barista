@@ -1,6 +1,6 @@
 """
 mini_challenges.py
-Cyberpunk Café - Mini Challenges (Level 3 Custom Minigames)
+Cyberpunk Café - Mini Challenges
 """
 
 import math
@@ -118,7 +118,7 @@ class MiniChallenge:
         self.ft = pygame.font.SysFont("arial", 29, True)
         self.fb = pygame.font.SysFont("arial", 21, True)
         self.fs = pygame.font.SysFont("arial", 17, True)
-        self.fi = pygame.font.SysFont("arial", 14, True)  # Font for Option 1 Instruction
+        self.fi = pygame.font.SysFont("arial", 14, True)
         self.strike_title_font = pygame.font.SysFont("arial", 18, True)
         self.strike_big_font = pygame.font.SysFont("arial", 40, True)
         self.timer_ring_font = pygame.font.SysFont("arial", 16, True)
@@ -216,7 +216,7 @@ class MiniChallenge:
             self.last_open_lane = -1
         elif drink_name == "Caramel Byte":
             self.level_mode = "SOLDER"
-            self.time_left = 999.0  # Infinite timer
+            self.time_left = 999.0
             self.message = f"CONNECT GREEN TO BLUE (STAGE {self.strikes + 1}/3)"
             self._reset_solder_board()
         else:
@@ -225,14 +225,37 @@ class MiniChallenge:
             self.message = "MATCH 3 INGREDIENTS"
             self.board = self._new_board()
 
+    def _has_solder_path(self, glitches):
+        queue = [(r, 0) for r in range(self.N) if (r, 0) not in glitches]
+        visited = set(queue)
+
+        while len(queue) > 0:
+            r, c = queue.pop(0)
+
+            if c == self.N - 1:
+                return True
+
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < self.N and 0 <= nc < self.N:
+                    if (nr, nc) not in visited and (nr, nc) not in glitches:
+                        visited.add((nr, nc))
+                        queue.append((nr, nc))
+
+        return False
+
     def _reset_solder_board(self):
         self.solder_path = []
         self.is_soldering = False
-        self.glitch_tiles = set()
-        while len(self.glitch_tiles) < 6:
-            r = random.randint(0, 4)
-            c = random.randint(1, 3)
-            self.glitch_tiles.add((r, c))
+        while True:
+            glitches = set()
+            while len(glitches) < 6:
+                r = random.randint(0, 4)
+                c = random.randint(1, 3)
+                glitches.add((r, c))
+            if self._has_solder_path(glitches):
+                self.glitch_tiles = glitches
+                break
 
     def handle_event(self, event):
         if not self.active:
@@ -281,10 +304,13 @@ class MiniChallenge:
             a = self.selected
             self.selected = None
 
+            # Verify adjacent neighbor swap
             if abs(a[0] - cell[0]) + abs(a[1] - cell[1]) == 1:
                 self._try_swap(a, cell)
             else:
                 self.selected = cell
+                self.message = "TILES MUST BE ADJACENT"
+                self.message_timer = 0.6
 
     def update(self, dt):
         if not self.active and not self.done:
@@ -451,7 +477,6 @@ class MiniChallenge:
             self._draw_done(screen)
             return
 
-        # Header Block
         self._text(screen, self.title, self.ft, self.accent, 124)
         self._text(screen, self.drink.upper(), self.fb, (242, 245, 255), 154)
         self._text(
@@ -462,7 +487,6 @@ class MiniChallenge:
             180,
         )
 
-        # OPTION 1: Top Header Subtitle Instruction (SOLDER Mode Only)
         if self.level_mode == "SOLDER":
             self._text(
                 screen,

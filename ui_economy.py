@@ -286,10 +286,10 @@ class UIEconomy:
         """Draws the top Cyber-Deck HUD header constrained before MAP/LEADERBOARD buttons."""
         screen_w = self.screen.get_width()
         
-        # Dimensions (Constrained width to stop before MAP & LEADERBOARD buttons)
-        hud_height = 65
+        # Shifted Y position up to 5px and reduced height to 56px to avoid drink menu collision
+        hud_height = 56
         hud_width = min(680, screen_w - 320)
-        hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
+        hud_rect = pygame.Rect(10, 5, hud_width, hud_height)
 
         # Draw SOLID background panel
         pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
@@ -299,34 +299,41 @@ class UIEconomy:
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.x + 5, hud_rect.y), (hud_rect.x + 35, hud_rect.y), 4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.right - 35, hud_rect.bottom), (hud_rect.right - 5, hud_rect.bottom), 4)
 
-        # Fonts
-        font_main = pygame.font.SysFont("Consolas", 15, bold=True)
-        font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
+        # -------------------------------------------------------------
+        # Load local Orbitron fonts from assets/fonts/
+        # -------------------------------------------------------------
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        font_dir = os.path.join(base_dir, "assets", "fonts")
+        bold_path = os.path.join(font_dir, "Orbitron-Bold.ttf")
+        medium_path = os.path.join(font_dir, "Orbitron-Medium.ttf")
+
+        font_main = pygame.font.Font(bold_path, 12) if os.path.exists(bold_path) else pygame.font.SysFont("Consolas", 14, bold=True)
+        font_sub = pygame.font.Font(medium_path, 10) if os.path.exists(medium_path) else pygame.font.SysFont("Consolas", 11, bold=True)
 
         # 1. Barista Name & 2. Location (Left Block)
         name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
         loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
-        self.screen.blit(name_txt, (hud_rect.x + 12, hud_rect.y + 12))
-        self.screen.blit(loc_txt, (hud_rect.x + 12, hud_rect.y + 36))
+        self.screen.blit(name_txt, (hud_rect.x + 10, hud_rect.y + 8))
+        self.screen.blit(loc_txt, (hud_rect.x + 10, hud_rect.y + 30))
 
         # Divider line 1
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 10), (hud_rect.x + 220, hud_rect.bottom - 10), 1)
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 215, hud_rect.y + 8), (hud_rect.x + 215, hud_rect.bottom - 8), 1)
 
         # 3. Level & 4. XP Bar (Center Block)
-        xp_x = hud_rect.x + 232
+        xp_x = hud_rect.x + 225
         target_xp = self.LEVEL_XP_REQUIREMENTS.get(self.level, 2500)
         
         lvl_txt = font_main.render(f"LVL {self.level}", True, self.COLOR_CYAN)
         xp_num_txt = font_sub.render(f"{self.xp}/{target_xp} XP", True, self.COLOR_TEXT)
         
-        self.screen.blit(lvl_txt, (xp_x, hud_rect.y + 12))
-        self.screen.blit(xp_num_txt, (xp_x + 65, hud_rect.y + 14))
+        self.screen.blit(lvl_txt, (xp_x, hud_rect.y + 8))
+        self.screen.blit(xp_num_txt, (xp_x + 60, hud_rect.y + 10))
 
         # Segmented XP Bar
         bar_x = xp_x
-        bar_y = hud_rect.y + 38
+        bar_y = hud_rect.y + 32
         bar_w = 175
-        bar_h = 12
+        bar_h = 10
         num_segments = 10
         seg_gap = 2
         seg_w = (bar_w - (seg_gap * (num_segments - 1))) // num_segments
@@ -348,26 +355,26 @@ class UIEconomy:
             pygame.draw.rect(self.screen, (10, 15, 25), seg_rect, 1)
 
         # Divider line 2
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 425, hud_rect.y + 10), (hud_rect.x + 425, hud_rect.bottom - 10), 1)
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 415, hud_rect.y + 8), (hud_rect.x + 415, hud_rect.bottom - 8), 1)
 
         # 5. Credits Display
-        cred_x = hud_rect.x + 438
+        cred_x = hud_rect.x + 425
         cred_lbl = font_sub.render("CREDITS", True, (150, 160, 180))
         cred_val = font_main.render(f"${self.credits:,}", True, self.COLOR_GOLD)
 
-        self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 12))
-        self.screen.blit(cred_val, (cred_x, hud_rect.y + 32))
+        self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 8))
+        self.screen.blit(cred_val, (cred_x, hud_rect.y + 26))
 
         # Divider line 3
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 550, hud_rect.y + 10), (hud_rect.x + 550, hud_rect.bottom - 10), 1)
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 535, hud_rect.y + 8), (hud_rect.x + 535, hud_rect.bottom - 8), 1)
 
         # 6. Combo Counter Display (Inside HUD Chassis)
-        combo_x = hud_rect.x + 562
+        combo_x = hud_rect.x + 545
         combo_txt = font_main.render("COMBO", True, self.COLOR_PINK)
         combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
 
-        self.screen.blit(combo_txt, (combo_x, hud_rect.y + 12))
-        self.screen.blit(combo_val, (combo_x, hud_rect.y + 32))
+        self.screen.blit(combo_txt, (combo_x, hud_rect.y + 8))
+        self.screen.blit(combo_val, (combo_x, hud_rect.y + 26))
 
     def draw(self, combo_count=1, dt=0):
         """Standard draw call forwarder."""
