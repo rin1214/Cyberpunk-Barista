@@ -45,7 +45,7 @@ class OrderScene:
                     print(f"[WARNING] Could not load barista.png from {path}: {e}")
         return None
 
-    def _load_back_customer_sprites(self, filename):
+    def _load_single_back_sprite(self, filename):
         project_root = os.path.dirname(os.path.abspath(__file__))
         paths_to_try = [
             os.path.join(project_root, "assets", "customers", filename),
@@ -64,11 +64,16 @@ class OrderScene:
         return None
 
     def _load_all_back_customer_sprites(self):
-        return {
-            "runner": self._load_back_customer_sprites("runner_back.png") or self._load_back_customer_sprites("runnerback.png"),
-            "hacker": self._load_back_customer_sprites("hacker_back.png") or self._load_back_customer_sprites("hackerback.png"),
-            "exec": self._load_back_customer_sprites("exec_back.png") or self._load_back_customer_sprites("execback.png"),
-        }
+        """Loads back-facing sprites for all 6 cyberpunk archetypes including the Cyberpunk Cat & Corp Spy."""
+        archetypes = ["runner", "hacker", "exec", "drone_pilot", "corp_spy", "cyberpunk_cat"]
+        sprites = {}
+        for ctype in archetypes:
+            img = (
+                self._load_single_back_sprite(f"{ctype}_back.png") or 
+                self._load_single_back_sprite(f"{ctype}back.png")
+            )
+            sprites[ctype] = img
+        return sprites
 
     def _load_level_backgrounds(self):
         project_root = os.path.dirname(os.path.abspath(__file__))
@@ -92,8 +97,8 @@ class OrderScene:
         self.shown = 0
         self.ready = False
         
-        # Synchronize customer type properties between customer and order scene
-        available_types = ["runner", "hacker", "exec"]
+        # Synchronize customer type properties across all 6 expanded archetypes
+        available_types = ["runner", "hacker", "exec", "drone_pilot", "corp_spy", "cyberpunk_cat"]
         if hasattr(self.customer, "current_type") and self.customer.current_type in available_types:
             self.customer.customer_type = self.customer.current_type
         elif hasattr(self.customer, "customer_type") and self.customer.customer_type in available_types:
@@ -103,7 +108,7 @@ class OrderScene:
             self.customer.current_type = chosen
             self.customer.customer_type = chosen
 
-        # Save original front-facing sprite before switching to back view
+        # Save original front-facing sprite before switching to back view for order dialogue
         if self.customer:
             if not hasattr(self.customer, "original_image") or self.customer.original_image is None:
                 if hasattr(self.customer, "image"):
@@ -155,7 +160,7 @@ class OrderScene:
     def _finish(self):
         self.active = False
         if self.customer:
-            # RESTORE front-facing sprite for mixing/waiting phase!
+            # RESTORE front-facing sprite for workstation mixing/waiting phase!
             if hasattr(self.customer, "original_image") and self.customer.original_image is not None:
                 self.customer.image = self.customer.original_image
             elif hasattr(self.customer, "_load_sprite") and hasattr(self.customer, "current_type"):

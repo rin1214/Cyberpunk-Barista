@@ -150,20 +150,25 @@
         "location": "Back Alley Kiosk"
     },
     ";lucy": {
-        "credits": 937,
+        "credits": 187,
         "xp": 2310,
         "level": 3,
-        "location": "Cyber Penthouse"
+        "location": "Cyber Penthouse",
+        "unlocked_levels": {
+            "1": true,
+            "3": true,
+            "2": true
+        }
     },
     "sue": {
-        "credits": 124,
-        "xp": 130,
-        "level": 2,
-        "location": "Neon Lounge",
+        "credits": 52,
+        "xp": 1220,
+        "level": 3,
+        "location": "Cyber Penthouse",
         "unlocked_levels": {
             "1": true,
             "2": true,
-            "3": false
+            "3": true
         }
     },
     "hik": {
