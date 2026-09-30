@@ -35,7 +35,9 @@ class MapScreen:
             self.bg = None
             print("[MAP] Background not found.")
 
-        self.title = pygame.font.SysFont("Consolas", 39, bold=True)
+        self.title = pygame.font.Font(
+            os.path.join(root, "assets", "fonts", "Orbitron-Black.ttf"), 46
+        )
         self.subtitle = pygame.font.SysFont("Consolas", 15, bold=True)
         self.name = pygame.font.SysFont("Consolas", 18, bold=True)
         self.body = pygame.font.SysFont("Consolas", 14, bold=True)
@@ -126,15 +128,6 @@ class MapScreen:
     def draw_title(self):
         # Visual center between left credits panel (ends ~328) and right back button (starts ~1040)
         cx = (328 + 1040) // 2  # = 684
-
-        # Glow effect for title
-        glow_surf = pygame.Surface((520, 70), pygame.SRCALPHA)
-        for pad, alpha in [(16, 18), (10, 32), (5, 50)]:
-            glow_s = self.title.render("DISTRICT MAP", True, self.CYAN)
-            glow_s.set_alpha(alpha)
-            glow_surf.blit(glow_s, glow_s.get_rect(center=(260 + pad, 35)))
-            glow_surf.blit(glow_s, glow_s.get_rect(center=(260 - pad, 35)))
-        self.screen.blit(glow_surf, (cx - 260, 75))
 
         self.text(
             "DISTRICT MAP",
