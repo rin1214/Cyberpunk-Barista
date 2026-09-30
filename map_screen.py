@@ -4,63 +4,61 @@ import pygame
 
 
 class MapScreen:
-    WIDTH, HEIGHT = 1280, 720
+    W, H = 1280, 720
     FPS = 60
 
-    CYAN = (55, 225, 255)
-    PINK = (255, 70, 205)
-    GOLD = (255, 195, 70)
-    GREEN = (90, 255, 195)
-    WHITE = (240, 245, 255)
+    CYAN = (50, 225, 255)
+    PINK = (255, 75, 205)
+    GOLD = (255, 195, 65)
+    GREEN = (70, 255, 185)
+    WHITE = (235, 240, 255)
     MUTED = (145, 155, 180)
-    DARK = (6, 9, 24)
+    DARK = (7, 9, 22)
 
     def __init__(self, screen, map_manager, economy, project_root=None):
         self.screen = screen
         self.map_manager = map_manager
         self.economy = economy
+        self.clock = pygame.time.Clock()
+        self.t = 0
+        self.hover = None
 
         root = project_root or os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(root, "assets", "mahirah", "ui",
-                            "district_map_bg.png")
+        path = os.path.join(
+            root, "assets", "mahirah", "ui", "district_map_bg.png"
+        )
 
-        self.bg = None
-        if os.path.exists(path):
-            try:
-                self.bg = pygame.image.load(path).convert()
-                print(f"[MAP] Background loaded: {path}")
-            except pygame.error as e:
-                print(f"[MAP] Background error: {e}")
-
-        self.clock = pygame.time.Clock()
-        self.time = 0
-        self.hovered = None
+        try:
+            self.bg = pygame.image.load(path).convert()
+            print(f"[MAP] Loaded: {path}")
+        except (pygame.error, FileNotFoundError):
+            self.bg = None
+            print("[MAP] Background not found.")
 
         self.title = pygame.font.SysFont("Consolas", 34, bold=True)
-        self.sub = pygame.font.SysFont("Consolas", 15, bold=True)
-        self.name = pygame.font.SysFont("Consolas", 19, bold=True)
-        self.small = pygame.font.SysFont("Consolas", 13, bold=True)
-        self.icon = pygame.font.SysFont("Segoe UI Symbol", 42, bold=True)
+        self.name = pygame.font.SysFont("Consolas", 18, bold=True)
+        self.body = pygame.font.SysFont("Consolas", 14, bold=True)
+        self.small = pygame.font.SysFont("Consolas", 12, bold=True)
 
-        self.back_rect = pygame.Rect(1040, 25, 205, 50)
+        self.back = pygame.Rect(1040, 24, 205, 50)
 
     # ------------------------------------------------------------
-    # BASIC DRAWING
+    # BASIC UI
     # ------------------------------------------------------------
 
-    def _panel(self, rect, border):
+    def panel(self, rect, border, alpha=205):
         s = pygame.Surface(rect.size, pygame.SRCALPHA)
-        s.fill((*self.DARK, 215))
+        s.fill((*self.DARK, alpha))
         self.screen.blit(s, rect.topleft)
         pygame.draw.rect(
             self.screen, border, rect, 2, border_radius=9
         )
 
-    def _text(self, text, font, color, center):
-        surf = font.render(text, True, color)
-        self.screen.blit(surf, surf.get_rect(center=center))
+    def text(self, value, font, color, pos):
+        s = font.render(value, True, color)
+        self.screen.blit(s, s.get_rect(center=pos))
 
-    def _color(self, node):
+    def color(self, node):
         return {
             1: self.PINK,
             2: self.CYAN,
@@ -71,7 +69,7 @@ class MapScreen:
     # BACKGROUND
     # ------------------------------------------------------------
 
-    def _draw_background(self):
+    def draw_background(self):
         w, h = self.screen.get_size()
 
         if self.bg:
@@ -79,7 +77,6 @@ class MapScreen:
             scale = max(w / iw, h / ih)
             size = (int(iw * scale), int(ih * scale))
             img = pygame.transform.smoothscale(self.bg, size)
-
             self.screen.blit(
                 img,
                 ((w - size[0]) // 2, (h - size[1]) // 2)
@@ -87,86 +84,66 @@ class MapScreen:
         else:
             self.screen.fill(self.DARK)
 
-        # Extra dimming so UI remains readable.
+        # Keep the city visible but make the UI easier to read.
         shade = pygame.Surface((w, h), pygame.SRCALPHA)
-        shade.fill((4, 6, 20, 55))
+        shade.fill((3, 5, 18, 58))
         self.screen.blit(shade, (0, 0))
 
     # ------------------------------------------------------------
     # HEADER
     # ------------------------------------------------------------
 
-    def _draw_header(self):
-        self._panel(
-            pygame.Rect(28, 20, 350, 55),
+    def draw_header(self):
+        self.panel(
+            pygame.Rect(28, 24, 300, 50),
             self.PINK
         )
 
-        self._text(
-            "☕ CYBERPUNK CAFÉ",
-            self.name,
-            self.PINK,
-            (203, 42)
-        )
-
-        self._text(
-            "GOOD COFFEE  ✦  BRIGHTER PEOPLE",
-            self.small,
-            self.WHITE,
-            (203, 63)
-        )
-
-        self._panel(
-            pygame.Rect(825, 20, 195, 55),
-            self.CYAN
-        )
-
-        self._text(
+        self.text(
             f"CREDITS: ${self.economy.credits}",
-            self.small,
+            self.body,
             self.GOLD,
-            (922, 47)
+            (178, 49)
         )
 
-        mouse = pygame.mouse.get_pos()
-        hover = self.back_rect.collidepoint(mouse)
-        color = self.PINK if hover else self.CYAN
+        hover = self.back.collidepoint(pygame.mouse.get_pos())
+        border = self.PINK if hover else self.CYAN
 
-        self._panel(self.back_rect, color)
+        self.panel(self.back, border)
 
-        self._text(
+        self.text(
             "‹  BACK TO CAFÉ",
-            self.small,
-            color,
-            self.back_rect.center
+            self.body,
+            border,
+            self.back.center
         )
 
     # ------------------------------------------------------------
     # TITLE
     # ------------------------------------------------------------
 
-    def _draw_title(self):
-        w = self.screen.get_width()
+    def draw_title(self):
+        cx = self.W // 2
 
-        self._text(
+        self.text(
             "DISTRICT MAP",
             self.title,
             self.CYAN,
-            (w // 2, 105)
+            (cx, 105)
         )
 
-        self._text(
+        self.text(
             "SELECT YOUR NEXT CAFÉ LOCATION",
-            self.sub,
+            self.body,
             self.WHITE,
-            (w // 2, 137)
+            (cx, 137)
         )
 
         pygame.draw.line(
             self.screen,
             self.CYAN,
-            (w // 2 - 170, 153),
-            (w // 2 + 170, 153),
+            (cx - 170, 153),
+            (cx + 170, 153),
             1
         )
 
@@ -174,95 +151,186 @@ class MapScreen:
     # LOCATION ICONS
     # ------------------------------------------------------------
 
-    def _draw_icon(self, node):
+    def draw_icon(self, node):
         x, y = node.pos
-        base = self._color(node)
-
-        # Locked locations are intentionally dim.
-        if not node.is_unlocked:
-            base = tuple(max(35, int(c * 0.38)) for c in base)
-
+        col = self.color(node)
+        unlocked = node.is_unlocked
         active = self.economy.level == node.level_req
-        hover = self.hovered == node
+        hover = self.hover is node
 
-        # Glow
-        if active or hover:
-            pulse = (math.sin(self.time * 3) + 1) / 2
+        if not unlocked:
+            col = tuple(max(35, int(c * 0.38)) for c in col)
+
+        # Soft glow
+        if unlocked and (active or hover):
+            pulse = (math.sin(self.t * 3) + 1) / 2
             glow = pygame.Surface((180, 180), pygame.SRCALPHA)
 
-            for r, a in [(76, 15), (68, 25), (60, 40)]:
+            for radius, alpha in ((72, 12), (64, 20), (56, 32)):
                 pygame.draw.circle(
                     glow,
-                    (*base, int(a + pulse * 12)),
+                    (*col, int(alpha + pulse * 8)),
                     (90, 90),
-                    r
+                    radius
                 )
 
             self.screen.blit(glow, (x - 90, y - 90))
 
-        # Main icon circle
-        pygame.draw.circle(
-            self.screen,
-            self.DARK,
-            (x, y),
-            60
-        )
+        # Outer ring
+        pygame.draw.circle(self.screen, (5, 8, 20), (x, y), 59)
+        pygame.draw.circle(self.screen, col, (x, y), 59, 3)
+        pygame.draw.circle(self.screen, col, (x, y), 49, 1)
 
-        pygame.draw.circle(
-            self.screen,
-            base,
-            (x, y),
-            60,
-            3
-        )
+        # --------------------------------------------------------
+        # LEVEL 1 — CAFÉ CUP
+        # --------------------------------------------------------
 
-        pygame.draw.circle(
-            self.screen,
-            base,
-            (x, y),
-            49,
-            1
-        )
-
-        # Location-specific symbol
         if node.level_req == 1:
-            symbol = "☕"
+            pygame.draw.rect(
+                self.screen, col,
+                (x - 23, y - 12, 38, 28),
+                3, border_radius=5
+            )
+            pygame.draw.arc(
+                self.screen, col,
+                (x + 10, y - 7, 20, 19),
+                -1.5, 1.5, 3
+            )
+
+            pygame.draw.line(
+                self.screen, col,
+                (x - 14, y - 20),
+                (x - 9, y - 28), 2
+            )
+            pygame.draw.line(
+                self.screen, col,
+                (x, y - 20),
+                (x + 5, y - 29), 2
+            )
+
+        # --------------------------------------------------------
+        # LEVEL 2 — FUTURISTIC LOUNGE GLASS
+        # --------------------------------------------------------
+
         elif node.level_req == 2:
-            symbol = "✦"
+            points = [
+                (x - 25, y - 22),
+                (x + 25, y - 22),
+                (x + 12, y + 5),
+                (x + 6, y + 12),
+                (x + 6, y + 23),
+                (x - 6, y + 23),
+                (x - 6, y + 12),
+                (x - 12, y + 5)
+            ]
+
+            pygame.draw.lines(
+                self.screen, col, True, points, 3
+            )
+
+            pygame.draw.line(
+                self.screen, col,
+                (x - 20, y + 29),
+                (x + 20, y + 29), 3
+            )
+
+            pygame.draw.line(
+                self.screen, col,
+                (x, y + 12),
+                (x, y + 25), 3
+            )
+
+            pygame.draw.circle(
+                self.screen, col,
+                (x + 14, y - 27), 3
+            )
+
+        # --------------------------------------------------------
+        # LEVEL 3 — CYBER PENTHOUSE
+        # --------------------------------------------------------
+
         else:
-            symbol = "◇"
+            building = [
+                (x - 22, y + 27),
+                (x - 22, y - 15),
+                (x - 9, y - 15),
+                (x - 9, y - 32),
+                (x + 9, y - 32),
+                (x + 9, y - 15),
+                (x + 22, y - 15),
+                (x + 22, y + 27)
+            ]
 
-        self._text(
-            symbol,
-            self.icon,
-            base,
-            (x, y)
-        )
+            pygame.draw.lines(
+                self.screen, col, True, building, 3
+            )
 
-        # Lock
-        if not node.is_unlocked:
-            self._text(
-                "🔒",
-                self.small,
-                self.WHITE,
-                (x, y + 39)
+            for ox in (-15, 0, 15):
+                pygame.draw.line(
+                    self.screen, col,
+                    (x + ox, y - 5),
+                    (x + ox, y + 5), 2
+                )
+
+            pygame.draw.line(
+                self.screen, col,
+                (x - 30, y + 28),
+                (x + 30, y + 28), 3
+            )
+
+            pygame.draw.circle(
+                self.screen, col,
+                (x, y - 43), 3
+            )
+
+        # Lock badge
+        if not unlocked:
+            pygame.draw.circle(
+                self.screen,
+                (10, 12, 28),
+                (x + 39, y + 39),
+                15
+            )
+            pygame.draw.circle(
+                self.screen,
+                self.MUTED,
+                (x + 39, y + 39),
+                15,
+                2
+            )
+
+            pygame.draw.rect(
+                self.screen,
+                self.MUTED,
+                (x + 32, y + 38, 14, 11),
+                2,
+                border_radius=2
+            )
+
+            pygame.draw.arc(
+                self.screen,
+                self.MUTED,
+                (x + 34, y + 30, 10, 12),
+                math.pi,
+                2 * math.pi,
+                2
             )
 
     # ------------------------------------------------------------
-    # NODE LABEL
+    # LOCATION LABEL
     # ------------------------------------------------------------
 
-    def _draw_label(self, node):
+    def draw_label(self, node):
         x, y = node.pos
-        color = self._color(node)
+        col = self.color(node)
 
         if not node.is_unlocked:
-            color = tuple(max(45, int(c * 0.55)) for c in color)
+            col = tuple(max(40, int(c * 0.5)) for c in col)
 
-        box = pygame.Rect(x - 120, y + 72, 240, 60)
-        self._panel(box, color)
+        rect = pygame.Rect(x - 125, y + 72, 250, 58)
+        self.panel(rect, col, 220)
 
-        self._text(
+        self.text(
             node.name,
             self.name,
             self.WHITE,
@@ -272,64 +340,49 @@ class MapScreen:
         if node.is_unlocked:
             active = self.economy.level == node.level_req
             status = "ACTIVE" if active else "UNLOCKED"
-            status_color = self.GREEN if active else self.CYAN
+            status_col = self.GREEN if active else self.CYAN
         else:
-            status = f"🔒  UNLOCK (${node.cost})"
-            status_color = color
+            status = f"LOCKED  •  ${node.cost}"
+            status_col = self.MUTED
 
-        self._text(
+        self.text(
             status,
             self.small,
-            status_color,
-            (x, y + 115)
+            status_col,
+            (x, y + 114)
         )
 
     # ------------------------------------------------------------
     # ROUTE
     # ------------------------------------------------------------
 
-    def _draw_route(self):
+    def draw_route(self):
         nodes = list(self.map_manager.nodes.values())
 
         for a, b in zip(nodes, nodes[1:]):
+            # Very subtle route so the background remains dominant.
             pygame.draw.line(
                 self.screen,
-                (15, 15, 35),
+                (30, 28, 60),
                 a.pos,
                 b.pos,
-                8
+                5
             )
 
-            color = self._color(a)
-
-            if not a.is_unlocked:
-                color = (55, 55, 75)
-
-            pygame.draw.line(
-                self.screen,
-                color,
-                a.pos,
-                b.pos,
-                3
-            )
-
-            # Moving route pulse
-            p = (self.time * 0.15) % 1
-            px = int(a.pos[0] + (b.pos[0] - a.pos[0]) * p)
-            py = int(a.pos[1] + (b.pos[1] - a.pos[1]) * p)
-
-            pygame.draw.circle(
-                self.screen,
-                self.WHITE,
-                (px, py),
-                4
-            )
+            if a.is_unlocked and b.is_unlocked:
+                pygame.draw.line(
+                    self.screen,
+                    (55, 120, 155),
+                    a.pos,
+                    b.pos,
+                    2
+                )
 
     # ------------------------------------------------------------
     # CURRENT LOCATION
     # ------------------------------------------------------------
 
-    def _draw_current(self):
+    def draw_current(self):
         node = next(
             (
                 n for n in self.map_manager.nodes.values()
@@ -341,84 +394,110 @@ class MapScreen:
         if not node:
             return
 
-        rect = pygame.Rect(28, 570, 350, 105)
-        self._panel(rect, self._color(node))
+        rect = pygame.Rect(28, 575, 350, 105)
+        col = self.color(node)
 
-        self._text(
+        self.panel(rect, col)
+
+        self.text(
             "CURRENT LOCATION",
             self.small,
             self.WHITE,
-            (110, 590)
+            (110, 592)
         )
 
-        self._text(
+        self.text(
             node.name,
             self.name,
-            self._color(node),
-            (190, 618)
+            col,
+            (190, 620)
         )
 
         desc = node.description
-        if len(desc) > 45:
-            desc = desc[:42] + "..."
+        if len(desc) > 43:
+            desc = desc[:40] + "..."
 
-        self._text(
+        self.text(
             desc,
             self.small,
             self.MUTED,
-            (203, 650)
+            (203, 651)
         )
 
     # ------------------------------------------------------------
-    # STATUS LEGEND
+    # REAL DISTRICT STATUS
     # ------------------------------------------------------------
 
-    def _draw_legend(self):
-        rect = pygame.Rect(1040, 570, 205, 105)
-        self._panel(rect, self.CYAN)
+    def draw_status(self):
+        rect = pygame.Rect(1035, 575, 210, 105)
+        self.panel(rect, self.CYAN)
 
-        self._text(
+        self.text(
             "DISTRICT STATUS",
             self.small,
             self.WHITE,
-            (1142, 588)
+            (1140, 592)
         )
 
-        entries = [
-            ("ACTIVE", self.GREEN),
-            ("UNLOCKED", self.CYAN),
-            ("LOCKED", self.MUTED)
-        ]
+        for i, node in enumerate(self.map_manager.nodes.values()):
+            y = 615 + i * 19
 
-        for i, (label, color) in enumerate(entries):
-            y = 610 + i * 19
+            active = self.economy.level == node.level_req
+
+            if active:
+                label = f"LV.{node.level_req}  ACTIVE"
+                col = self.GREEN
+            elif node.is_unlocked:
+                label = f"LV.{node.level_req}  UNLOCKED"
+                col = self.CYAN
+            else:
+                label = f"LV.{node.level_req}  LOCKED"
+                col = self.MUTED
 
             pygame.draw.circle(
                 self.screen,
-                color,
-                (1065, y),
+                col,
+                (1060, y),
                 5,
                 2
             )
 
-            self._text(
+            self.text(
                 label,
                 self.small,
-                color,
-                (1120, y)
+                col,
+                (1140, y)
             )
 
     # ------------------------------------------------------------
-    # INPUT / MAIN LOOP
+    # INPUT
+    # ------------------------------------------------------------
+
+    def update_hover(self):
+        mouse = pygame.mouse.get_pos()
+        self.hover = None
+
+        for node in self.map_manager.nodes.values():
+            rect = pygame.Rect(
+                node.pos[0] - 75,
+                node.pos[1] - 75,
+                150,
+                220
+            )
+
+            if rect.collidepoint(mouse):
+                self.hover = node
+                break
+
+    # ------------------------------------------------------------
+    # MAIN LOOP
     # ------------------------------------------------------------
 
     def run(self):
         running = True
 
         while running:
-            dt = self.clock.tick(self.FPS) / 1000
-            self.time += dt
-
+            self.t += self.clock.tick(self.FPS) / 1000
             self.map_manager.check_unlocks()
 
             for event in pygame.event.get():
@@ -434,10 +513,11 @@ class MapScreen:
                     if event.button != 1:
                         continue
 
-                    if self.back_rect.collidepoint(event.pos):
+                    if self.back.collidepoint(event.pos):
                         return True
 
                     for node_id, node in self.map_manager.nodes.items():
+
                         hitbox = pygame.Rect(
                             node.pos[0] - 75,
                             node.pos[1] - 75,
@@ -445,71 +525,47 @@ class MapScreen:
                             220
                         )
 
-                        if hitbox.collidepoint(event.pos):
+                        if not hitbox.collidepoint(event.pos):
+                            continue
 
-                            if node.is_unlocked:
-                                success = self.economy.set_level(
-                                    node.level_req
+                        if self.map_manager.select_node(node_id):
+                            self.economy.level = node.level_req
+                            self.economy.location = (
+                                self.economy.LOCATIONS.get(
+                                    node.level_req,
+                                    node.name
                                 )
-                            else:
-                                success = self.map_manager.unlock_node(
-                                    node_id
-                                )
+                            )
+                            self.economy.save_economy_data()
 
-                            if success:
-                                self.economy.level = node.level_req
-                                self.economy.location = (
-                                    self.economy.LOCATIONS.get(
-                                        node.level_req,
-                                        node.name
-                                    )
-                                )
-                                self.economy.save_economy_data()
-                                print(
-                                    f"[MAP] Selected: {node.name}"
-                                )
-                                return True
+                            print(
+                                f"[MAP] Selected: {node.name}"
+                            )
+                            return True
 
-            # Hover
-            mouse = pygame.mouse.get_pos()
-            self.hovered = None
+            self.update_hover()
+
+            self.draw_background()
+            self.draw_route()
+            self.draw_header()
+            self.draw_title()
 
             for node in self.map_manager.nodes.values():
-                hitbox = pygame.Rect(
-                    node.pos[0] - 75,
-                    node.pos[1] - 75,
-                    150,
-                    220
-                )
+                self.draw_icon(node)
+                self.draw_label(node)
 
-                if hitbox.collidepoint(mouse):
-                    self.hovered = node
-                    break
-
-            # Draw
-            self._draw_background()
-            self._draw_route()
-            self._draw_header()
-            self._draw_title()
-
-            for node in self.map_manager.nodes.values():
-                self._draw_icon(node)
-                self._draw_label(node)
-
-            self._draw_current()
-            self._draw_legend()
+            self.draw_current()
+            self.draw_status()
 
             footer = self.small.render(
-                "Click a location to travel or unlock  •  [M] / [ESC] Return",
+                "CLICK A LOCATION TO TRAVEL OR UNLOCK  •  [M] / [ESC] RETURN",
                 True,
                 self.MUTED
             )
 
             self.screen.blit(
                 footer,
-                footer.get_rect(
-                    center=(self.WIDTH // 2, self.HEIGHT - 18)
-                )
+                footer.get_rect(center=(640, 703))
             )
 
             pygame.display.flip()
