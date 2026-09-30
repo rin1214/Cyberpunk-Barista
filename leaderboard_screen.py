@@ -87,9 +87,13 @@ class LeaderboardScreen:
             self.screen.blit(rank_h, (table_rect.x + 30, header_y))
             self.screen.blit(name_h, (table_rect.x + 130, header_y))
             self.screen.blit(level_h, (table_rect.x + 400, header_y))
+<<<<<<< HEAD
             
             # Position XP header perfectly aligned above the values column
             self.screen.blit(xp_h, (table_rect.x + 550, header_y))
+=======
+            self.screen.blit(xp_h, (table_rect.x + 555, header_y))  # Centered over the XP values
+>>>>>>> 25ee391 (Update background music to lofihiphop and fix audio/UI initialization)
 
             # Divider line below headers
             pygame.draw.line(self.screen, (70, 40, 70), (table_rect.x + 20, header_y + 30), (table_rect.right - 20, header_y + 30), 2)
@@ -106,10 +110,14 @@ class LeaderboardScreen:
                 rank_txt = self.font_body.render(f"#{idx + 1}", True, row_color)
                 name_txt = self.font_body.render(p["name"].upper(), True, row_color)
                 lvl_txt = self.font_body.render(str(p["level"]), True, row_color)
+<<<<<<< HEAD
                 
                 # Fetch XP directly from player entry dict
                 xp_val = p.get("xp", 0)
                 xp_txt = self.font_body.render(f"{xp_val}", True, row_color)
+=======
+                xp_txt = self.font_body.render(f"{p['xp']}", True, row_color)
+>>>>>>> 25ee391 (Update background music to lofihiphop and fix audio/UI initialization)
 
                 self.screen.blit(rank_txt, (table_rect.x + 35, row_y))
                 self.screen.blit(name_txt, (table_rect.x + 130, row_y))

@@ -291,7 +291,7 @@ class UIEconomy:
         
         hud_height = 65
         hud_width = min(680, screen_w - 320)
-        hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
+        hud_rect = pygame.Rect(10, 2, hud_width, hud_height)  # Moved up to y=2
         
         pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
         pygame.draw.rect(self.screen, self.COLOR_BORDER, hud_rect, 2, border_radius=4)
