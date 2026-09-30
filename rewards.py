@@ -1,22 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-REWARD SYSTEM
-============================================================
-
-This file calculates the rewards and penalties earned
-after serving one customer.
-
-The RewardSystem handles:
-
-    • Accuracy rewards
-    • Mistake penalties
-    • Combo rewards (1 bar of XP added at combo milestones 2, 4, 6...)
-    • Speed rewards
-    • XP earned
-    • Credits earned/lost
-"""
-
 from dataclasses import dataclass
 
 
