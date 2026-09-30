@@ -11,11 +11,11 @@ class UIEconomy:
     MAX_LEVEL = 3
     MIN_CREDITS = 0
 
-    # XP targets required per level
-    LEVEL_XP_REQUIREMENTS = {
-        1: 500,
-        2: 1200,
-        3: 2500
+    # Costs required to unlock levels via map nodes using credits
+    LEVEL_UNLOCK_COSTS = {
+        1: 0,    # Level 1 is free/unlocked by default
+        2: 250,  # Cost for Neon Lounge
+        3: 500   # Cost for Cyber Penthouse
     }
 
     LOCATIONS = {
@@ -23,14 +23,14 @@ class UIEconomy:
         2: "Neon Lounge",
         3: "Cyber Penthouse",
     }
-
+    
     # Cyberpunk Theme Palette
-    COLOR_BG_SOLID = (12, 14, 22)       # Solid dark chassis
-    COLOR_BORDER = (0, 240, 255)       # Cyan border glow
-    COLOR_TEXT = (240, 245, 255)       # Soft white text
-    COLOR_GOLD = (255, 200, 0)         # Credits gold
-    COLOR_PINK = (255, 0, 110)         # Combo pink / XP high-fill
-    COLOR_CYAN = (0, 240, 255)         # XP low-fill
+    COLOR_BG_SOLID = (12, 14, 22)      # Solid dark chassis
+    COLOR_BORDER = (0, 240, 255)      # Cyan border glow
+    COLOR_TEXT = (240, 245, 255)      # Soft white text
+    COLOR_GOLD = (255, 200, 0)        # Credits gold
+    COLOR_PINK = (255, 0, 110)        # Combo pink / XP high-fill
+    COLOR_CYAN = (0, 240, 255)        # XP low-fill
     COLOR_SEG_EMPTY = (30, 35, 50)    # Empty XP segment
 
     def __init__(self, screen, player_name="Player"):
@@ -38,12 +38,19 @@ class UIEconomy:
         self.player_name = str(player_name).strip() if player_name else "Player"
         if not self.player_name:
             self.player_name = "Player"
-
+            
         self.credits = self.STARTING_CREDITS
         self.xp = self.STARTING_XP
         self.level = self.STARTING_LEVEL
         self.location = self.LOCATIONS[self.STARTING_LEVEL]
-
+        
+        # Track unlocked levels: Level 1 starts unlocked, others start locked
+        self.unlocked_levels = {
+            1: True,
+            2: False,
+            3: False
+        }
+        
         self.load_economy_data()
 
     def add_credits(self, amount):
@@ -51,11 +58,9 @@ class UIEconomy:
             amount = int(amount)
         except (TypeError, ValueError):
             return False
-
         self.credits += amount
         if self.credits < self.MIN_CREDITS:
             self.credits = self.MIN_CREDITS
-
         self.save_economy_data()
         return True
 
@@ -67,7 +72,6 @@ class UIEconomy:
             amount = int(amount)
         except (TypeError, ValueError):
             return False
-
         self.credits = max(self.MIN_CREDITS, amount)
         self.save_economy_data()
         return True
@@ -77,56 +81,47 @@ class UIEconomy:
             amount = int(amount)
         except (TypeError, ValueError):
             return False
-
         if amount < 0 or self.credits < amount:
             return False
-
         self.credits -= amount
         self.save_economy_data()
         return True
 
+    def is_level_unlocked(self, level):
+        """Checks if a specific level has been unlocked via map nodes."""
+        return self.unlocked_levels.get(int(level), False)
+
+    def can_unlock_level(self, level):
+        """Determines if the player can afford and unlock the target level."""
+        level = int(level)
+        if self.is_level_unlocked(level):
+            return False
+        cost = self.LEVEL_UNLOCK_COSTS.get(level, 0)
+        return self.credits >= cost
+
+    def unlock_level_with_credits(self, level):
+        """Deducts credits and permanently unlocks the level map node."""
+        level = int(level)
+        if self.can_unlock_level(level):
+            cost = self.LEVEL_UNLOCK_COSTS.get(level, 0)
+            if self.spend_credits(cost):
+                self.unlocked_levels[level] = True
+                self.save_economy_data()
+                return True
+        return False
+
     def apply_reward(self, reward_result):
         if reward_result is None:
             return False
-
         if hasattr(reward_result, "net_credits"):
             credit_change = reward_result.net_credits
         elif hasattr(reward_result, "total_credits"):
             credit_change = reward_result.total_credits
         else:
             return False
-
         return self.add_credits(credit_change)
 
     def serve_order(self, is_correct=True):
-        return True
-
-    def sync_progression(self, progression):
-        if progression is None:
-            return False
-
-        try:
-            self.level = int(progression.level)
-        except (TypeError, ValueError):
-            self.level = self.STARTING_LEVEL
-
-        self.level = max(1, min(self.level, self.MAX_LEVEL))
-
-        try:
-            self.xp = max(0, int(progression.xp))
-        except (TypeError, ValueError):
-            self.xp = self.STARTING_XP
-
-        if hasattr(progression, "get_current_location"):
-            location = progression.get_current_location()
-            if location in self.LOCATIONS.values():
-                self.location = location
-            else:
-                self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
-        else:
-            self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
-
-        self.save_economy_data()
         return True
 
     def set_level(self, level):
@@ -134,7 +129,11 @@ class UIEconomy:
             level = int(level)
         except (TypeError, ValueError):
             return False
-
+        
+        # Prevent jumping to locked levels unless unlocked via map node
+        if not self.is_level_unlocked(level):
+            return False
+            
         self.level = max(1, min(level, self.MAX_LEVEL))
         self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
         self.save_economy_data()
@@ -145,7 +144,6 @@ class UIEconomy:
             xp = int(xp)
         except (TypeError, ValueError):
             return False
-
         self.xp = max(0, xp)
         self.save_economy_data()
         return True
@@ -167,6 +165,7 @@ class UIEconomy:
         self.xp = self.STARTING_XP
         self.level = self.STARTING_LEVEL
         self.location = self.LOCATIONS[self.STARTING_LEVEL]
+        self.unlocked_levels = {1: True, 2: False, 3: False}
         self.save_economy_data()
 
     def save_economy_data(self):
@@ -187,16 +186,13 @@ class UIEconomy:
                 saved_level = int(profile.get("level", 1))
             except (TypeError, ValueError):
                 saved_level = 1
-
             saved_level = max(1, min(saved_level, self.MAX_LEVEL))
             profile["level"] = saved_level
             profile["location"] = self.LOCATIONS.get(saved_level, self.LOCATIONS[1])
-
             try:
                 profile["xp"] = max(0, int(profile.get("xp", 0)))
             except (TypeError, ValueError):
                 profile["xp"] = 0
-
             try:
                 profile["credits"] = max(self.MIN_CREDITS, int(profile.get("credits", self.STARTING_CREDITS)))
             except (TypeError, ValueError):
@@ -207,13 +203,16 @@ class UIEconomy:
         self.credits = max(self.MIN_CREDITS, int(self.credits))
         self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
 
+        # Convert keys to strings for safe JSON serialization
+        serialized_unlocked = {str(k): v for k, v in self.unlocked_levels.items()}
+
         all_profiles[self.player_name] = {
             "credits": self.credits,
             "xp": self.xp,
             "level": self.level,
             "location": self.location,
+            "unlocked_levels": serialized_unlocked,
         }
-
         try:
             with open(self.SAVE_FILE, "w", encoding="utf-8") as file:
                 json.dump(all_profiles, file, indent=4)
@@ -227,30 +226,32 @@ class UIEconomy:
                     all_profiles = json.load(file)
                 if not isinstance(all_profiles, dict):
                     all_profiles = {}
-
                 if self.player_name in all_profiles:
                     player_data = all_profiles[self.player_name]
                     if not isinstance(player_data, dict):
                         player_data = {}
-
                     try:
                         self.credits = max(self.MIN_CREDITS, int(player_data.get("credits", self.STARTING_CREDITS)))
                     except (TypeError, ValueError):
                         self.credits = self.STARTING_CREDITS
-
                     try:
                         self.xp = max(0, int(player_data.get("xp", self.STARTING_XP)))
                     except (TypeError, ValueError):
                         self.xp = self.STARTING_XP
-
                     try:
                         self.level = int(player_data.get("level", self.STARTING_LEVEL))
                     except (TypeError, ValueError):
                         self.level = self.STARTING_LEVEL
-
+                        
                     self.level = max(1, min(self.level, self.MAX_LEVEL))
                     self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
-
+                    
+                    # Load unlocked levels safely (convert JSON string keys back to int)
+                    saved_unlocked = player_data.get("unlocked_levels", {1: True})
+                    self.unlocked_levels = {int(k): bool(v) for k, v in saved_unlocked.items()}
+                    # Ensure level 1 is always unlocked
+                    self.unlocked_levels[1] = True
+                    
                     self.save_economy_data()
                     return
             except (IOError, json.JSONDecodeError, TypeError, ValueError):
@@ -260,6 +261,7 @@ class UIEconomy:
         self.xp = self.STARTING_XP
         self.level = self.STARTING_LEVEL
         self.location = self.LOCATIONS[self.STARTING_LEVEL]
+        self.unlocked_levels = {1: True, 2: False, 3: False}
         self.save_economy_data()
 
     def get_level_bg_color(self):
@@ -277,6 +279,7 @@ class UIEconomy:
             "xp": self.xp,
             "level": self.level,
             "location": self.location,
+            "unlocked_levels": self.unlocked_levels,
         }
 
     # =========================================================================
@@ -286,43 +289,36 @@ class UIEconomy:
         """Draws the top Cyber-Deck HUD header constrained before MAP/LEADERBOARD buttons."""
         screen_w = self.screen.get_width()
         
-        # Dimensions (Constrained width to stop before MAP & LEADERBOARD buttons)
         hud_height = 65
         hud_width = min(680, screen_w - 320)
         hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
-
-        # Draw SOLID background panel
+        
         pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
-
-        # Cyber Chassis Border & Corner Cut Accents
         pygame.draw.rect(self.screen, self.COLOR_BORDER, hud_rect, 2, border_radius=4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.x + 5, hud_rect.y), (hud_rect.x + 35, hud_rect.y), 4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.right - 35, hud_rect.bottom), (hud_rect.right - 5, hud_rect.bottom), 4)
-
-        # Fonts
+        
         font_main = pygame.font.SysFont("Consolas", 15, bold=True)
         font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
-
+        
         # 1. Barista Name & 2. Location (Left Block)
         name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
         loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
         self.screen.blit(name_txt, (hud_rect.x + 12, hud_rect.y + 12))
         self.screen.blit(loc_txt, (hud_rect.x + 12, hud_rect.y + 36))
-
-        # Divider line 1
+        
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 10), (hud_rect.x + 220, hud_rect.bottom - 10), 1)
-
+        
         # 3. Level & 4. XP Bar (Center Block)
         xp_x = hud_rect.x + 232
-        target_xp = self.LEVEL_XP_REQUIREMENTS.get(self.level, 2500)
+        target_xp = 2500  # Fallback target if needed
         
         lvl_txt = font_main.render(f"LVL {self.level}", True, self.COLOR_CYAN)
         xp_num_txt = font_sub.render(f"{self.xp}/{target_xp} XP", True, self.COLOR_TEXT)
         
         self.screen.blit(lvl_txt, (xp_x, hud_rect.y + 12))
         self.screen.blit(xp_num_txt, (xp_x + 65, hud_rect.y + 14))
-
-        # Segmented XP Bar
+        
         bar_x = xp_x
         bar_y = hud_rect.y + 38
         bar_w = 175
@@ -330,45 +326,36 @@ class UIEconomy:
         num_segments = 10
         seg_gap = 2
         seg_w = (bar_w - (seg_gap * (num_segments - 1))) // num_segments
-
-        # Calculate filled segments ratio
+        
         xp_ratio = min(1.0, max(0.0, self.xp / float(target_xp)))
         filled_segments = int(xp_ratio * num_segments)
-
         for i in range(num_segments):
             seg_x = bar_x + i * (seg_w + seg_gap)
             seg_rect = pygame.Rect(seg_x, bar_y, seg_w, bar_h)
-
             if i < filled_segments:
                 color = self.COLOR_PINK if i >= 7 else self.COLOR_CYAN
                 pygame.draw.rect(self.screen, color, seg_rect)
             else:
                 pygame.draw.rect(self.screen, self.COLOR_SEG_EMPTY, seg_rect)
-            
             pygame.draw.rect(self.screen, (10, 15, 25), seg_rect, 1)
-
-        # Divider line 2
+            
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 425, hud_rect.y + 10), (hud_rect.x + 425, hud_rect.bottom - 10), 1)
-
+        
         # 5. Credits Display
         cred_x = hud_rect.x + 438
         cred_lbl = font_sub.render("CREDITS", True, (150, 160, 180))
         cred_val = font_main.render(f"${self.credits:,}", True, self.COLOR_GOLD)
-
         self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 12))
         self.screen.blit(cred_val, (cred_x, hud_rect.y + 32))
-
-        # Divider line 3
+        
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 550, hud_rect.y + 10), (hud_rect.x + 550, hud_rect.bottom - 10), 1)
-
-        # 6. Combo Counter Display (Inside HUD Chassis)
+        
+        # 6. Combo Counter Display
         combo_x = hud_rect.x + 562
         combo_txt = font_main.render("COMBO", True, self.COLOR_PINK)
         combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
-
         self.screen.blit(combo_txt, (combo_x, hud_rect.y + 12))
         self.screen.blit(combo_val, (combo_x, hud_rect.y + 32))
 
     def draw(self, combo_count=1, dt=0):
-        """Standard draw call forwarder."""
         self.draw_hud(combo_count=combo_count)

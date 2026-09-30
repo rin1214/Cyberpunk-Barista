@@ -16,12 +16,15 @@ BASE_HEIGHT = 540
 SCALE_X = GAME_WIDTH / BASE_WIDTH
 SCALE_Y = GAME_HEIGHT / BASE_HEIGHT
 
+# Unified Sprite Size Constants for Synchronization
+SPRITE_BASE_WIDTH = 180
+SPRITE_BASE_HEIGHT = 220
+
 def sx(value):
     return int(round(value * SCALE_X))
 
 def sy(value):
     return int(round(value * SCALE_Y))
-
 
 class CustomerState:
     SPAWNING = "spawning"
@@ -29,7 +32,6 @@ class CustomerState:
     WAITING = "waiting"
     SERVED = "served"
     LEAVING = "leaving"
-
 
 class CustomerOrder:
     def __init__(self, drink, temperature, caffeine, sweetness):
@@ -49,21 +51,49 @@ class CustomerOrder:
     def __str__(self):
         return f"{self.drink} | {self.temperature} | {self.caffeine} Caffeine | {self.sweetness} Sweet"
 
-
 class Customer:
+    # Full archetype profile including rare low-patience, high-paying archetypes (Corp Spy & Cyberpunk Cat)
+    ARCHETYPE_DETAILS = {
+        "runner": {"patience": 35.0, "pay_mult": 1.0, "weight": 50},
+        "exec": {"patience": 22.0, "pay_mult": 1.8, "weight": 30},
+        "hacker": {"patience": 28.0, "pay_mult": 1.3, "weight": 20},
+        "drone_pilot": {"patience": 24.0, "pay_mult": 1.4, "weight": 15},
+        "corp_spy": {"patience": 15.0, "pay_mult": 2.5, "weight": 8},  # Rare, low patience, high pay
+        "cyberpunk_cat": {"patience": 18.0, "pay_mult": 3.0, "weight": 4},  # Rare, low patience, highest pay
+    }
+
     def __init__(self, x=360, y_counter=405, current_level=1):
         self.x = sx(x)
         self.y_counter = sy(y_counter)
         self.level = current_level
         
-        self.customer_types = ["runner", "exec", "hacker"]
-        self.current_type = random.choice(self.customer_types)
-        self.image = self._load_sprite(self.current_type)
+        # FIXED: Level-based customer pools (Level 1: runner/exec/hacker, Level 2: +drone_pilot, Level 3: +corp_spy & cyberpunk_cat)
+        if self.level == 1:
+            self.customer_pool = ["runner", "exec", "hacker"]
+            self.pool_weights = [50, 30, 20]
+        elif self.level == 2:
+            self.customer_pool = ["runner", "exec", "hacker", "drone_pilot"]
+            self.pool_weights = [40, 25, 20, 15]
+        else:
+            self.customer_pool = ["runner", "exec", "hacker", "drone_pilot", "corp_spy", "cyberpunk_cat"]
+            self.pool_weights = [30, 20, 18, 16, 10, 6]
+            
+        self.current_type = random.choices(self.customer_pool, weights=self.pool_weights, k=1)[0]
+        
+        # Pull custom archetype multipliers
+        archetype_info = self.ARCHETYPE_DETAILS.get(self.current_type, {"patience": 30.0, "pay_mult": 1.0})
+        self.pay_multiplier = archetype_info["pay_mult"]
+        
+        # Load both front (station view) and back (order view) synchronized sprites
+        self.image = self._load_sprite(self.current_type, back_view=False)
+        self.back_image = self._load_sprite(self.current_type, back_view=True)
         
         self.state = CustomerState.SPAWNING
         
         self.spawn_y = self.y_counter + sy(120)
         self.current_y = self.spawn_y
+        
+        # Synchronized rect positioning using exact base dimensions
         self.rect = self.image.get_rect()
         self.rect.centerx = self.x
         self.rect.bottom = int(self.current_y)
@@ -75,7 +105,14 @@ class Customer:
         self.target_caffeine = self._caffeine_to_number(self.order.caffeine)
         self.target_temperature = self._temperature_to_number(self.order.temperature)
         
-        self.max_patience = 35.0
+        # Scale base patience based on type and level difficulty scaling
+        base_patience = archetype_info["patience"]
+        if self.level == 2:
+            base_patience *= 0.85
+        elif self.level >= 3:
+            base_patience *= 0.70
+            
+        self.max_patience = base_patience
         self.current_patience = self.max_patience
         
         # UI fonts and feedback setup
@@ -114,18 +151,30 @@ class Customer:
         values = {"Cold": 25, "Normal": 50, "Hot": 75}
         return values.get(temperature, 50)
 
-    def _load_sprite(self, ctype):
-        filename = f"{ctype}.png"
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(project_root, "assets", "customers", filename)
+    def _load_sprite(self, ctype, back_view=False):
+        """Loads and strictly synchronizes all front/back character sprites to a uniform scale resolution."""
+        suffix = "back" if back_view else ""
+        filenames = [f"{ctype}{suffix}.png", f"{ctype}_{suffix}.png" if suffix else f"{ctype}_front.png"]
         
-        if os.path.exists(path):
-            img = pygame.image.load(path).convert_alpha()
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        path = None
+        for fname in filenames:
+            test_path = os.path.join(project_root, "assets", "customers", fname)
+            if os.path.exists(test_path):
+                path = test_path
+                break
+                
+        # Universal fallback if image file is missing
+        if not path or not os.path.exists(path):
+            img = pygame.Surface((sx(SPRITE_BASE_WIDTH), sy(SPRITE_BASE_HEIGHT)), pygame.SRCALPHA)
+            base_color = (255, 0, 110) if "spy" in ctype or "cat" in ctype else (0, 240, 255)
+            if back_view:
+                base_color = tuple(max(0, c - 40) for c in base_color)
+            img.fill(base_color)
         else:
-            img = pygame.Surface((sx(180), sy(220)), pygame.SRCALPHA)
-            img.fill((100, 100, 150))
+            img = pygame.image.load(path).convert_alpha()
             
-        return pygame.transform.scale(img, (sx(180), sy(220)))
+        return pygame.transform.smoothscale(img, (sx(SPRITE_BASE_WIDTH), sy(SPRITE_BASE_HEIGHT)))
 
     def _generate_dialogue(self):
         return f"{self.order.drink} / {self.order.temperature} / {self.order.caffeine} Caffeine / {self.order.sweetness} Sweet"
@@ -226,28 +275,16 @@ class Customer:
             return (255, 205, 70)
         return (255, 60, 100)
 
-    def draw(self, screen):
+    def draw(self, screen, view_mode="front"):
+        current_sprite = self.back_image if view_mode == "back" else self.image
+        
         if self.state in (CustomerState.ORDERING, CustomerState.WAITING):
             self._draw_speech_bubble(screen)
             
-        screen.blit(self.image, self.rect)
+        screen.blit(current_sprite, self.rect)
         
         if self.feedback_text and self.state in (CustomerState.SERVED, CustomerState.LEAVING):
             self._draw_feedback(screen)
-
-    def _draw_patience_bar(self, screen):
-        bar_w = sx(120)
-        bar_h = sy(10)
-        bar_x = self.rect.centerx - (bar_w // 2)
-        bar_y = self.rect.top - sy(20)
-        
-        pygame.draw.rect(screen, (30, 30, 40), (bar_x, bar_y, bar_w, bar_h), border_radius=sy(4))
-        ratio = self.get_remaining_patience_ratio()
-        fill_w = int((bar_w - 2) * ratio)
-        
-        if fill_w > 0:
-            pygame.draw.rect(screen, self._get_patience_color(), (bar_x + sx(1), bar_y + sy(1), fill_w, bar_h - sy(2)), border_radius=sy(3))
-        pygame.draw.rect(screen, (100, 110, 130), (bar_x, bar_y, bar_w, bar_h), width=1, border_radius=sy(4))
 
     def _draw_speech_bubble(self, screen):
         bubble_w = sx(255)
@@ -261,26 +298,21 @@ class Customer:
         if bubble_rect.right > GAME_WIDTH - sx(12):
             bubble_rect.right = GAME_WIDTH - sx(12)
             
-        # Shadow
         shadow_rect = bubble_rect.move(sx(3), sy(4))
         shadow_surface = pygame.Surface(shadow_rect.size, pygame.SRCALPHA)
         shadow_surface.fill((0, 0, 0, 120))
         screen.blit(shadow_surface, shadow_rect.topleft)
         
-        # Background
         bg_surface = pygame.Surface(bubble_rect.size, pygame.SRCALPHA)
         bg_surface.fill((8, 12, 25, 235))
         screen.blit(bg_surface, bubble_rect.topleft)
         
-        # Border
         pygame.draw.rect(screen, (0, 225, 255), bubble_rect, width=2, border_radius=sy(12))
         
-        # Header
-        header = self.font_order.render("CUSTOMER ORDER", True, (255, 110, 220))
+        header = self.font_order.render(f"ORDER: {self.current_type.upper()}", True, (255, 110, 220))
         screen.blit(header, (bubble_rect.x + sx(12), bubble_rect.y + sy(8)))
         pygame.draw.line(screen, (55, 90, 120), (bubble_rect.x + sx(12), bubble_rect.y + sy(27)), (bubble_rect.right - sx(12), bubble_rect.y + sy(27)), width=1)
         
-        # Order Details Text Loop
         order_lines = [
             ("DRINK", self.order.drink),
             ("TEMP", self.order.temperature),
@@ -295,7 +327,6 @@ class Customer:
             screen.blit(value_surface, (bubble_rect.x + sx(82), text_y))
             text_y += sy(17)
             
-        # Patience Section
         patience_y = bubble_rect.bottom - sy(45)
         patience_label = self.font_small.render("PATIENCE", True, (255, 200, 100))
         screen.blit(patience_label, (bubble_rect.x + sx(12), patience_y))
@@ -304,7 +335,6 @@ class Customer:
         timer_surface = self.font_timer.render(f"{seconds_left:04.1f}s", True, self._get_patience_color())
         screen.blit(timer_surface, (bubble_rect.right - sx(58), patience_y))
         
-        # Patience Bar UI
         bar_x = bubble_rect.x + sx(12)
         bar_y = bubble_rect.bottom - sy(23)
         bar_w = bubble_rect.width - sx(24)
@@ -317,7 +347,6 @@ class Customer:
             pygame.draw.rect(screen, self._get_patience_color(), (bar_x, bar_y, fill_w, bar_h), border_radius=sy(5))
         pygame.draw.rect(screen, (80, 110, 140), (bar_x, bar_y, bar_w, bar_h), width=1, border_radius=sy(5))
         
-        # Speech Pointer Triangle
         pointer_x = max(bubble_rect.left + sx(25), min(self.rect.centerx, bubble_rect.right - sx(25)))
         pointer_top = bubble_rect.bottom
         pointer_points = [

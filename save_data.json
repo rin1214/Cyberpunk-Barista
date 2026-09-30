@@ -12,16 +12,16 @@
         "location": "Neon Lounge"
     },
     "kian": {
-        "credits": 165,
-        "xp": 140,
+        "credits": 100,
+        "xp": 0,
         "level": 2,
         "location": "Neon Lounge"
     },
     "yin": {
-        "credits": 10,
-        "xp": 100,
-        "level": 1,
-        "location": "Back Alley Kiosk"
+        "credits": 54,
+        "xp": 180,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "mahi": {
         "credits": 80,
@@ -102,10 +102,10 @@
         "location": "Back Alley Kiosk"
     },
     "YOYO": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
+        "credits": 83,
+        "xp": 820,
+        "level": 3,
+        "location": "Cyber Penthouse"
     },
     "Y": {
         "credits": 100,
@@ -114,10 +114,10 @@
         "location": "Back Alley Kiosk"
     },
     "lola": {
-        "credits": 658,
-        "xp": 1230,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 332,
+        "xp": 830,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "ww": {
         "credits": 100,
@@ -150,15 +150,42 @@
         "location": "Back Alley Kiosk"
     },
     ";lucy": {
-        "credits": 907,
-        "xp": 2270,
+        "credits": 187,
+        "xp": 2310,
         "level": 3,
-        "location": "Cyber Penthouse"
+        "location": "Cyber Penthouse",
+        "unlocked_levels": {
+            "1": true,
+            "3": true,
+            "2": true
+        }
     },
     "dy": {
         "credits": 80,
         "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk"
+    },
+    "sue": {
+        "credits": 52,
+        "xp": 1220,
+        "level": 3,
+        "location": "Cyber Penthouse",
+        "unlocked_levels": {
+            "1": true,
+            "2": true,
+            "3": true
+        }
+    },
+    "hik": {
+        "credits": 8,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": true,
+            "3": false
+        }
     }
 }
