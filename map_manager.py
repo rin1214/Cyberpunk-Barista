@@ -9,8 +9,8 @@ class MapNode:
 
 
 class MapManager:
-    def __init__(self, economy):
-        self.economy = economy
+    def __init__(self, economy=None, economy_ref=None):
+        self.economy = economy if economy is not None else economy_ref
 
         self.nodes = {
             "neon_alley": MapNode(

@@ -3,7 +3,7 @@ import pygame
 
 class StartScreen:
     """Cyberpunk Café — Start Screen (1280 × 720).
-    Compact, high-performance, and fully asset-integrated.
+    Clean, compact, highly responsive, with perfectly proportioned UI assets.
     """
     WIDTH, HEIGHT, FPS = 1280, 720, 60
 
@@ -52,17 +52,30 @@ class StartScreen:
 
     # ── Asset & Font Initialization ──────────────────────────────────────────
 
-    def _load_img(self, folder, name, trim=False):
+    def _trim(self, surf, threshold=60):
+        if not surf:
+            return None
+        try:
+            mask = pygame.mask.from_surface(surf, threshold)
+            rects = mask.get_bounding_rects()
+            if not rects:
+                return surf
+            bb = rects[0].copy()
+            for r in rects[1:]:
+                bb.union_ip(r)
+            if bb.width <= 0 or bb.height <= 0:
+                return surf
+            return surf.subsurface(bb).copy()
+        except Exception:
+            return surf
+
+    def _load_img(self, folder, name, trim=False, threshold=60):
         path = os.path.join(folder, name)
         if not os.path.isfile(path):
             return None
         try:
             surf = pygame.image.load(path).convert_alpha()
-            if trim:
-                bb = surf.get_bounding_rect()
-                if bb.width and bb.height:
-                    surf = surf.subsurface(bb).copy()
-            return surf
+            return self._trim(surf, threshold) if trim else surf
         except Exception:
             return None
 
@@ -70,7 +83,7 @@ class StartScreen:
         sf, uf = self.start_root, self.ui_root
         # Main Start UI
         self.bg            = self._load_img(sf, "start_bg.png")
-        self.logo          = self._load_img(sf, "logo_cyberpunk_cafe.png")
+        self.logo          = self._load_img(sf, "logo_cyberpunk_cafe.png", trim=True)
         self.btn_enter     = self._load_img(sf, "button_enter.png", trim=True)
         self.btn_enter_h   = self._load_img(sf, "button_enter_hover.png", trim=True)
         self.btn_menu      = self._load_img(sf, "button_menu.png", trim=True)
@@ -95,7 +108,6 @@ class StartScreen:
 
     def _init_fonts(self):
         pygame.font.init()
-        # Find best title font (Orbitron or Audiowide, fallback to Segoe UI)
         title_font_path = None
         for fn in ["Orbitron-Bold.ttf", "Audiowide-Regular.ttf", "Orbitron-Medium.ttf"]:
             p = os.path.join(self.font_root, fn)
@@ -114,35 +126,37 @@ class StartScreen:
                     return res
             return pygame.font.SysFont("Segoe UI", size, bold=bold)
 
-        self.font_welcome = make_font(34, bold=True, title=True)
-        self.font_sub     = make_font(18, bold=True)
-        self.font_input   = make_font(18)
+        self.font_welcome = make_font(36, bold=True, title=True)
+        self.font_sub     = make_font(20, bold=True)
+        self.font_input   = make_font(20, bold=False)
         self.font_btn     = make_font(22, bold=True)
+        self.font_panel_title = make_font(22, bold=True)
         self.font_panel   = make_font(16, bold=True)
-        self.font_pct     = make_font(15, bold=True)
-        self.font_small   = make_font(12, bold=True)
+        self.font_pct     = make_font(16, bold=True)
+        self.font_small   = make_font(13, bold=True)
 
     def _init_layout(self):
         cx = self.WIDTH // 2
-        self.logo_rect      = pygame.Rect(185, 70, 910, 255)
-        self.welcome_center = (cx, 368)
-        self.question_center= (cx, 412)
-        self.input_rect     = pygame.Rect(cx - 385, 430, 770, 100)
-        self.enter_rect     = pygame.Rect(cx - 350, 545, 700, 100)
-        self.menu_rect      = pygame.Rect(1015, 25, 240, 80)
+        # Generous, proportional layout with larger input field and buttons
+        self.logo_rect      = pygame.Rect(cx - 280, 40, 560, 240)
+        self.welcome_center = (cx, 335)
+        self.question_center= (cx, 385)
+        self.input_rect     = pygame.Rect(cx - 270, 430, 540, 80)
+        self.enter_rect     = pygame.Rect(cx - 243, 535, 486, 80)
+        self.menu_rect      = pygame.Rect(1040, 22, 215, 70)
 
-        # Audio Panel
-        self.audio_panel       = pygame.Rect(865, 180, 390, 505)
-        self.audio_header_rect = pygame.Rect(888, 214, 292, 68)
-        self.audio_close_rect  = pygame.Rect(1202, 216, 38, 38)
-        self.icon_music_rect   = pygame.Rect(895, 313, 62, 62)
-        self.icon_sfx_rect     = pygame.Rect(895, 403, 62, 62)
-        self.music_track_rect  = pygame.Rect(962, 329, 218, 32)
-        self.sfx_track_rect    = pygame.Rect(962, 419, 218, 32)
-        self.music_pct_rect    = pygame.Rect(1180, 322, 55, 45)
-        self.sfx_pct_rect      = pygame.Rect(1180, 412, 55, 45)
-        self.mute_music_rect   = pygame.Rect(890, 505, 160, 70)
-        self.mute_sfx_rect     = pygame.Rect(1070, 505, 160, 70)
+        # Audio Panel (Enlarged, clear title and spacious controls)
+        self.audio_panel       = pygame.Rect(820, 145, 435, 545)
+        self.audio_header_rect = pygame.Rect(845, 175, 335, 80)
+        self.audio_close_rect  = pygame.Rect(1195, 185, 42, 42)
+        self.icon_music_rect   = pygame.Rect(840, 318, 56, 56)
+        self.icon_sfx_rect     = pygame.Rect(840, 418, 56, 56)
+        self.music_track_rect  = pygame.Rect(915, 330, 240, 32)
+        self.sfx_track_rect    = pygame.Rect(915, 430, 240, 32)
+        self.music_pct_rect    = pygame.Rect(1170, 324, 65, 44)
+        self.sfx_pct_rect      = pygame.Rect(1170, 424, 65, 44)
+        self.mute_music_rect   = pygame.Rect(840, 500, 185, 68)
+        self.mute_sfx_rect     = pygame.Rect(1045, 500, 185, 68)
 
     def _init_audio(self):
         self.click_sound = None
@@ -253,37 +267,48 @@ class StartScreen:
         else:
             self.draw_glow_text("CYBERPUNK CAFÉ", self.font_welcome, self.logo_rect.center, self.WHITE)
 
-        # Welcome text
+        # Welcome text & prompt
         name_str = (self.player_name.strip() or "BARISTA").upper()
         self.draw_glow_text(f"WELCOME, {name_str}", self.font_welcome, self.welcome_center, self.WHITE, self.CYAN)
         sub = self.font_sub.render("WHAT'S YOUR NAME?", True, self.WHITE)
         self.screen.blit(sub, sub.get_rect(center=self.question_center))
 
-        # Name input box
+        # Name input capsule (stretched smoothly to designated wide box)
         inp_img = self.input_bg_act if (self.name_active and self.input_bg_act) else self.input_bg
         if inp_img:
-            self.draw_fit(inp_img, self.input_rect)
+            self.screen.blit(pygame.transform.smoothscale(inp_img, self.input_rect.size), self.input_rect)
         else:
             pygame.draw.rect(self.screen, self.PANEL, self.input_rect, border_radius=18)
             self.draw_neon_rect(self.input_rect, self.PINK if self.name_active else self.CYAN, radius=18)
 
-        # Input text & cursor
+        # Input text perfectly aligned inside capsule slot
+        slot_x = self.input_rect.left + int(self.input_rect.width * 0.20) + 10
+        max_slot_w = int(self.input_rect.width * 0.68)
+
         display_text = self.player_name or "Enter your name..."
         color = self.WHITE if self.player_name else self.MUTED
-        txt_surf = self.font_input.render(display_text, True, color)
-        txt_rect = txt_surf.get_rect(midleft=(self.input_rect.left + 92, self.input_rect.centery))
+
+        shown_text = display_text
+        while shown_text and self.font_input.size(shown_text)[0] > max_slot_w:
+            shown_text = shown_text[:-1]
+        if shown_text != display_text:
+            shown_text = shown_text.rstrip() + "..."
+
+        txt_surf = self.font_input.render(shown_text, True, color)
+        txt_rect = txt_surf.get_rect(midleft=(slot_x, self.input_rect.centery))
         self.screen.blit(txt_surf, txt_rect)
 
+        # Blinking cursor inside input slot
         if self.name_active and (pygame.time.get_ticks() // 500) % 2 == 0:
-            cx = min(txt_rect.right + 4, self.input_rect.right - 30)
-            pygame.draw.line(self.screen, self.CYAN, (cx, self.input_rect.centery - 14),
-                             (cx, self.input_rect.centery + 14), 2)
+            cx_cur = min(txt_rect.right + 4, self.input_rect.left + int(self.input_rect.width * 0.90))
+            pygame.draw.line(self.screen, self.CYAN, (cx_cur, self.input_rect.centery - 14),
+                             (cx_cur, self.input_rect.centery + 14), 2)
 
-        # Enter café button
+        # Large, clear Enter café button
         hover_enter = self.enter_rect.collidepoint(mouse)
         enter_img = self.btn_enter_h if (hover_enter and self.btn_enter_h) else self.btn_enter
         if enter_img:
-            self.draw_fit(enter_img, self.enter_rect)
+            self.screen.blit(pygame.transform.smoothscale(enter_img, self.enter_rect.size), self.enter_rect)
         else:
             pygame.draw.rect(self.screen, self.DARK, self.enter_rect, border_radius=20)
             self.draw_neon_rect(self.enter_rect, self.GOLD, radius=20, glow=True)
@@ -324,7 +349,7 @@ class StartScreen:
         if self.slider_knob:
             self.draw_fit(self.slider_knob, pygame.Rect(knob_x - 19, rect.centery - 19, 38, 38))
         else:
-            pygame.draw.circle(self.screen, self.MUTED if muted else self.PINK, (knob_x, rect.centery), 9)
+            pygame.draw.circle(self.screen, self.MUTED if muted else self.PINK, (knob_x, rect.centery), 10)
 
     def draw_mute_button(self, box, label, muted, accent):
         hover = box.collidepoint(pygame.mouse.get_pos())
@@ -350,21 +375,27 @@ class StartScreen:
     def draw_audio_dialog(self):
         mouse = pygame.mouse.get_pos()
 
-        # Dimmed backdrop & panel box
+        # Dimmed backdrop
         veil = pygame.Surface((self.WIDTH, self.HEIGHT), pygame.SRCALPHA)
-        veil.fill((0, 0, 10, 100))
+        veil.fill((0, 0, 10, 130))
         self.screen.blit(veil, (0, 0))
+
+        # Panel body with shadow
+        shadow = pygame.Surface((self.audio_panel.width + 16, self.audio_panel.height + 16), pygame.SRCALPHA)
+        pygame.draw.rect(shadow, (0, 0, 0, 160), (8, 8, self.audio_panel.width, self.audio_panel.height), border_radius=24)
+        self.screen.blit(shadow, (self.audio_panel.left - 4, self.audio_panel.top + 6))
 
         pygame.draw.rect(self.screen, self.PANEL, self.audio_panel, border_radius=22)
         self.draw_neon_rect(self.audio_panel, self.CYAN, radius=22)
 
-        # Header & Close button
+        # Header Title (Bigger and Clearer)
         if self.audio_header:
             self.draw_fit(self.audio_header, self.audio_header_rect)
         else:
-            t = self.font_panel.render("AUDIO SETTINGS", True, self.WHITE)
+            t = self.font_panel_title.render("AUDIO SETTINGS", True, self.WHITE)
             self.screen.blit(t, t.get_rect(center=self.audio_header_rect.center))
 
+        # Close button
         hover_close = self.audio_close_rect.collidepoint(mouse)
         close_img = self.btn_close_h if (hover_close and self.btn_close_h) else self.btn_close
         if close_img:
@@ -374,8 +405,8 @@ class StartScreen:
             self.draw_neon_rect(self.audio_close_rect, self.PINK, radius=8)
 
         # Dividers
-        pygame.draw.line(self.screen, (55, 105, 150), (self.audio_panel.left + 25, 300), (self.audio_panel.right - 25, 300), 1)
-        pygame.draw.line(self.screen, (55, 105, 150), (self.audio_panel.left + 25, 600), (self.audio_panel.right - 25, 600), 1)
+        pygame.draw.line(self.screen, (55, 105, 150), (self.audio_panel.left + 25, 275), (self.audio_panel.right - 25, 275), 1)
+        pygame.draw.line(self.screen, (55, 105, 150), (self.audio_panel.left + 25, 595), (self.audio_panel.right - 25, 595), 1)
 
         # Sliders & Icons
         self.draw_audio_icon(self.icon_music_rect, "music", self.music_muted)
@@ -383,8 +414,8 @@ class StartScreen:
 
         lbl_m = self.font_panel.render("MUSIC VOLUME", True, self.WHITE)
         lbl_s = self.font_panel.render("SOUND EFFECTS", True, self.WHITE)
-        self.screen.blit(lbl_m, (965, 308))
-        self.screen.blit(lbl_s, (965, 398))
+        self.screen.blit(lbl_m, (915, 298))
+        self.screen.blit(lbl_s, (915, 398))
 
         self.draw_slider(self.track_music, self.music_track_rect, self.music_volume, self.music_muted)
         self.draw_slider(self.track_sound, self.sfx_track_rect, self.sfx_volume, self.sfx_muted)
@@ -407,7 +438,7 @@ class StartScreen:
     def accept_name(self):
         cleaned = " ".join(self.player_name.strip().split())
         if not cleaned:
-            return False
+            cleaned = "Barista"
         self.player_name = cleaned[:24]
         self.finished = True
         self.play_click()

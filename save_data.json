@@ -1,12 +1,13 @@
 {
     "lucy": {
-        "credits": 2194,
-        "xp": 2540,
+        "credits": 1944,
+        "xp": 2500,
         "level": 3,
         "location": "Cyber Penthouse",
         "unlocked_levels": {
             "1": true,
-            "3": true
+            "3": true,
+            "2": true
         }
     },
     "Rin": {
@@ -198,6 +199,28 @@
     "alice": {
         "credits": 163,
         "xp": 130,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "Lucy": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "Barista": {
+        "credits": 100,
+        "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk",
         "unlocked_levels": {
