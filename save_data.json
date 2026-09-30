@@ -194,5 +194,16 @@
             "2": true,
             "3": false
         }
+    },
+    "alice": {
+        "credits": 163,
+        "xp": 130,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
     }
 }
