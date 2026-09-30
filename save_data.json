@@ -12,16 +12,16 @@
         "location": "Neon Lounge"
     },
     "kian": {
-        "credits": 228,
-        "xp": 340,
+        "credits": 100,
+        "xp": 0,
         "level": 2,
         "location": "Neon Lounge"
     },
     "yin": {
-        "credits": 99,
-        "xp": 1090,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 54,
+        "xp": 180,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "mahi": {
         "credits": 80,
@@ -114,10 +114,10 @@
         "location": "Back Alley Kiosk"
     },
     "lola": {
-        "credits": 658,
-        "xp": 1230,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "credits": 332,
+        "xp": 830,
+        "level": 2,
+        "location": "Neon Lounge"
     },
     "ww": {
         "credits": 100,
@@ -150,9 +150,31 @@
         "location": "Back Alley Kiosk"
     },
     ";lucy": {
-        "credits": 907,
-        "xp": 2270,
+        "credits": 937,
+        "xp": 2310,
         "level": 3,
         "location": "Cyber Penthouse"
+    },
+    "sue": {
+        "credits": 124,
+        "xp": 130,
+        "level": 2,
+        "location": "Neon Lounge",
+        "unlocked_levels": {
+            "1": true,
+            "2": true,
+            "3": false
+        }
+    },
+    "hik": {
+        "credits": 8,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": true,
+            "3": false
+        }
     }
 }
