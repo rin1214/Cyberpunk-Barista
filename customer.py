@@ -22,14 +22,12 @@ def sx(value):
 def sy(value):
     return int(round(value * SCALE_Y))
 
-
 class CustomerState:
     SPAWNING = "spawning"
     ORDERING = "ordering"
     WAITING = "waiting"
     SERVED = "served"
     LEAVING = "leaving"
-
 
 class CustomerOrder:
     def __init__(self, drink, temperature, caffeine, sweetness):
@@ -49,16 +47,25 @@ class CustomerOrder:
     def __str__(self):
         return f"{self.drink} | {self.temperature} | {self.caffeine} Caffeine | {self.sweetness} Sweet"
 
-
 class Customer:
     def __init__(self, x=360, y_counter=405, current_level=1):
         self.x = sx(x)
         self.y_counter = sy(y_counter)
         self.level = current_level
         
-        self.customer_types = ["runner", "exec", "hacker"]
+        # Fully open customer type pool for Level 1 to include runner, exec, and hacker
+        if self.level == 1:
+            self.customer_types = ["runner", "exec", "hacker"]
+        elif self.level == 2:
+            self.customer_types = ["runner", "exec", "hacker", "corp_spy", "drone_pilot"]
+        else:
+            self.customer_types = ["runner", "exec", "hacker", "corp_spy", "drone_pilot", "net_runner_ghost"]
+            
         self.current_type = random.choice(self.customer_types)
-        self.image = self._load_sprite(self.current_type)
+        
+        # Load both front (station view) and back (order view) sprites
+        self.image = self._load_sprite(self.current_type, back_view=False)
+        self.back_image = self._load_sprite(self.current_type, back_view=True)
         
         self.state = CustomerState.SPAWNING
         
@@ -114,16 +121,24 @@ class Customer:
         values = {"Cold": 25, "Normal": 50, "Hot": 75}
         return values.get(temperature, 50)
 
-    def _load_sprite(self, ctype):
-        filename = f"{ctype}.png"
+    def _load_sprite(self, ctype, back_view=False):
+        """Loads either the front or back-facing sprite for the given customer type."""
+        suffix = "_back" if back_view else ""
+        filename = f"{ctype}{suffix}.png"
         project_root = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(project_root, "assets", "customers", filename)
         
+        # Fallback variants checks
+        if not os.path.exists(path) and back_view:
+            path = os.path.join(project_root, "assets", "customers", f"{ctype}back.png")
+        if not os.path.exists(path) and not back_view:
+            path = os.path.join(project_root, "assets", "customer", f"{ctype}.png")
+
         if os.path.exists(path):
             img = pygame.image.load(path).convert_alpha()
         else:
             img = pygame.Surface((sx(180), sy(220)), pygame.SRCALPHA)
-            img.fill((100, 100, 150))
+            img.fill((100, 100, 150) if not back_view else (80, 80, 120))
             
         return pygame.transform.scale(img, (sx(180), sy(220)))
 
