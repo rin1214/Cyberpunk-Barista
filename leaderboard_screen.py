@@ -84,6 +84,24 @@ class LeaderboardScreen:
     # ------------------------------------------------------------
 
     def draw_header(self):
+        title_plate = pygame.Rect(346, 38, 588, 97)
+        plate = pygame.Surface(title_plate.size, pygame.SRCALPHA)
+        plate.fill((*self.DARK, 205))
+        self.screen.blit(plate, title_plate.topleft)
+        pygame.draw.rect(
+            self.screen, self.CYAN, title_plate, 1, border_radius=8
+        )
+        pygame.draw.line(
+            self.screen, self.PINK,
+            (title_plate.left, title_plate.top),
+            (title_plate.left + 24, title_plate.top), 3
+        )
+        pygame.draw.line(
+            self.screen, self.PINK,
+            (title_plate.right - 24, title_plate.bottom),
+            (title_plate.right, title_plate.bottom), 3
+        )
+
         self.text("♛", self.title, self.PINK, (640, 48))
         self.text(
             "DISTRICT LEADERBOARD",
