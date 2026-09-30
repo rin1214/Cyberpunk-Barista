@@ -1,7 +1,7 @@
 {
     "lucy": {
-        "credits": 2302,
-        "xp": 1240,
+        "credits": 2664,
+        "xp": 2500,
         "level": 3,
         "location": "Cyber Penthouse"
     },
@@ -154,5 +154,11 @@
         "xp": 2270,
         "level": 3,
         "location": "Cyber Penthouse"
+    },
+    "dy": {
+        "credits": 80,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk"
     }
 }
