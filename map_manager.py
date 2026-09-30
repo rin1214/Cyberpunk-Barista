@@ -14,7 +14,7 @@ class MapManager:
 
         self.nodes = {
             "neon_alley": MapNode(
-                "Back Alley Kiosk", 1, 285, 390,
+                "Back Alley Kiosk", 1, 225, 390,
                 "The gritty starting district. Neon lights and simple brews."
             ),
             "cyber_dock": MapNode(

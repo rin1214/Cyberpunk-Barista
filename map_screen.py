@@ -35,7 +35,8 @@ class MapScreen:
             self.bg = None
             print("[MAP] Background not found.")
 
-        self.title = pygame.font.SysFont("Consolas", 34, bold=True)
+        self.title = pygame.font.SysFont("Consolas", 39, bold=True)
+        self.subtitle = pygame.font.SysFont("Consolas", 15, bold=True)
         self.name = pygame.font.SysFont("Consolas", 18, bold=True)
         self.body = pygame.font.SysFont("Consolas", 14, bold=True)
         self.small = pygame.font.SysFont("Consolas", 12, bold=True)
@@ -123,27 +124,38 @@ class MapScreen:
     # ------------------------------------------------------------
 
     def draw_title(self):
-        cx = self.W // 2
+        # Visual center between left credits panel (ends ~328) and right back button (starts ~1040)
+        cx = (328 + 1040) // 2  # = 684
+
+        # Glow effect for title
+        glow_surf = pygame.Surface((520, 70), pygame.SRCALPHA)
+        for pad, alpha in [(16, 18), (10, 32), (5, 50)]:
+            glow_s = self.title.render("DISTRICT MAP", True, self.CYAN)
+            glow_s.set_alpha(alpha)
+            glow_surf.blit(glow_s, glow_s.get_rect(center=(260 + pad, 35)))
+            glow_surf.blit(glow_s, glow_s.get_rect(center=(260 - pad, 35)))
+        self.screen.blit(glow_surf, (cx - 260, 75))
 
         self.text(
             "DISTRICT MAP",
             self.title,
             self.CYAN,
-            (cx, 105)
+            (cx, 110)
         )
 
         self.text(
             "SELECT YOUR NEXT CAFÉ LOCATION",
-            self.body,
+            self.subtitle,
             self.WHITE,
-            (cx, 137)
+            (cx, 142)
         )
 
+        # Decorative underline centred on the title
         pygame.draw.line(
             self.screen,
             self.CYAN,
-            (cx - 170, 153),
-            (cx + 170, 153),
+            (cx - 185, 158),
+            (cx + 185, 158),
             1
         )
 
@@ -429,44 +441,52 @@ class MapScreen:
     # ------------------------------------------------------------
 
     def draw_status(self):
-        rect = pygame.Rect(1035, 575, 210, 105)
-        self.panel(rect, self.CYAN)
+        # Wider panel so text is never clipped
+        rect = pygame.Rect(1010, 568, 245, 118)
+        self.panel(rect, self.CYAN, alpha=220)
 
         self.text(
             "DISTRICT STATUS",
             self.small,
             self.WHITE,
-            (1140, 592)
+            (1132, 585)
         )
 
+        # Thin separator line
+        pygame.draw.line(
+            self.screen, self.CYAN,
+            (1020, 595), (1245, 595), 1
+        )
+
+        self.map_manager.check_unlocks()  # always fresh
+
         for i, node in enumerate(self.map_manager.nodes.values()):
-            y = 615 + i * 19
+            y = 614 + i * 22
 
             active = self.economy.level == node.level_req
 
             if active:
-                label = f"LV.{node.level_req}  ACTIVE"
+                status_text = f"LV.{node.level_req}  ACTIVE"
                 col = self.GREEN
+                # Filled circle = active
+                pygame.draw.circle(self.screen, col, (1030, y), 6)
             elif node.is_unlocked:
-                label = f"LV.{node.level_req}  UNLOCKED"
+                status_text = f"LV.{node.level_req}  UNLOCKED"
                 col = self.CYAN
+                # Hollow circle = unlocked
+                pygame.draw.circle(self.screen, col, (1030, y), 6, 2)
             else:
-                label = f"LV.{node.level_req}  LOCKED"
+                status_text = f"LV.{node.level_req}  LOCKED"
                 col = self.MUTED
-
-            pygame.draw.circle(
-                self.screen,
-                col,
-                (1060, y),
-                5,
-                2
-            )
+                # X mark = locked
+                pygame.draw.line(self.screen, col, (1024, y - 4), (1036, y + 4), 2)
+                pygame.draw.line(self.screen, col, (1036, y - 4), (1024, y + 4), 2)
 
             self.text(
-                label,
+                status_text,
                 self.small,
                 col,
-                (1140, y)
+                (1148, y)
             )
 
     # ------------------------------------------------------------
