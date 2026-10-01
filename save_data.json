@@ -1,5 +1,16 @@
 {
     "lucy": {
+        "credits": 199,
+        "xp": 170,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "kiki": {
         "credits": 100,
         "xp": 0,
         "level": 1,
@@ -10,7 +21,7 @@
             "3": false
         }
     },
-    "kiki": {
+    "Lucy": {
         "credits": 100,
         "xp": 0,
         "level": 1,
