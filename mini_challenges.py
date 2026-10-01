@@ -96,8 +96,6 @@ class MiniChallenge:
         self.fb = pygame.font.SysFont("arial", 21, True)
         self.fs = pygame.font.SysFont("arial", 17, True)
         self.fi = pygame.font.SysFont("arial", 14, True)
-        self.strike_title_font = pygame.font.SysFont("arial", 18, True)
-        self.strike_big_font = pygame.font.SysFont("arial", 40, True)
         self.strike_title_font = pygame.font.SysFont("arial", 16, True)
         self.strike_big_font = pygame.font.SysFont("arial", 36, True)
         self.timer_ring_font = pygame.font.SysFont("arial", 16, True)
@@ -245,8 +243,6 @@ class MiniChallenge:
             self.key_cooldown, self.last_open_lane = 0.0, -1
         elif drink_name == "Pixel Lemint":
             self.level_mode = "SOLDER"
-            self.time_left = 999.0
-            self.message = f"CONNECT GREEN TO BLUE (STAGE {self.strikes + 1}/3)"
             self.time_left = 22.0
             self.message = ""
             self.solder_connections = 0
@@ -297,11 +293,6 @@ class MiniChallenge:
             if self._has_solder_path(glitches):
                 self.glitch_tiles = glitches
                 break
-        self.solder_path, self.is_soldering = [], False
-        # Create shifting hazard nodes across the grid
-        self.glitch_tiles = {
-            (random.randint(0, 4), random.randint(1, 3)) for _ in range(10)
-        }
         self.glitch_timer = 0.0
 
     def handle_event(self, event):
@@ -343,7 +334,7 @@ class MiniChallenge:
                         self.aim_score = max(0, self.aim_score - 200)
                         self.add_particles(mx, my, (255, 20, 40), 30, 2.0)
                         self.add_floating_text(
-                            "⚠️️ BREACH! -200", mx, my - 20, (255, 50, 50)
+                            "⚠ BREACH! -200", mx, my - 20, (255, 50, 50)
                         )
                     else:
                         self.aim_targets_left -= 1
@@ -389,7 +380,6 @@ class MiniChallenge:
                     self.add_particles(event.pos[0], event.pos[1], self.accent, 8)
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 if self.is_soldering:
-                    # Released midway without reaching column 4 -> snap fail/penalty
                     self.is_soldering, self.solder_path = False, []
                     self.screen_shake = 0.3
                     self.add_floating_text("CIRCUIT BROKEN!", 640, 400, (255, 100, 100))
@@ -407,7 +397,6 @@ class MiniChallenge:
             elif cell == self.selected:
                 self.selected = None
                 return
-            # Verify adjacent neighbor swap
             else:
                 a = self.selected
                 self.selected = None
@@ -856,12 +845,10 @@ class MiniChallenge:
                 self.dodged_count += 1
 
     def _update_solder(self, dt):
-        # Dynamic Glitch Hazard Shifts
         self.glitch_timer += dt
         if self.glitch_timer >= 1.6:
             self.glitch_timer = 0.0
             if not self.is_soldering and len(self.glitch_tiles) > 4:
-                # Randomly mutate one glitch tile to keep player on toes
                 to_remove = random.choice(list(self.glitch_tiles))
                 self.glitch_tiles.remove(to_remove)
                 new_tile = (random.randint(0, 4), random.randint(1, 3))
@@ -869,37 +856,37 @@ class MiniChallenge:
 
         if not self.is_soldering:
             return
-        
+
         cell = self._cell(pygame.mouse.get_pos())
         if not cell:
             return
-            
+
         if cell in self.glitch_tiles:
-            # Hit corruption trap! Break trace and penalize
             self.is_soldering, self.solder_path = False, []
             self.screen_shake = 0.6
             self.jumpscare_flash = 0.35
             self.solder_connections = max(0, self.solder_connections - 1)
             self.add_floating_text("⚡ SHORT CIRCUIT! -1", 640, 420, (255, 60, 90))
             return
-            
+
         last = self.solder_path[-1]
         if cell != last:
-            # Enforce continuous adjacent step tracing
             if abs(cell[0] - last[0]) + abs(cell[1] - last[1]) == 1:
                 if cell not in self.solder_path:
                     self.solder_path.append(cell)
                     self.add_particles(
                         self.grid.x + cell[1] * (self.TILE + self.GAP) + self.TILE // 2,
                         self.grid.y + cell[0] * (self.TILE + self.GAP) + self.TILE // 2,
-                        self.accent, 6
+                        self.accent,
+                        6,
                     )
-                    # Successful completion when hitting the right power terminal column (c == 4)
                     if cell[1] == 4:
                         self.is_soldering = False
                         self.solder_connections += 1
                         self.screen_shake = 0.15
-                        self.add_floating_text(f"LINK SECURED! +1", 640, 420, (120, 255, 180))
+                        self.add_floating_text(
+                            "LINK SECURED! +1", 640, 420, (120, 255, 180)
+                        )
                         if self.solder_connections >= self.target_connections:
                             self._finish()
                         else:
@@ -992,6 +979,15 @@ class MiniChallenge:
             682,
         )
 
+    def _draw_strikes(self, screen):
+        """Draw strike markers or stage indicators."""
+        if self.level_mode == "MATCH3":
+            start_x = 640 - ((self.TARGET_STRIKES * 24) // 2)
+            for i in range(self.TARGET_STRIKES):
+                x = start_x + i * 24
+                color = self.accent if i < self.strikes else (45, 55, 85)
+                pygame.draw.circle(screen, color, (x, 222), 8)
+
     def _draw_deflect(self, screen):
         cx, cy = self.center_pos
         pygame.draw.circle(screen, (40, 50, 80), (cx, cy), 70, 2)
@@ -1030,7 +1026,6 @@ class MiniChallenge:
 
     def _draw_solder(self, screen):
         step = self.TILE + self.GAP
-        # Draw background cyberpunk traces grid
         for r in range(self.N):
             for c in range(self.N):
                 rect = pygame.Rect(
@@ -1040,31 +1035,37 @@ class MiniChallenge:
                     self.TILE,
                 )
                 is_glitch = (r, c) in self.glitch_tiles
-                
+
                 if is_glitch:
                     col = (230, 40, 75)
                 elif c == 0:
-                    col = (50, 190, 120)  # Source nodes
+                    col = (50, 190, 120)
                 elif c == 4:
-                    col = (80, 150, 255)  # Target nodes
+                    col = (80, 150, 255)
                 else:
                     col = (25, 34, 60)
 
                 pygame.draw.rect(screen, col, rect, border_radius=10)
-                
+
                 if is_glitch:
-                    # Draw warning hazard symbol/pulse
                     glow_val = int(150 + 100 * math.sin(self.pulse_phase))
-                    pygame.draw.rect(screen, (255, glow_val, glow_val), rect, 2, border_radius=10)
+                    pygame.draw.rect(
+                        screen, (255, glow_val, glow_val), rect, 2, border_radius=10
+                    )
                     self._text(screen, "✕", self.fb, (255, 255, 255), rect.centery)
                 else:
-                    pygame.draw.rect(screen, (55, 70, 110), rect, 2, border_radius=10)
+                    pygame.draw.rect(
+                        screen, (55, 70, 110), rect, 2, border_radius=10
+                    )
                     if c == 0:
-                        self._text(screen, "IN", self.fs, (255, 255, 255), rect.centery)
+                        self._text(
+                            screen, "IN", self.fs, (255, 255, 255), rect.centery
+                        )
                     elif c == 4:
-                        self._text(screen, "OUT", self.fs, (255, 255, 255), rect.centery)
+                        self._text(
+                            screen, "OUT", self.fs, (255, 255, 255), rect.centery
+                        )
 
-        # Draw live tracing line with glowing energy effect
         if len(self.solder_path) > 0:
             points = [
                 (
@@ -1210,17 +1211,37 @@ class MiniChallenge:
     def _draw_status_tracker(self, screen):
         y_title = 208
         if self.level_mode == "DEFLECT":
-            self._text(screen, f"BLOCKED: {self.blocked_count} / TARGET {self.target_blocked}", self.strike_title_font, (210, 218, 240), y_title)
-            return
+            self._text(
+                screen,
+                f"BLOCKED: {self.blocked_count} / TARGET {self.target_blocked}",
+                self.strike_title_font,
+                (210, 218, 240),
+                y_title,
+            )
         elif self.level_mode == "WASD_RUN":
-            self._text(screen, f"DODGED: {self.dodged_count} / TARGET {self.target_dodged}", self.strike_title_font, (210, 218, 240), y_title)
-            return
+            self._text(
+                screen,
+                f"DODGED: {self.dodged_count} / TARGET {self.target_dodged}",
+                self.strike_title_font,
+                (210, 218, 240),
+                y_title,
+            )
         elif self.level_mode == "SOLDER":
-            self._text(screen, f"QUANTUM LINKS: {self.solder_connections} / TARGET {self.target_connections}", self.strike_title_font, (210, 218, 240), y_title)
-            return
+            self._text(
+                screen,
+                f"QUANTUM LINKS: {self.solder_connections} / TARGET {self.target_connections}",
+                self.strike_title_font,
+                (210, 218, 240),
+                y_title,
+            )
         elif self.level_mode == "MATCH3":
-            self._text(screen, f"STRIKES: {self.strikes} / {self.TARGET_STRIKES}", self.strike_title_font, (210, 218, 240), y_title)
-            return
+            self._text(
+                screen,
+                f"STRIKES: {self.strikes} / {self.TARGET_STRIKES}",
+                self.strike_title_font,
+                (210, 218, 240),
+                y_title,
+            )
 
     def _draw_board(self, screen):
         mouse, step = self._cell(pygame.mouse.get_pos()), self.TILE + self.GAP
