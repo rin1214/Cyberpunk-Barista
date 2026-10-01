@@ -52,16 +52,14 @@ class CustomerOrder:
         return f"{self.drink} | {self.temperature} | {self.caffeine} Caffeine | {self.sweetness} Sweet"
 
 class Customer:
-    PATIENCE_SECONDS = 25.0
-
-    # Archetype payout profiles include rare high-paying customers.
+    # Full archetype profile including rare low-patience, high-paying archetypes (Corp Spy & Cyberpunk Cat)
     ARCHETYPE_DETAILS = {
-        "runner": {"pay_mult": 1.0, "weight": 50},
-        "exec": {"pay_mult": 1.8, "weight": 30},
-        "hacker": {"pay_mult": 1.3, "weight": 20},
-        "drone_pilot": {"pay_mult": 1.4, "weight": 15},
-        "corp_spy": {"pay_mult": 2.5, "weight": 8},
-        "cyberpunk_cat": {"pay_mult": 3.0, "weight": 4},
+        "runner": {"patience": 35.0, "pay_mult": 1.0, "weight": 50},
+        "exec": {"patience": 22.0, "pay_mult": 1.8, "weight": 30},
+        "hacker": {"patience": 28.0, "pay_mult": 1.3, "weight": 20},
+        "drone_pilot": {"patience": 24.0, "pay_mult": 1.4, "weight": 15},
+        "corp_spy": {"patience": 15.0, "pay_mult": 2.5, "weight": 8},  # Rare, low patience, high pay
+        "cyberpunk_cat": {"patience": 18.0, "pay_mult": 3.0, "weight": 4},  # Rare, low patience, highest pay
     }
 
     def __init__(self, x=360, y_counter=405, current_level=1):
@@ -83,7 +81,7 @@ class Customer:
         self.current_type = random.choices(self.customer_pool, weights=self.pool_weights, k=1)[0]
         
         # Pull custom archetype multipliers
-        archetype_info = self.ARCHETYPE_DETAILS.get(self.current_type, {"pay_mult": 1.0})
+        archetype_info = self.ARCHETYPE_DETAILS.get(self.current_type, {"patience": 30.0, "pay_mult": 1.0})
         self.pay_multiplier = archetype_info["pay_mult"]
         
         # Load both front (station view) and back (order view) synchronized sprites
@@ -107,7 +105,14 @@ class Customer:
         self.target_caffeine = self._caffeine_to_number(self.order.caffeine)
         self.target_temperature = self._temperature_to_number(self.order.temperature)
         
-        self.max_patience = self.PATIENCE_SECONDS
+        # Scale base patience based on type and level difficulty scaling
+        base_patience = archetype_info["patience"]
+        if self.level == 2:
+            base_patience *= 0.85
+        elif self.level >= 3:
+            base_patience *= 0.70
+
+        self.max_patience = base_patience
         self.current_patience = self.max_patience
         
         # UI fonts and feedback setup

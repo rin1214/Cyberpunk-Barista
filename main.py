@@ -246,20 +246,40 @@ def run_level_transition(new_level, economy, progression, mixing_station, player
     return active_bg, active_customer
 # Pause Menu State
 is_paused = False
-font_title = pygame.font.SysFont("Arial", 42, bold=True)
-font_button = pygame.font.SysFont("Arial", 26, bold=True)
-pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 220, SCREEN_HEIGHT // 2 - 150, 440, 300)
-resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 170, SCREEN_HEIGHT // 2 - 35, 340, 56)
-exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 170, SCREEN_HEIGHT // 2 + 35, 340, 56)
+music_volume = start_screen.music_volume
+sfx_volume = start_screen.sfx_volume
+dragging_music = False
+dragging_sfx = False
+font_title = pygame.font.SysFont("Arial", 38, bold=True)
+font_label = pygame.font.SysFont("Arial", 18, bold=True)
+font_button = pygame.font.SysFont("Arial", 22, bold=True)
+pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 230, SCREEN_HEIGHT // 2 - 190, 460, 380)
+music_track_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 95, 360, 10)
+sfx_track_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 25, 360, 10)
+resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 50, 360, 50)
+exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 115, 360, 50)
 CYAN = (75, 225, 255)
 PINK = (255, 80, 190)
 WHITE = (245, 248, 255)
 PANEL_BG = (12, 18, 40)
+SLIDER_BG = (35, 38, 55)
+
+def update_music_vol(mouse_x):
+    global music_volume
+    music_volume = max(0.0, min(1.0, (mouse_x - music_track_rect.x) / music_track_rect.width))
+    start_screen.music_volume = music_volume
+    pygame.mixer.music.set_volume(0.0 if start_screen.music_muted else music_volume)
+
+def update_sfx_vol(mouse_x):
+    global sfx_volume
+    sfx_volume = max(0.0, min(1.0, (mouse_x - sfx_track_rect.x) / sfx_track_rect.width))
+    start_screen.sfx_volume = sfx_volume
+    start_screen.update_sfx_volume()
 # Main Game Loop
 running = True
 while running:
     dt = clock.tick(FPS) / 1000.0
-    if not pygame.mixer.music.get_busy():
+    if not pygame.mixer.music.get_busy() and not is_paused:
         ensure_game_music(start_screen)
     current_combo = getattr(reward_system, "combo", getattr(reward_system, "combo_multiplier", 1))
     
@@ -278,14 +298,30 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 is_paused = not is_paused
+                dragging_music = False
+                dragging_sfx = False
                 continue
         if is_paused:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
-                if resume_button_rect.collidepoint(mouse_pos):
+                if music_track_rect.inflate(10, 20).collidepoint(mouse_pos):
+                    dragging_music = True
+                    update_music_vol(mouse_pos[0])
+                elif sfx_track_rect.inflate(10, 20).collidepoint(mouse_pos):
+                    dragging_sfx = True
+                    update_sfx_vol(mouse_pos[0])
+                elif resume_button_rect.collidepoint(mouse_pos):
                     is_paused = False
                 elif exit_button_rect.collidepoint(mouse_pos):
                     running = False
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                dragging_music = False
+                dragging_sfx = False
+            elif event.type == pygame.MOUSEMOTION:
+                if dragging_music:
+                    update_music_vol(event.pos[0])
+                elif dragging_sfx:
+                    update_sfx_vol(event.pos[0])
             continue
         try:
             mixing_station.handle_event(event)
@@ -364,7 +400,28 @@ while running:
         pygame.draw.rect(screen, PANEL_BG, pause_panel_rect, border_radius=14)
         pygame.draw.rect(screen, CYAN, pause_panel_rect, width=2, border_radius=14)
         title_surf = font_title.render("GAME PAUSED", True, CYAN)
-        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 45)))
+        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 35)))
+
+        lbl_music = font_label.render("MUSIC VOLUME", True, WHITE)
+        pct_music = font_label.render(f"{int(music_volume * 100)}%", True, CYAN)
+        screen.blit(lbl_music, (music_track_rect.x, music_track_rect.y - 22))
+        screen.blit(pct_music, (music_track_rect.right - pct_music.get_width(), music_track_rect.y - 22))
+        pygame.draw.rect(screen, SLIDER_BG, music_track_rect, border_radius=4)
+        music_fill_w = int(music_track_rect.width * music_volume)
+        if music_fill_w > 0:
+            pygame.draw.rect(screen, CYAN, (music_track_rect.x, music_track_rect.y, music_fill_w, music_track_rect.height), border_radius=4)
+        pygame.draw.circle(screen, WHITE, (music_track_rect.x + music_fill_w, music_track_rect.centery), 8)
+
+        lbl_sfx = font_label.render("SOUND EFFECTS VOLUME", True, WHITE)
+        pct_sfx = font_label.render(f"{int(sfx_volume * 100)}%", True, PINK)
+        screen.blit(lbl_sfx, (sfx_track_rect.x, sfx_track_rect.y - 22))
+        screen.blit(pct_sfx, (sfx_track_rect.right - pct_sfx.get_width(), sfx_track_rect.y - 22))
+        pygame.draw.rect(screen, SLIDER_BG, sfx_track_rect, border_radius=4)
+        sfx_fill_w = int(sfx_track_rect.width * sfx_volume)
+        if sfx_fill_w > 0:
+            pygame.draw.rect(screen, PINK, (sfx_track_rect.x, sfx_track_rect.y, sfx_fill_w, sfx_track_rect.height), border_radius=4)
+        pygame.draw.circle(screen, WHITE, (sfx_track_rect.x + sfx_fill_w, sfx_track_rect.centery), 8)
+
         mouse_pos = pygame.mouse.get_pos()
         resume_hover = resume_button_rect.collidepoint(mouse_pos)
         resume_color = PINK if resume_hover else CYAN
@@ -548,7 +605,7 @@ while running:
         mini_challenge.draw(screen)
     try:
         economy.draw(combo_count=current_combo, dt=dt)
-    except Exception as rror:
+    except Exception as error:
         print(f"[UI ECONOMY DRAW ERROR] {error}")
     pygame.display.flip()
 pygame.quit()

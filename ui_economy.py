@@ -18,6 +18,12 @@ class UIEconomy:
         3: 500   # Cost for Cyber Penthouse
     }
 
+    DRINK_PRICES = {
+        1: 5,
+        2: 10,
+        3: 15,
+    }
+
     LOCATIONS = {
         1: "Back Alley Kiosk",
         2: "Neon Lounge",
@@ -52,6 +58,29 @@ class UIEconomy:
         }
         
         self.load_economy_data()
+
+    def get_drink_price(self, drink_name=None, level=None):
+        if drink_name:
+            from drink import get_drink_price
+            return get_drink_price(drink_name)
+
+        target_level = self.level if level is None else level
+        try:
+            target_level = int(target_level)
+        except (TypeError, ValueError):
+            target_level = self.STARTING_LEVEL
+        return self.DRINK_PRICES.get(target_level, self.DRINK_PRICES[1])
+
+    def serve_order(self, is_correct=True, drink_name=None, accuracy_multiplier=1.0):
+        if not is_correct:
+            return 0
+        try:
+            multiplier = max(0.0, float(accuracy_multiplier))
+        except (TypeError, ValueError):
+            multiplier = 0.0
+        earned = int(self.get_drink_price(drink_name=drink_name) * multiplier)
+        self.add_credits(earned)
+        return earned
 
     def add_credits(self, amount):
         try:
@@ -120,9 +149,6 @@ class UIEconomy:
         else:
             return False
         return self.add_credits(credit_change)
-
-    def serve_order(self, is_correct=True):
-        return True
 
     def set_level(self, level):
         try:
@@ -280,6 +306,7 @@ class UIEconomy:
             "level": self.level,
             "location": self.location,
             "unlocked_levels": self.unlocked_levels,
+            "drink_price": self.get_drink_price(),
         }
 
     # =========================================================================

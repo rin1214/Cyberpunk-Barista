@@ -2,6 +2,8 @@ class MapNode:
     def __init__(self, name, level_req, x, y, description, cost=0):
         self.name = name
         self.level_req = level_req
+        self.x = x
+        self.y = y
         self.pos = (x, y)
         self.description = description
         self.cost = cost
