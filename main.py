@@ -264,25 +264,12 @@ def run_level_transition(new_level, economy, progression, mixing_station, player
     ensure_game_music()
     return active_bg, active_customer
 
-# Pause Menu State
-is_paused = False
-font_title = pygame.font.SysFont("Arial", 38, bold=True)
-font_button = pygame.font.SysFont("Arial", 22, bold=True)
-
-pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 230, SCREEN_HEIGHT // 2 - 130, 460, 260)
-resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 20, 360, 50)
-exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 45, 360, 50)
-
-CYAN = (75, 225, 255)
-PINK = (255, 80, 190)
-WHITE = (245, 248, 255)
-PANEL_BG = (12, 18, 40)
 
 # Main Game Loop
 running = True
 while running:
     dt = clock.tick(FPS) / 1000.0
-    if not pygame.mixer.music.get_busy() and not is_paused:
+    if not pygame.mixer.music.get_busy():
         ensure_game_music(start_screen)
     current_combo = getattr(reward_system, "combo", getattr(reward_system, "combo_multiplier", 1))
     
@@ -297,23 +284,17 @@ while running:
 
         if mini_challenge.active:
             mini_challenge.handle_event(event)
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                is_paused = not is_paused
-                continue
-        if is_paused:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                mouse_pos = event.pos
-                if resume_button_rect.collidepoint(mouse_pos):
-                    is_paused = False
-                elif exit_button_rect.collidepoint(mouse_pos):
-                    running = False
-            continue
 
         try:
             mixing_station.handle_event(event)
         except Exception as error:
             print(f"[STATION ERROR] {error}")
+        try:
+            if mixing_station.consume_exit_request():
+                running = False
+                continue
+        except Exception as error:
+            print(f"[EXIT ERROR] {error}")
         try:
             if mixing_station.consume_map_request():
                 active_bg, active_customer = open_map(
@@ -369,6 +350,23 @@ while running:
     if not running:
         break
 
+    # MENU is the only pause control. While it is open, freeze the entire
+    # gameplay update loop (customer patience, spawn timer, challenges, etc.)
+    # but keep the menu/audio UI responsive. Resume simply falls through here
+    # on the next frame and gameplay continues from the same state.
+    if getattr(mixing_station, "show_menu_overlay", False):
+        try:
+            mixing_station.update(0.0)
+        except Exception as error:
+            print(f"[STATION MENU UPDATE ERROR] {error}")
+        screen.blit(active_bg, (0, 0))
+        if active_customer is not None:
+            active_customer.draw(screen)
+        mixing_station.draw(screen)
+        economy.draw(combo_count=current_combo, dt=0.0)
+        pygame.display.flip()
+        continue
+
     if order_scene.active:
         order_scene.update(dt)
         screen.blit(active_bg, (0, 0))
@@ -376,36 +374,11 @@ while running:
         pygame.display.flip()
         continue
 
-    if is_paused:
-        screen.blit(active_bg, (0, 0))
-        if active_customer is not None:
-            active_customer.draw(screen)
-        mixing_station.draw(screen)
-        economy.draw(combo_count=current_combo, dt=dt)
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((5, 8, 20, 190))
-        screen.blit(overlay, (0, 0))
-        pygame.draw.rect(screen, PANEL_BG, pause_panel_rect, border_radius=14)
-        pygame.draw.rect(screen, CYAN, pause_panel_rect, width=2, border_radius=14)
-        title_surf = font_title.render("GAME PAUSED", True, CYAN)
-        screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 45)))
-
-        mouse_pos = pygame.mouse.get_pos()
-        resume_hover = resume_button_rect.collidepoint(mouse_pos)
-        resume_color = PINK if resume_hover else CYAN
-        pygame.draw.rect(screen, (30, 20, 50), resume_button_rect, border_radius=10)
-        pygame.draw.rect(screen, resume_color, resume_button_rect, width=2, border_radius=10)
-        resume_text = font_button.render("RESUME GAME", True, WHITE)
-        screen.blit(resume_text, resume_text.get_rect(center=resume_button_rect.center))
-
-        exit_hover = exit_button_rect.collidepoint(mouse_pos)
-        exit_color = PINK if exit_hover else CYAN
-        pygame.draw.rect(screen, (30, 20, 50), exit_button_rect, border_radius=10)
-        pygame.draw.rect(screen, exit_color, exit_button_rect, width=2, border_radius=10)
-        exit_text = font_button.render("EXIT TO DESKTOP", True, WHITE)
-        screen.blit(exit_text, exit_text.get_rect(center=exit_button_rect.center))
-        pygame.display.flip()
-        continue
+    screen.blit(active_bg, (0, 0))
+    if active_customer is not None:
+        active_customer.draw(screen)
+    mixing_station.draw(screen)
+    economy.draw(combo_count=current_combo, dt=dt)
 
     if mini_challenge.active or mini_challenge.done:
         mini_challenge.update(dt)

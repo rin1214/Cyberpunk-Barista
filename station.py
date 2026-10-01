@@ -52,6 +52,7 @@ class MixingStation:
         self.menu_requested = False
         self.map_requested = False
         self.leaderboard_requested = False
+        self.exit_requested = False
         self.show_menu_overlay = False
 
         # Settings Audio States
@@ -164,7 +165,7 @@ class MixingStation:
         self.serve_button = pygame.Rect(1156, 632, 115, 48)
 
         # Full-Screen Settings Centered Modal Layout
-        mw, mh = 700, 460
+        mw, mh = 700, 560
         self.overlay_rect = pygame.Rect((self.WIDTH - mw) // 2, (self.HEIGHT - mh) // 2 - 20, mw, mh)
         self.close_overlay_btn = pygame.Rect((self.WIDTH - 250) // 2, self.overlay_rect.bottom + 40, 250, 42)
 
@@ -173,6 +174,10 @@ class MixingStation:
         self.sfx_track = pygame.Rect(self.overlay_rect.x + 180, self.overlay_rect.y + 265, 360, 14)
         self.music_mute_btn = pygame.Rect(self.overlay_rect.x + 100, self.overlay_rect.y + 335, 220, 44)
         self.sfx_mute_btn = pygame.Rect(self.overlay_rect.x + 380, self.overlay_rect.y + 335, 220, 44)
+
+        # Menu actions: keep Resume / Exit together with Audio Settings.
+        self.resume_menu_btn = pygame.Rect(self.overlay_rect.x + 80, self.overlay_rect.y + 410, 250, 48)
+        self.exit_menu_btn = pygame.Rect(self.overlay_rect.x + 370, self.overlay_rect.y + 410, 250, 48)
 
     def register_sfx_sound(self, sound_obj: pygame.mixer.Sound):
         """Register a Pygame Sound instance so its volume stays synchronized."""
@@ -234,6 +239,10 @@ class MixingStation:
 
     def consume_leaderboard_request(self):
         req, self.leaderboard_requested = self.leaderboard_requested, False
+        return req
+
+    def consume_exit_request(self):
+        req, self.exit_requested = self.exit_requested, False
         return req
 
     def set_order(self, order):
@@ -326,7 +335,12 @@ class MixingStation:
                 self.sfx_volume = rel
                 self._apply_audio_volumes()
 
-        if not self.show_menu_overlay and self.game_state.can_customize() and self.player_drink.drink_name:
+        # The Menu is a real gameplay pause. Keep audio controls responsive,
+        # but do not advance any gameplay/challenge/blending timers while it is open.
+        if self.show_menu_overlay:
+            return
+
+        if self.game_state.can_customize() and self.player_drink.drink_name:
             for p, pos in self.slider_positions.items():
                 if self.slider_locked[p]: continue
                 nxt = pos + self.slider_speeds[p] * self.slider_directions[p] * dt
@@ -368,9 +382,6 @@ class MixingStation:
             if event.key == pygame.K_f:
                 self.show_menu_overlay = not self.show_menu_overlay
                 return
-            elif event.key == pygame.K_ESCAPE and self.show_menu_overlay:
-                self.show_menu_overlay = False
-                return
             elif event.key == pygame.K_m and not self.show_menu_overlay:
                 self.map_requested = True
                 return
@@ -381,7 +392,14 @@ class MixingStation:
         if self.show_menu_overlay:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse = event.pos
-                if self.close_overlay_btn.collidepoint(mouse):
+                if self.resume_menu_btn.collidepoint(mouse):
+                    self.show_menu_overlay = False
+                    return
+                elif self.exit_menu_btn.collidepoint(mouse):
+                    self.show_menu_overlay = False
+                    self.exit_requested = True
+                    return
+                elif self.close_overlay_btn.collidepoint(mouse):
                     self.show_menu_overlay = False
                     return
                 elif self.music_track.inflate(20, 20).collidepoint(mouse):
@@ -557,13 +575,18 @@ class MixingStation:
         self._action_button(screen, self.music_mute_btn, m_txt, self.PINK if self.music_muted else self.CYAN, True, large=False)
         self._action_button(screen, self.sfx_mute_btn, s_txt, self.PINK if self.sfx_muted else self.CYAN, True, large=False)
 
-        # Subtitle Line
-        pygame.draw.line(screen, (35, 50, 85), (self.overlay_rect.x + 40, self.overlay_rect.bottom - 45), (self.overlay_rect.right - 40, self.overlay_rect.bottom - 45), 1)
-        tag = self.font_small.render("GOOD DRINKS  •  BRIGHTER PEOPLE", True, self.CYAN_LIGHT)
-        screen.blit(tag, tag.get_rect(center=(self.overlay_rect.centerx, self.overlay_rect.bottom - 25)))
+        # --- MENU ACTIONS ---
+        self._action_button(
+            screen, self.resume_menu_btn, "RESUME GAME", self.CYAN, True, large=False
+        )
+        self._action_button(
+            screen, self.exit_menu_btn, "EXIT TO DESKTOP", self.PINK, True, large=False
+        )
 
-        # --- BOTTOM CLOSE BUTTON [ F / ESC ] ---
-        self._draw_close_button(screen)
+        # Subtitle Line / keyboard hint
+        pygame.draw.line(screen, (35, 50, 85), (self.overlay_rect.x + 40, self.overlay_rect.bottom - 55), (self.overlay_rect.right - 40, self.overlay_rect.bottom - 55), 1)
+        tag = self.font_small.render("RESUME OR EXIT  •  USE MENU BUTTON", True, self.CYAN_LIGHT)
+        screen.blit(tag, tag.get_rect(center=(self.overlay_rect.centerx, self.overlay_rect.bottom - 30)))
 
     def _draw_close_button(self, screen):
         rect = self.close_overlay_btn
@@ -571,7 +594,7 @@ class MixingStation:
         border = self.PINK_LIGHT if hover else self.CYAN
         text_col = self.WHITE if hover else self.CYAN
         self._panel(screen, rect, border, (6, 10, 26, 240), radius=10, width=2)
-        lbl = self.font_close.render("‹  CLOSE [ F / ESC ]", True, text_col)
+        lbl = self.font_close.render("‹  CLOSE MENU", True, text_col)
         screen.blit(lbl, lbl.get_rect(center=rect.center))
 
         # Small hint text under the close button
@@ -904,6 +927,7 @@ class MixingStation:
         self.menu_requested = False
         self.map_requested = False
         self.leaderboard_requested = False
+        self.exit_requested = False
         self.show_menu_overlay = False
         self.last_xp_change = 0
         self.last_credit_change = 0
