@@ -5,6 +5,7 @@ import pygame
 
 class OrderScene:
     """Animated order scene with randomized customers: back view during order, front view during mixing."""
+
     def __init__(self, screen):
         self.screen = screen
         self.active = False
@@ -24,26 +25,36 @@ class OrderScene:
         self.accent = (70, 235, 255)
         self.pink = (255, 75, 190)
         
-        self.barista_image = self._load_barista_sprite()
+        self.barista_name = "Ryu"
+        self.barista_image = None
         self.back_customer_images = self._load_all_back_customer_sprites()
         self.level_backgrounds = self._load_level_backgrounds()
+        self._load_selected_barista()
 
-    def _load_barista_sprite(self):
+    def set_barista(self, barista_name):
+        """Switch the order-scene avatar to the selected barista."""
+        if barista_name not in ("Ryu", "Kira", "Jax"):
+            barista_name = "Ryu"
+        self.barista_name = barista_name
+        self._load_selected_barista()
+
+    def _load_selected_barista(self):
         project_root = os.path.dirname(os.path.abspath(__file__))
-        paths_to_try = [
-            os.path.join(project_root, "assets", "customers", "barista.png"),
-            os.path.join(project_root, "assets", "cutomer", "barista.png"),
-            os.path.join(project_root, "assets", "customer", "barista.png"),
-            os.path.join(project_root, "barista.png")
-        ]
-        for path in paths_to_try:
-            if os.path.exists(path):
-                try:
-                    img = pygame.image.load(path).convert_alpha()
-                    return pygame.transform.smoothscale(img, (220, 270))
-                except pygame.error as e:
-                    print(f"[WARNING] Could not load barista.png from {path}: {e}")
-        return None
+        path = os.path.join(
+            project_root, "assets", "mahirah", "baristas",
+            f"{self.barista_name.lower()}.png"
+        )
+        self.barista_image = None
+        if os.path.exists(path):
+            try:
+                raw = pygame.image.load(path).convert_alpha()
+                # Small order-scene portrait: behind the counter, not a giant foreground sprite.
+                self.barista_image = pygame.transform.smoothscale(raw, (285, 285))
+                print(f"[ORDER SCENE] Loaded {self.barista_name} avatar.")
+            except pygame.error as error:
+                print(f"[ORDER SCENE] Could not load {path}: {error}")
+        else:
+            print(f"[ORDER SCENE] Missing barista avatar: {path}")
 
     def _load_single_back_sprite(self, filename):
         project_root = os.path.dirname(os.path.abspath(__file__))
@@ -160,7 +171,7 @@ class OrderScene:
     def _finish(self):
         self.active = False
         if self.customer:
-            # RESTORE front-facing sprite for workstation mixing/waiting phase!
+            # front-facing sprite for workstation mixing/waiting phase!
             if hasattr(self.customer, "original_image") and self.customer.original_image is not None:
                 self.customer.image = self.customer.original_image
             elif hasattr(self.customer, "_load_sprite") and hasattr(self.customer, "current_type"):
@@ -222,21 +233,40 @@ class OrderScene:
             cust_img.fill((100, 100, 150))
 
         bob = math.sin(self.t * 4) * 3
-        rect = cust_img.get_rect(midbottom=(420, 640 + bob))
+        rect = cust_img.get_rect(midbottom=(420, 700 + bob))
         screen.blit(cust_img, rect)
-        self._label(screen, "PATRON", rect.centerx, rect.bottom + 6, self.accent)
+        customer_name = str(cust_type).replace("_", " ").upper()
+        self._label(screen, customer_name, rect.centerx, rect.bottom + 6, self.accent)
 
     def _barista(self, screen):
         x, y = 750, 570
-        bob = math.sin(self.t * 4) * 3
-        if self.barista_image is not None:
-            rect = self.barista_image.get_rect(midbottom=(x, y + bob))
-            screen.blit(self.barista_image, rect)
-        else:
-            pygame.draw.rect(screen, (25, 30, 50), (x - 60, y - 120, 120, 140), border_radius=14)
-            pygame.draw.circle(screen, (220, 190, 175), (x, y - 145), 45)
-            rect = pygame.Rect(x - 60, y - 120, 120, 140)
-        self._label(screen, "BARISTA", x, rect.bottom + 6, self.pink)
+        bob = math.sin(self.t * 3.0) * 1.5
+
+        if self.barista_image is None:
+            return
+
+        # Keep the character compact enough to read as staff behind the counter.
+        target_w, target_h = 235, 235
+        image = pygame.transform.smoothscale(
+            self.barista_image, (target_w, target_h)
+        )
+        rect = image.get_rect(midbottom=(x, y + bob))
+
+        # level at the game's 1280x720 resolution.
+        counter_top = 575
+        old_clip = screen.get_clip()
+        screen.set_clip(pygame.Rect(0, 0, screen.get_width(), counter_top))
+        screen.blit(image, rect)
+        screen.set_clip(old_clip)
+
+        # Put the name below the counter, like the customer's name.
+        self._label(
+            screen,
+            self.barista_name.upper(),
+            x,
+            600 + bob,
+            self.pink
+        )
 
     def _draw_customer_bubble(self, screen):
         bx, by, bw, bh = 140, 80, 520, 145

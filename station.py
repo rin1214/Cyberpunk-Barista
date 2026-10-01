@@ -36,8 +36,9 @@ class MixingStation:
         "Caramel Byte": ("CARAMEL", "BYTE"),
     }
 
-    def __init__(self, drink=None, level=1, progression=None, rewards=None, economy=None):
+    def __init__(self, drink=None, level=1, progression=None, rewards=None, economy=None, barista="Ryu"):
         self.drink = drink
+        self.barista = barista if barista in ("Ryu", "Kira", "Jax") else "Ryu"
         self.player_drink = PlayerDrink()
         self.game_state = MixingGameState()
         self.progression, self.rewards, self.economy = progression, rewards, economy
@@ -72,7 +73,7 @@ class MixingStation:
         self._reset_sliders()
 
         self.blend_start_time = 0.0
-        self.blend_duration = 0.7
+        self.blend_duration = self._prep_duration(0.7)
         self.blender_angle = 0.0
         self.blender_pulse = 0.0
 
@@ -210,6 +211,16 @@ class MixingStation:
             except (pygame.error, FileNotFoundError):
                 self.drink_images[name] = None
 
+    def set_barista(self, barista):
+        self.barista = barista if barista in ("Ryu", "Kira", "Jax") else "Ryu"
+        self.blend_duration = self._prep_duration(0.7)
+
+    def _prep_multiplier(self):
+        return 1.20 if self.barista == "Kira" else 1.0
+
+    def _prep_duration(self, duration):
+        return float(duration) / self._prep_multiplier()
+
     def set_level(self, level):
         try: self.level = max(1, int(level))
         except (TypeError, ValueError): self.level = 1
@@ -343,7 +354,7 @@ class MixingStation:
         if self.game_state.can_customize() and self.player_drink.drink_name:
             for p, pos in self.slider_positions.items():
                 if self.slider_locked[p]: continue
-                nxt = pos + self.slider_speeds[p] * self.slider_directions[p] * dt
+                nxt = pos + self.slider_speeds[p] * self._prep_multiplier() * self.slider_directions[p] * dt
                 if nxt >= 1.0: nxt, self.slider_directions[p] = 1.0, -1.0
                 elif nxt <= 0.0: nxt, self.slider_directions[p] = 0.0, 1.0
                 self.slider_positions[p] = nxt
@@ -357,7 +368,7 @@ class MixingStation:
     def _update_assembly(self):
         if self.assembly_phase == "empty": return
         elapsed = time.monotonic() - self.assembly_started
-        phases = (("ice", 0.4), ("pour", 0.4), ("topping", 0.4))
+        phases = (("ice", self._prep_duration(0.4)), ("pour", self._prep_duration(0.4)), ("topping", self._prep_duration(0.4)))
         tot = 0.0
         for name, dur in phases:
             if elapsed < tot + dur:
@@ -916,6 +927,8 @@ class MixingStation:
         pygame.draw.circle(screen, (25, 28, 45), (x, y + 7), 2)
 
     def reset(self):
+        # Gameplay reset only; the selected barista remains active.
+        self.blend_duration = self._prep_duration(0.7)
         self.player_drink.reset()
         self.game_state.reset()
         self.customer_order = None

@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import pygame
 from customer import Customer, CustomerState
 from drink import Drink
@@ -18,6 +19,242 @@ from leaderboard_screen import LeaderboardScreen
 from game_end_screen import GameEndScreen
 from mini_challenges import MiniChallenge
 from order_scene import OrderScene
+
+# ---------------------------------------------------------------------------
+# BARISTA SYSTEM
+# Self-contained feature layer. Existing gameplay systems remain unchanged.
+# ---------------------------------------------------------------------------
+BARISTA_DATA = {
+    "Ryu": {
+        "cost": 0,
+        "ability": "BALANCED",
+        "description": "Standard preparation speed and rewards.",
+    },
+    "Kira": {
+        "cost": 1000,
+        "ability": "20% FASTER PREPARATION",
+        "description": "Preparation actions complete 20% faster.",
+    },
+    "Jax": {
+        "cost": 2000,
+        "ability": "20% MORE CREDITS",
+        "description": "Earn 20% more credits from successful orders.",
+    },
+}
+BARISTA_SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "barista_unlocks.json")
+
+
+def _load_barista_unlocks():
+    unlocked = {"Ryu": True, "Kira": False, "Jax": False}
+    try:
+        if os.path.exists(BARISTA_SAVE_FILE):
+            with open(BARISTA_SAVE_FILE, "r", encoding="utf-8") as fh:
+                saved = json.load(fh)
+            unlocked["Kira"] = bool(saved.get("Kira", False))
+            unlocked["Jax"] = bool(saved.get("Jax", False))
+    except Exception as error:
+        print(f"[BARISTA] Save read warning: {error}")
+    return unlocked
+
+
+def _save_barista_unlocks(unlocked):
+    try:
+        with open(BARISTA_SAVE_FILE, "w", encoding="utf-8") as fh:
+            json.dump({
+                "Ryu": True,
+                "Kira": bool(unlocked.get("Kira", False)),
+                "Jax": bool(unlocked.get("Jax", False)),
+            }, fh, indent=2)
+    except Exception as error:
+        print(f"[BARISTA] Save write warning: {error}")
+
+
+class BaristaSelectScreen:
+    WIDTH, HEIGHT = 1280, 720
+    CYAN = (75, 225, 255)
+    PINK = (255, 80, 190)
+    PINK_LIGHT = (255, 165, 225)
+    WHITE = (245, 248, 255)
+    SOFT_WHITE = (215, 222, 240)
+    MUTED = (125, 140, 170)
+    GREEN = (90, 235, 165)
+    YELLOW = (255, 220, 100)
+    DARK = (5, 8, 20)
+
+    def __init__(self, screen, economy):
+        self.screen = screen
+        self.economy = economy
+        self.unlocked = _load_barista_unlocks()
+        self.selected = "Ryu"
+        self.running = True
+        self.font_big = pygame.font.SysFont("Arial", 34, bold=True)
+        self.font_title = pygame.font.SysFont("Arial", 22, bold=True)
+        self.font = pygame.font.SysFont("Arial", 17, bold=True)
+        self.font_small = pygame.font.SysFont("Arial", 14)
+        self.cards = {
+            "Ryu": pygame.Rect(90, 185, 340, 365),
+            "Kira": pygame.Rect(470, 185, 340, 365),
+            "Jax": pygame.Rect(850, 185, 340, 365),
+        }
+        self.avatar_images = {}
+        self._load_barista_avatars()
+
+    def _load_barista_avatars(self):
+        avatar_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "assets", "mahirah", "baristas"
+        )
+        for name in ("Ryu", "Kira", "Jax"):
+            path = os.path.join(avatar_dir, f"{name.lower()}.png")
+            try:
+                self.avatar_images[name] = pygame.image.load(path).convert_alpha()
+            except (pygame.error, FileNotFoundError) as error:
+                print(f"[BARISTA] Could not load {name} selection avatar: {error}")
+                self.avatar_images[name] = None
+
+    def _draw_avatar(self, name, rect):
+        avatar = self.avatar_images.get(name)
+        if avatar is None:
+            return
+        max_w, max_h = rect.width - 20, 170
+        scale = min(max_w / avatar.get_width(), max_h / avatar.get_height())
+        size = (max(1, int(avatar.get_width() * scale)),
+                max(1, int(avatar.get_height() * scale)))
+        image = pygame.transform.smoothscale(avatar, size)
+        target = image.get_rect(midbottom=(rect.centerx, rect.y + 170))
+        self.screen.blit(image, target)
+
+    def _credits(self):
+        try:
+            return int(self.economy.credits)
+        except Exception:
+            return 0
+
+    def _draw_card(self, name):
+        rect = self.cards[name]
+        data = BARISTA_DATA[name]
+        unlocked = self.unlocked.get(name, False)
+        selected = self.selected == name
+
+        border = self.PINK_LIGHT if selected else (
+            self.CYAN if unlocked else (60, 65, 85)
+        )
+        fill = (30, 12, 42) if selected else (8, 14, 32)
+        pygame.draw.rect(self.screen, fill, rect, border_radius=18)
+        pygame.draw.rect(
+            self.screen, border, rect, width=3 if selected else 2, border_radius=18
+        )
+
+        # Real character avatar.
+        self._draw_avatar(name, rect)
+        cx = rect.centerx
+
+        title = self.font_title.render(name.upper(), True, self.WHITE)
+        self.screen.blit(title, title.get_rect(center=(cx, rect.y + 160)))
+
+        ability_col = self.YELLOW if name == "Jax" else self.CYAN
+        ability = self.font.render(data["ability"], True, ability_col)
+        self.screen.blit(ability, ability.get_rect(center=(cx, rect.y + 205)))
+
+        desc = self.font_small.render(data["description"], True, self.SOFT_WHITE)
+        self.screen.blit(desc, desc.get_rect(center=(cx, rect.y + 245)))
+
+        if name == "Ryu":
+            status, scol = "UNLOCKED • FREE", self.GREEN
+        elif unlocked:
+            status, scol = "UNLOCKED", self.GREEN
+        else:
+            status = f"UNLOCK  •  {data['cost']:,} CREDITS"
+            scol = self.YELLOW if self._credits() >= data["cost"] else self.MUTED
+
+        st = self.font.render(status, True, scol)
+        self.screen.blit(st, st.get_rect(center=(cx, rect.bottom - 72)))
+
+        button = pygame.Rect(rect.x + 55, rect.bottom - 54, rect.width - 110, 38)
+        enabled = unlocked or self._credits() >= data["cost"]
+        bcol = self.PINK if selected else self.CYAN
+        pygame.draw.rect(
+            self.screen,
+            (25, 12, 42) if enabled else (12, 15, 28),
+            button, border_radius=10
+        )
+        pygame.draw.rect(
+            self.screen, bcol if enabled else (60, 65, 85),
+            button, width=2, border_radius=10
+        )
+        label = "SELECTED" if selected else ("SELECT" if unlocked else "UNLOCK")
+        bt = self.font.render(label, True, self.WHITE if enabled else self.MUTED)
+        self.screen.blit(bt, bt.get_rect(center=button.center))
+
+    def run(self):
+        clock = pygame.time.Clock()
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    # Keep the game start flow safe: Escape leaves Ryu selected.
+                    self.running = False
+                    continue
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    for name, rect in self.cards.items():
+                        if not rect.collidepoint(event.pos):
+                            continue
+
+                        data = BARISTA_DATA[name]
+                        if self.unlocked.get(name, False):
+                            self.selected = name
+                            self.running = False
+                            break
+
+                        if self._credits() >= data["cost"]:
+                            try:
+                                self.economy.credits -= data["cost"]
+                                self.economy.save_economy_data()
+                                self.unlocked[name] = True
+                                _save_barista_unlocks(self.unlocked)
+                                self.selected = name
+                                self.running = False
+                            except Exception as error:
+                                print(f"[BARISTA] Unlock warning: {error}")
+                        break
+
+            self.screen.fill(self.DARK)
+
+            title = self.font_big.render(
+                "CHOOSE YOUR BARISTA", True, self.CYAN
+            )
+            self.screen.blit(
+                title, title.get_rect(center=(self.WIDTH // 2, 72))
+            )
+
+            sub = self.font_small.render(
+                "UNLOCK WITH CREDITS  •  SELECT A BARISTA TO START",
+                True, self.SOFT_WHITE
+            )
+            self.screen.blit(
+                sub, sub.get_rect(center=(self.WIDTH // 2, 112))
+            )
+
+            credits = self.font.render(
+                f"CREDITS: {self._credits():,}", True, self.YELLOW
+            )
+            self.screen.blit(
+                credits, credits.get_rect(center=(self.WIDTH // 2, 142))
+            )
+
+            for name in self.cards:
+                self._draw_card(name)
+
+            pygame.display.flip()
+            clock.tick(60)
+
+        return self.selected
+
 
 pygame.init()
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -223,6 +460,12 @@ if not loading_ok:
     sys.exit()
 
 ensure_game_music(start_screen)
+
+# BARISTA SELECTION: new feature layer; existing start/loading screens stay intact.
+barista_selector = BaristaSelectScreen(screen, economy)
+active_barista = barista_selector.run()
+ensure_game_music(start_screen)
+
 drink = Drink()
 mixing_station = MixingStation(
     drink=drink,
@@ -230,6 +473,7 @@ mixing_station = MixingStation(
     progression=progression,
     rewards=reward_system,
     economy=economy,
+    barista=active_barista,
 )
 if hasattr(mixing_station, "show_header"):
     mixing_station.show_header = False
@@ -240,6 +484,8 @@ sync_level_systems(economy, progression, mixing_station)
 active_bg = load_level_background(progression.level)
 active_customer = refresh_customer(progression.level, mixing_station)
 order_scene = OrderScene(screen)
+if hasattr(order_scene, "set_barista"):
+    order_scene.set_barista(active_barista)
 order_scene.start(active_customer, level=progression.level)
 
 spawn_timer = 0.0
@@ -420,6 +666,15 @@ while running:
                     total_successful_drinks += 1
                 if progression.level >= 3 and successful_drinks >= 10:
                     game_finished = True
+                # Jax ability: +20% to the existing credit reward only.
+                if active_barista == "Jax":
+                    try:
+                        reward_result.net_credits = int(
+                            round(float(reward_result.net_credits) * 1.20)
+                        )
+                    except Exception as error:
+                        print(f"[BARISTA] Jax reward warning: {error}")
+
                 try:
                     economy.apply_reward(reward_result)
                 except Exception as error:
