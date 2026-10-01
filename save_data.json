@@ -167,14 +167,14 @@
         }
     },
     "sue": {
-        "credits": 112,
-        "xp": 1610,
-        "level": 3,
-        "location": "Cyber Penthouse",
+        "credits": 105,
+        "xp": 40,
+        "level": 1,
+        "location": "Back Alley Kiosk",
         "unlocked_levels": {
             "1": true,
-            "2": true,
-            "3": true
+            "2": false,
+            "3": false
         }
     },
     "hik": {
