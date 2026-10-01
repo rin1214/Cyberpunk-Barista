@@ -31,5 +31,16 @@
             "2": false,
             "3": false
         }
+    },
+    "aila": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
     }
 }
