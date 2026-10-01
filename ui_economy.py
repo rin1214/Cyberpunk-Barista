@@ -18,11 +18,10 @@ class UIEconomy:
         3: 500   # Cost for Cyber Penthouse
     }
 
-    # Base drink prices per level tier
     DRINK_PRICES = {
-        1: 5,   # Level 1 drinks base cost $5
-        2: 10,  # Level 2 drinks base cost $10
-        3: 15   # Level 3 drinks base cost $15
+        1: 5,
+        2: 10,
+        3: 15,
     }
 
     LOCATIONS = {
@@ -36,8 +35,9 @@ class UIEconomy:
     COLOR_BORDER = (0, 240, 255)      # Cyan border glow
     COLOR_TEXT = (240, 245, 255)      # Soft white text
     COLOR_GOLD = (255, 200, 0)        # Credits gold
-    COLOR_PINK = (255, 0, 110)        # Combo pink
-    COLOR_CYAN = (0, 240, 255)        # Level / XP cyan
+    COLOR_PINK = (255, 0, 110)        # Combo pink / XP high-fill
+    COLOR_CYAN = (0, 240, 255)        # XP low-fill
+    COLOR_SEG_EMPTY = (30, 35, 50)    # Empty XP segment
 
     def __init__(self, screen, player_name="Player"):
         self.screen = screen
@@ -60,25 +60,25 @@ class UIEconomy:
         self.load_economy_data()
 
     def get_drink_price(self, drink_name=None, level=None):
-        """Returns the base drink price ($5, $10, $15) according to recipe tier or current level."""
         if drink_name:
-            try:
-                from drink import get_drink_price as fetch_drink_price
-                return fetch_drink_price(drink_name)
-            except ImportError:
-                pass
+            from drink import get_drink_price
+            return get_drink_price(drink_name)
 
-        target_level = level if level is not None else self.level
-        return self.DRINK_PRICES.get(target_level, 5)
+        target_level = self.level if level is None else level
+        try:
+            target_level = int(target_level)
+        except (TypeError, ValueError):
+            target_level = self.STARTING_LEVEL
+        return self.DRINK_PRICES.get(target_level, self.DRINK_PRICES[1])
 
     def serve_order(self, is_correct=True, drink_name=None, accuracy_multiplier=1.0):
         if not is_correct:
             return 0
-
-        base_price = self.get_drink_price(drink_name=drink_name)
-        accuracy_mult = max(0.0, float(accuracy_multiplier))
-        earned = int(base_price * accuracy_mult)
-        
+        try:
+            multiplier = max(0.0, float(accuracy_multiplier))
+        except (TypeError, ValueError):
+            multiplier = 0.0
+        earned = int(self.get_drink_price(drink_name=drink_name) * multiplier)
         self.add_credits(earned)
         return earned
 
@@ -156,6 +156,7 @@ class UIEconomy:
         except (TypeError, ValueError):
             return False
         
+        # Prevent jumping to locked levels unless unlocked via map node
         if not self.is_level_unlocked(level):
             return False
             
@@ -228,6 +229,7 @@ class UIEconomy:
         self.credits = max(self.MIN_CREDITS, int(self.credits))
         self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
 
+        # Convert keys to strings for safe JSON serialization
         serialized_unlocked = {str(k): v for k, v in self.unlocked_levels.items()}
 
         all_profiles[self.player_name] = {
@@ -270,8 +272,10 @@ class UIEconomy:
                     self.level = max(1, min(self.level, self.MAX_LEVEL))
                     self.location = self.LOCATIONS.get(self.level, self.LOCATIONS[1])
                     
+                    # Load unlocked levels safely (convert JSON string keys back to int)
                     saved_unlocked = player_data.get("unlocked_levels", {1: True})
                     self.unlocked_levels = {int(k): bool(v) for k, v in saved_unlocked.items()}
+                    # Ensure level 1 is always unlocked
                     self.unlocked_levels[1] = True
                     
                     self.save_economy_data()
@@ -309,64 +313,76 @@ class UIEconomy:
     # CYBERPUNK HUD DRAWING IMPLEMENTATION
     # =========================================================================
     def draw_hud(self, combo_count=1):
+        """Draws the top Cyber-Deck HUD header constrained before MAP/LEADERBOARD buttons."""
         screen_w = self.screen.get_width()
         
-        hud_height = 55
+        hud_height = 65
         hud_width = min(680, screen_w - 320)
-        hud_rect = pygame.Rect(10, 5, hud_width, hud_height)
+        hud_rect = pygame.Rect(10, 10, hud_width, hud_height)
         
         pygame.draw.rect(self.screen, self.COLOR_BG_SOLID, hud_rect, border_radius=4)
         pygame.draw.rect(self.screen, self.COLOR_BORDER, hud_rect, 2, border_radius=4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.x + 5, hud_rect.y), (hud_rect.x + 35, hud_rect.y), 4)
         pygame.draw.line(self.screen, self.COLOR_CYAN, (hud_rect.right - 35, hud_rect.bottom), (hud_rect.right - 5, hud_rect.bottom), 4)
-
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        font_dir = os.path.join(base_dir, "assets", "fonts")
-        bold_path = os.path.join(font_dir, "Orbitron-Bold.ttf")
-        medium_path = os.path.join(font_dir, "Orbitron-Medium.ttf")
-
-        if os.path.exists(bold_path):
-            font_main = pygame.font.Font(bold_path, 11)
-        else:
-            font_main = pygame.font.SysFont("Consolas", 13, bold=True)
-
-        if os.path.exists(medium_path):
-            font_sub = pygame.font.Font(medium_path, 9)
-        else:
-            font_sub = pygame.font.SysFont("Consolas", 10, bold=True)
-
-        # BARISTA & LOCATION
+        
+        font_main = pygame.font.SysFont("Consolas", 15, bold=True)
+        font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
+        
+        # 1. Barista Name & 2. Location (Left Block)
         name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
         loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
-        self.screen.blit(name_txt, (hud_rect.x + 10, hud_rect.y + 8))
-        self.screen.blit(loc_txt, (hud_rect.x + 10, hud_rect.y + 28))
-
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 8), (hud_rect.x + 220, hud_rect.bottom - 8), 1)
-
-        # LEVEL & XP (TEXT ONLY)
-        xp_x = hud_rect.x + 230
-        lvl_lbl = font_sub.render(f"LEVEL {self.level}", True, (150, 160, 180))
-        xp_val = font_main.render(f"{self.xp:,} XP", True, self.COLOR_CYAN)
-        self.screen.blit(lvl_lbl, (xp_x, hud_rect.y + 8))
-        self.screen.blit(xp_val, (xp_x, hud_rect.y + 28))
-            
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 350, hud_rect.y + 8), (hud_rect.x + 350, hud_rect.bottom - 8), 1)
+        self.screen.blit(name_txt, (hud_rect.x + 12, hud_rect.y + 12))
+        self.screen.blit(loc_txt, (hud_rect.x + 12, hud_rect.y + 36))
         
-        # CREDITS
-        cred_x = hud_rect.x + 365
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 10), (hud_rect.x + 220, hud_rect.bottom - 10), 1)
+        
+        # 3. Level & 4. XP Bar (Center Block)
+        xp_x = hud_rect.x + 232
+        target_xp = 2500  # Fallback target if needed
+        
+        lvl_txt = font_main.render(f"LVL {self.level}", True, self.COLOR_CYAN)
+        xp_num_txt = font_sub.render(f"{self.xp}/{target_xp} XP", True, self.COLOR_TEXT)
+        
+        self.screen.blit(lvl_txt, (xp_x, hud_rect.y + 12))
+        self.screen.blit(xp_num_txt, (xp_x + 65, hud_rect.y + 14))
+        
+        bar_x = xp_x
+        bar_y = hud_rect.y + 38
+        bar_w = 175
+        bar_h = 12
+        num_segments = 10
+        seg_gap = 2
+        seg_w = (bar_w - (seg_gap * (num_segments - 1))) // num_segments
+        
+        xp_ratio = min(1.0, max(0.0, self.xp / float(target_xp)))
+        filled_segments = int(xp_ratio * num_segments)
+        for i in range(num_segments):
+            seg_x = bar_x + i * (seg_w + seg_gap)
+            seg_rect = pygame.Rect(seg_x, bar_y, seg_w, bar_h)
+            if i < filled_segments:
+                color = self.COLOR_PINK if i >= 7 else self.COLOR_CYAN
+                pygame.draw.rect(self.screen, color, seg_rect)
+            else:
+                pygame.draw.rect(self.screen, self.COLOR_SEG_EMPTY, seg_rect)
+            pygame.draw.rect(self.screen, (10, 15, 25), seg_rect, 1)
+            
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 425, hud_rect.y + 10), (hud_rect.x + 425, hud_rect.bottom - 10), 1)
+        
+        # 5. Credits Display
+        cred_x = hud_rect.x + 438
         cred_lbl = font_sub.render("CREDITS", True, (150, 160, 180))
         cred_val = font_main.render(f"${self.credits:,}", True, self.COLOR_GOLD)
-        self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 8))
-        self.screen.blit(cred_val, (cred_x, hud_rect.y + 28))
+        self.screen.blit(cred_lbl, (cred_x, hud_rect.y + 12))
+        self.screen.blit(cred_val, (cred_x, hud_rect.y + 32))
         
-        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 480, hud_rect.y + 8), (hud_rect.x + 480, hud_rect.bottom - 8), 1)
+        pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 550, hud_rect.y + 10), (hud_rect.x + 550, hud_rect.bottom - 10), 1)
         
-        # COMBO DISPLAY
-        combo_x = hud_rect.x + 495
-        combo_txt = font_sub.render("COMBO", True, self.COLOR_PINK)
+        # 6. Combo Counter Display
+        combo_x = hud_rect.x + 562
+        combo_txt = font_main.render("COMBO", True, self.COLOR_PINK)
         combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
-        self.screen.blit(combo_txt, (combo_x, hud_rect.y + 8))
-        self.screen.blit(combo_val, (combo_x, hud_rect.y + 28))
+        self.screen.blit(combo_txt, (combo_x, hud_rect.y + 12))
+        self.screen.blit(combo_val, (combo_x, hud_rect.y + 32))
 
     def draw(self, combo_count=1, dt=0):
         self.draw_hud(combo_count=combo_count)

@@ -111,7 +111,7 @@ class Customer:
             base_patience *= 0.85
         elif self.level >= 3:
             base_patience *= 0.70
-            
+
         self.max_patience = base_patience
         self.current_patience = self.max_patience
         

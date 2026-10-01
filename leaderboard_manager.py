@@ -1,33 +1,157 @@
 import json
 import os
 
+
 class LeaderboardManager:
     def __init__(self, economy_ref, filename="save_data.json"):
         self.economy = economy_ref
-        # Read directly from save_data.json to capture all saved player profiles
-        self.filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+        self.filepath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            filename
+        )
+
+    # ============================================================
+    # UPDATE CURRENT PLAYER SCORE
+    # ============================================================
 
     def update_current_player_score(self):
-        """Bridge method matching what leaderboard_screen.py expects."""
-        if self.economy:
+       
+        if self.economy is None:
+            return
+
+        try:
             self.economy.save_economy_data()
 
-    def get_ranked_players(self):
-        """Loads all player profiles from save_data.json and sorts them by XP descending."""
-        scores = []
-        if os.path.exists(self.filepath):
-            try:
-                with open(self.filepath, "r") as f:
-                    all_profiles = json.load(f)
-                    for name, data in all_profiles.items():
-                        scores.append({
-                            "name": name,
-                            "xp": data.get("xp", 0),       # Tracked XP for leaderboard
-                            "level": data.get("level", 1)
-                        })
-            except (IOError, json.JSONDecodeError):
-                pass
+        except Exception as error:
+            print(
+                "[LEADERBOARD] "
+                f"Could not update player score: {error}"
+            )
 
-        # Sort all saved players by XP from highest to lowest
-        scores.sort(key=lambda x: x["xp"], reverse=True)
-        return scores
+    # ============================================================
+    # GET RANKED PLAYERS
+    # ============================================================
+
+    def get_ranked_players(self):
+        """
+        Read all saved player profiles and rank them by XP.
+
+        Highest XP appears first.
+
+        Each player contains:
+            name
+            xp
+            level
+            credits
+        """
+
+        players = []
+
+        # --------------------------------------------------------
+        # CHECK SAVE FILE
+        # --------------------------------------------------------
+
+        if not os.path.exists(self.filepath):
+            return players
+
+        # --------------------------------------------------------
+        # LOAD SAVE DATA
+        # --------------------------------------------------------
+
+        try:
+
+            with open(
+                self.filepath,
+                "r",
+                encoding="utf-8"
+            ) as file:
+
+                profiles = json.load(file)
+
+        except (
+            IOError,
+            json.JSONDecodeError
+        ) as error:
+
+            print(
+                "[LEADERBOARD] "
+                f"Could not read save data: {error}"
+            )
+
+            return players
+
+        # --------------------------------------------------------
+        # MAKE SURE DATA IS A DICTIONARY
+        # --------------------------------------------------------
+
+        if not isinstance(profiles, dict):
+            return players
+
+        # --------------------------------------------------------
+        # READ PLAYER PROFILES
+        # --------------------------------------------------------
+
+        for name, data in profiles.items():
+
+            if not isinstance(data, dict):
+                continue
+
+            try:
+                xp = int(
+                    data.get(
+                        "xp",
+                        0
+                    )
+                )
+            except (
+                TypeError,
+                ValueError
+            ):
+                xp = 0
+
+            try:
+                level = int(
+                    data.get(
+                        "level",
+                        1
+                    )
+                )
+            except (
+                TypeError,
+                ValueError
+            ):
+                level = 1
+
+            try:
+                credits = int(
+                    data.get(
+                        "credits",
+                        0
+                    )
+                )
+            except (
+                TypeError,
+                ValueError
+            ):
+                credits = 0
+
+            players.append(
+                {
+                    "name": str(name),
+                    "xp": max(0, xp),
+                    "level": max(1, level),
+                    "credits": max(0, credits)
+                }
+            )
+
+        # --------------------------------------------------------
+        # SORT BY XP
+        # --------------------------------------------------------
+
+        players.sort(
+            key=lambda player: player["xp"],
+            reverse=True
+        )
+
+        return players

@@ -18,7 +18,6 @@ from leaderboard_screen import LeaderboardScreen
 from game_end_screen import GameEndScreen
 from mini_challenges import MiniChallenge
 from order_scene import OrderScene
-
 pygame.init()
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 SCREEN_WIDTH = 1280
@@ -27,14 +26,12 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Cyberpunk Café - Game Engine")
 clock = pygame.time.Clock()
 FPS = 60
-
 LEVEL_BACKGROUNDS = {
     1: "assets/places/cafe_lvl1.png",
     2: "assets/places/cafe_lvl2.png",
     3: "assets/places/cafe_lvl3.png",
 }
 bg_cache = {}
-
 def load_level_background(level_num):
     try:
         level_num = int(level_num)
@@ -56,9 +53,7 @@ def load_level_background(level_num):
         fallback.fill((25, 15, 35))
         bg_cache[level_num] = fallback
         return fallback
-
 MUSIC_FILE = os.path.join(PROJECT_ROOT, "assets", "mahirah", "audio", "cyberpunk_cafe_theme.wav")
-
 def ensure_game_music(start_screen=None):
     try:
         if not pygame.mixer.get_init():
@@ -83,7 +78,6 @@ def ensure_game_music(start_screen=None):
     except pygame.error as error:
         print(f"[AUDIO ERROR] {error}")
         return False
-
 def position_customer(customer):
     if customer is None:
         return
@@ -99,12 +93,10 @@ def position_customer(customer):
             customer.rect.bottom = int(customer.current_y)
     except Exception as error:
         print(f"[MAIN] Customer positioning warning: {error}")
-
 def create_customer(level):
     customer = Customer(current_level=level)
     position_customer(customer)
     return customer
-
 def sync_station_order(mixing_station, customer):
     if customer is None:
         return
@@ -113,15 +105,15 @@ def sync_station_order(mixing_station, customer):
         order = getattr(customer, "current_order", None)
     if order is not None:
         mixing_station.set_customer_order(order)
-
 def refresh_customer(level, mixing_station):
     customer = create_customer(level)
     sync_station_order(mixing_station, customer)
     return customer
-
 def sync_level_systems(economy, progression, mixing_station):
     if economy is not None and progression is not None:
         try:
+            # Keep the economy/HUD XP synchronized with progression.
+            # Level changes remain controlled by map-node unlocks only.
             economy.xp = max(0, int(progression.xp))
         except (TypeError, ValueError, AttributeError) as error:
             print(f"[MAIN] Economy XP sync warning: {error}")
@@ -134,7 +126,6 @@ def sync_level_systems(economy, progression, mixing_station):
             mixing_station.set_level(progression.level)
         except Exception as error:
             print(f"[MAIN] Station level sync warning: {error}")
-
 def sync_saved_progress(economy, progression):
     try:
         level = max(1, min(int(economy.level), 3))
@@ -145,7 +136,6 @@ def sync_saved_progress(economy, progression):
     except Exception:
         progression.xp = 0
     return level
-
 def open_map(screen, map_manager, economy, progression, mixing_station, active_customer):
     print("[MAIN] Opening Map.")
     old_level = progression.level
@@ -163,7 +153,6 @@ def open_map(screen, map_manager, economy, progression, mixing_station, active_c
         sync_station_order(mixing_station, active_customer)
     ensure_game_music()
     return active_bg, active_customer
-
 def open_leaderboard(screen, leaderboard_manager, economy, progression, mixing_station, active_customer):
     print("[MAIN] Opening Leaderboard.")
     leaderboard_screen = LeaderboardScreen(screen, leaderboard_manager, economy)
@@ -174,7 +163,6 @@ def open_leaderboard(screen, leaderboard_manager, economy, progression, mixing_s
         sync_station_order(mixing_station, active_customer)
     ensure_game_music()
     return active_bg, active_customer
-
 def switch_level(level, economy, progression, mixing_station):
     try:
         level = int(level)
@@ -191,14 +179,12 @@ def switch_level(level, economy, progression, mixing_station):
     if "order_scene" in globals():
         order_scene.start(active_customer, level=progression.level)
     return active_bg, active_customer
-
 # Start Screen Initialization
 start_screen = StartScreen(screen)
 player_name = start_screen.run()
 if player_name is None:
     pygame.quit()
     sys.exit()
-
 ensure_game_music(start_screen)
 economy = UIEconomy(screen=screen, player_name=player_name)
 try:
@@ -214,15 +200,12 @@ leaderboard_manager = LeaderboardManager(economy_ref=economy)
 level_unlock_screen = LevelUnlockScreen(screen)
 loading_screen = LoadingScreen(screen)
 mini_challenge = MiniChallenge()
-
 sync_level_systems(economy, progression, None)
 ensure_game_music(start_screen)
-
 loading_ok = loading_screen.run(player_name=player_name, level=progression.level, duration=5.8)
 if not loading_ok:
     pygame.quit()
     sys.exit()
-
 ensure_game_music(start_screen)
 drink = Drink()
 mixing_station = MixingStation(
@@ -236,13 +219,11 @@ if hasattr(mixing_station, "show_header"):
     mixing_station.show_header = False
 if hasattr(mixing_station, "draw_header"):
     mixing_station.draw_header = False
-
 sync_level_systems(economy, progression, mixing_station)
 active_bg = load_level_background(progression.level)
 active_customer = refresh_customer(progression.level, mixing_station)
 order_scene = OrderScene(screen)
 order_scene.start(active_customer, level=progression.level)
-
 spawn_timer = 0.0
 SPAWN_DELAY = 1.5
 LEVEL_KEYS = {pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3}
@@ -250,7 +231,6 @@ LEVEL_NODES = {1: "neon_alley", 2: "cyber_dock", 3: "high_rise"}
 successful_drinks = 0
 total_successful_drinks = 0
 game_finished = False
-
 def run_level_transition(new_level, economy, progression, mixing_station, player_name):
     new_level = max(1, min(int(new_level), 3))
     if new_level >= 2:
@@ -264,44 +244,37 @@ def run_level_transition(new_level, economy, progression, mixing_station, player
     economy.save_economy_data()
     ensure_game_music()
     return active_bg, active_customer
-
-# -------------------------------------------------------------
-# PAUSE MENU & AUDIO CONTROLS
-# -------------------------------------------------------------
+# Pause Menu State
 is_paused = False
-music_volume = 0.30
-sfx_volume = 0.80
+music_volume = start_screen.music_volume
+sfx_volume = start_screen.sfx_volume
 dragging_music = False
 dragging_sfx = False
-
 font_title = pygame.font.SysFont("Arial", 38, bold=True)
 font_label = pygame.font.SysFont("Arial", 18, bold=True)
 font_button = pygame.font.SysFont("Arial", 22, bold=True)
-
-# Layout Rectangles
 pause_panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 230, SCREEN_HEIGHT // 2 - 190, 460, 380)
 music_track_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 95, 360, 10)
 sfx_track_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 25, 360, 10)
 resume_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 50, 360, 50)
 exit_button_rect = pygame.Rect(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 115, 360, 50)
-
 CYAN = (75, 225, 255)
 PINK = (255, 80, 190)
 WHITE = (245, 248, 255)
 PANEL_BG = (12, 18, 40)
 SLIDER_BG = (35, 38, 55)
 
-def update_music_vol(m_x):
+def update_music_vol(mouse_x):
     global music_volume
-    rel_x = m_x - music_track_rect.x
-    music_volume = max(0.0, min(1.0, rel_x / float(music_track_rect.width)))
-    pygame.mixer.music.set_volume(music_volume)
+    music_volume = max(0.0, min(1.0, (mouse_x - music_track_rect.x) / music_track_rect.width))
+    start_screen.music_volume = music_volume
+    pygame.mixer.music.set_volume(0.0 if start_screen.music_muted else music_volume)
 
-def update_sfx_vol(m_x):
+def update_sfx_vol(mouse_x):
     global sfx_volume
-    rel_x = m_x - sfx_track_rect.x
-    sfx_volume = max(0.0, min(1.0, rel_x / float(sfx_track_rect.width)))
-
+    sfx_volume = max(0.0, min(1.0, (mouse_x - sfx_track_rect.x) / sfx_track_rect.width))
+    start_screen.sfx_volume = sfx_volume
+    start_screen.update_sfx_volume()
 # Main Game Loop
 running = True
 while running:
@@ -314,13 +287,20 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             break
-
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            is_paused = not is_paused
-            dragging_music = False
-            dragging_sfx = False
+            
+        # Prioritize order scene input so it captures clicks/keypresses immediately
+        if order_scene.active:
+            order_scene.handle_event(event)
             continue
 
+        if mini_challenge.active:
+            mini_challenge.handle_event(event)
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                is_paused = not is_paused
+                dragging_music = False
+                dragging_sfx = False
+                continue
         if is_paused:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
@@ -343,15 +323,6 @@ while running:
                 elif dragging_sfx:
                     update_sfx_vol(event.pos[0])
             continue
-            
-        # Prioritize order scene input so it captures clicks/keypresses immediately
-        if order_scene.active:
-            order_scene.handle_event(event)
-            continue
-
-        if mini_challenge.active:
-            mini_challenge.handle_event(event)
-
         try:
             mixing_station.handle_event(event)
         except Exception as error:
@@ -411,95 +382,61 @@ while running:
     if not running:
         break
 
-    # --- ORDER SCENE / MINIGAME ACTIVE BLOCK ---
     if order_scene.active:
         order_scene.update(dt)
-        if mini_challenge.active or mini_challenge.done:
-            mini_challenge.update(dt)
-
         screen.blit(active_bg, (0, 0))
         order_scene.draw(screen)
-        
-        # Draw minigame components directly over the modal box
-        if mini_challenge.active or mini_challenge.done:
-            mini_challenge.draw(screen)
-
         pygame.display.flip()
         continue
-
-    # --- PAUSED MENU RENDER BLOCK ---
     if is_paused:
         screen.blit(active_bg, (0, 0))
         if active_customer is not None:
             active_customer.draw(screen)
         mixing_station.draw(screen)
         economy.draw(combo_count=current_combo, dt=dt)
-        
-        # Dark Background Overlay
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((5, 8, 20, 190))
         screen.blit(overlay, (0, 0))
-        
-        # Pause Window Card
         pygame.draw.rect(screen, PANEL_BG, pause_panel_rect, border_radius=14)
         pygame.draw.rect(screen, CYAN, pause_panel_rect, width=2, border_radius=14)
-        
-        # Title
         title_surf = font_title.render("GAME PAUSED", True, CYAN)
         screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH // 2, pause_panel_rect.y + 35)))
 
-        # 1. MUSIC VOLUME SLIDER
         lbl_music = font_label.render("MUSIC VOLUME", True, WHITE)
         pct_music = font_label.render(f"{int(music_volume * 100)}%", True, CYAN)
         screen.blit(lbl_music, (music_track_rect.x, music_track_rect.y - 22))
         screen.blit(pct_music, (music_track_rect.right - pct_music.get_width(), music_track_rect.y - 22))
-        
         pygame.draw.rect(screen, SLIDER_BG, music_track_rect, border_radius=4)
         music_fill_w = int(music_track_rect.width * music_volume)
         if music_fill_w > 0:
             pygame.draw.rect(screen, CYAN, (music_track_rect.x, music_track_rect.y, music_fill_w, music_track_rect.height), border_radius=4)
-        handle_music_x = music_track_rect.x + music_fill_w
-        pygame.draw.circle(screen, WHITE, (handle_music_x, music_track_rect.centery), 8)
-        if dragging_music:
-            pygame.draw.circle(screen, PINK, (handle_music_x, music_track_rect.centery), 10, 2)
+        pygame.draw.circle(screen, WHITE, (music_track_rect.x + music_fill_w, music_track_rect.centery), 8)
 
-        # 2. SOUND EFFECTS VOLUME SLIDER
         lbl_sfx = font_label.render("SOUND EFFECTS VOLUME", True, WHITE)
         pct_sfx = font_label.render(f"{int(sfx_volume * 100)}%", True, PINK)
         screen.blit(lbl_sfx, (sfx_track_rect.x, sfx_track_rect.y - 22))
         screen.blit(pct_sfx, (sfx_track_rect.right - pct_sfx.get_width(), sfx_track_rect.y - 22))
-        
         pygame.draw.rect(screen, SLIDER_BG, sfx_track_rect, border_radius=4)
         sfx_fill_w = int(sfx_track_rect.width * sfx_volume)
         if sfx_fill_w > 0:
             pygame.draw.rect(screen, PINK, (sfx_track_rect.x, sfx_track_rect.y, sfx_fill_w, sfx_track_rect.height), border_radius=4)
-        handle_sfx_x = sfx_track_rect.x + sfx_fill_w
-        pygame.draw.circle(screen, WHITE, (handle_sfx_x, sfx_track_rect.centery), 8)
-        if dragging_sfx:
-            pygame.draw.circle(screen, PINK, (handle_sfx_x, sfx_track_rect.centery), 10, 2)
+        pygame.draw.circle(screen, WHITE, (sfx_track_rect.x + sfx_fill_w, sfx_track_rect.centery), 8)
 
-        # 3. ACTION BUTTONS (RESUME & EXIT)
         mouse_pos = pygame.mouse.get_pos()
-        
-        # Resume Button
         resume_hover = resume_button_rect.collidepoint(mouse_pos)
         resume_color = PINK if resume_hover else CYAN
         pygame.draw.rect(screen, (30, 20, 50), resume_button_rect, border_radius=10)
         pygame.draw.rect(screen, resume_color, resume_button_rect, width=2, border_radius=10)
         resume_text = font_button.render("RESUME GAME", True, WHITE)
         screen.blit(resume_text, resume_text.get_rect(center=resume_button_rect.center))
-        
-        # Exit Button
         exit_hover = exit_button_rect.collidepoint(mouse_pos)
         exit_color = PINK if exit_hover else CYAN
         pygame.draw.rect(screen, (30, 20, 50), exit_button_rect, border_radius=10)
         pygame.draw.rect(screen, exit_color, exit_button_rect, width=2, border_radius=10)
         exit_text = font_button.render("EXIT TO DESKTOP", True, WHITE)
         screen.blit(exit_text, exit_text.get_rect(center=exit_button_rect.center))
-        
         pygame.display.flip()
         continue
-
     if mini_challenge.active or mini_challenge.done:
         mini_challenge.update(dt)
     try:
@@ -523,6 +460,9 @@ while running:
                     served_quickly=served_quickly,
                     level=progression.level
                 )
+                # Keep XP as a cumulative score independent of level.
+                # Level changes are NOT triggered by XP; they only happen through
+                # the credit-based map-node unlock system.
                 try:
                     current_xp = max(0, int(economy.xp))
                 except (TypeError, ValueError, AttributeError):
@@ -619,7 +559,12 @@ while running:
                             running = False
                     else:
                         running = False
-    if running and not game_finished and active_customer is not None:
+    if (
+        running
+        and not game_finished
+        and active_customer is not None
+        and not mixing_station.challenge.paused
+    ):
         old_state = active_customer.state
         try:
             active_customer.update(dt)
@@ -645,7 +590,6 @@ while running:
             spawn_timer = 0.0
     if not running:
         break
-
     # --- RENDER STEP ---
     screen.blit(active_bg, (0, 0))
     if active_customer is not None:
@@ -664,6 +608,5 @@ while running:
     except Exception as error:
         print(f"[UI ECONOMY DRAW ERROR] {error}")
     pygame.display.flip()
-
 pygame.quit()
 sys.exit()

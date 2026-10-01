@@ -1,174 +1,258 @@
 import os
+import math
 import pygame
 
 
 class MapScreen:
+    W, H, FPS = 1280, 720, 60
+
+    CYAN  = (50, 225, 255)
+    PINK  = (255, 75, 205)
+    GOLD  = (255, 195, 65)
+    GREEN = (70, 255, 185)
+    WHITE = (235, 240, 255)
+    MUTED = (145, 155, 180)
+    DARK  = (7, 9, 22)
+
     def __init__(self, screen, map_manager, economy, project_root=None):
-        self.screen = screen
-        self.map_manager = map_manager
-        self.economy = economy
+        self.screen, self.map_manager, self.economy = screen, map_manager, economy
+        self.clock = pygame.time.Clock()
+        self.t, self.hover = 0, None
+        root = project_root or os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(root, "assets", "mahirah", "ui", "district_map_bg.png")
 
-        if project_root is None:
-            project_root = os.path.dirname(os.path.abspath(__file__))
-        self.project_root = project_root
+        try:
+            self.bg = pygame.image.load(path).convert()
+            print(f"[MAP] Loaded: {path}")
+        except (pygame.error, FileNotFoundError):
+            self.bg = None
+            print("[MAP] Background not found.")
 
-        # UI fonts
-        self.font_title = pygame.font.SysFont("Consolas", 28, bold=True)
-        self.font_body = pygame.font.SysFont("Consolas", 18)
-        self.font_small = pygame.font.SysFont("Consolas", 14)
+        font_path = os.path.join(root, "assets", "fonts", "Orbitron-Black.ttf")
+        try:
+            self.title = pygame.font.Font(font_path, 46)
+        except Exception:
+            self.title = pygame.font.SysFont("Consolas", 39, bold=True)
 
-        # Dictionary to store pictures for each node
-        self.node_images = {}
-        self._load_node_images()
+        self.subtitle = pygame.font.SysFont("Consolas", 15, bold=True)
+        self.name     = pygame.font.SysFont("Consolas", 18, bold=True)
+        self.body     = pygame.font.SysFont("Consolas", 14, bold=True)
+        self.small    = pygame.font.SysFont("Consolas", 12, bold=True)
+        self.back     = pygame.Rect(1040, 24, 205, 50)
 
-    def _load_node_images(self):
-        # Map node names or IDs to image filenames
-        # Make sure you place these images in assets/images/nodes/
-        image_mapping = {
-            "back alley kiosk": "kiosk.png",
-            "neon lounge": "lounge.png",
-            "cyber penthouse": "penthouse.png"
-        }
+    # ------------------------------------------------------------
+    # BASIC UI
+    # ------------------------------------------------------------
 
-        for node_id, node in self.map_manager.nodes.items():
-            # Check by node name lowercased
-            filename = image_mapping.get(node.name.lower(), f"{node_id}.png")
-            img_path = os.path.join(self.project_root, "assets", "images", "nodes", filename)
+    def panel(self, rect, border, alpha=205):
+        s = pygame.Surface(rect.size, pygame.SRCALPHA)
+        s.fill((*self.DARK, alpha))
+        self.screen.blit(s, rect.topleft)
+        pygame.draw.rect(self.screen, border, rect, 2, border_radius=9)
 
-            try:
-                if os.path.exists(img_path):
-                    # Load and scale to fit the 200x100 node card box
-                    img = pygame.image.load(img_path).convert_alpha()
-                    self.node_images[node_id] = pygame.transform.smoothscale(img, (200, 100))
-                else:
-                    self.node_images[node_id] = None
-            except pygame.error:
-                self.node_images[node_id] = None
+    def text(self, value, font, color, pos):
+        s = font.render(str(value), True, color)
+        self.screen.blit(s, s.get_rect(center=pos))
 
-    def _draw_cyber_grid(self, screen_w, screen_h):
-        # Draw a faint cyberpunk grid pattern in the background
-        grid_color = (25, 18, 40)
-        grid_spacing = 40
-        for x in range(0, screen_w, grid_spacing):
-            pygame.draw.line(self.screen, grid_color, (x, 0), (x, screen_h), 1)
-        for y in range(0, screen_h, grid_spacing):
-            pygame.draw.line(self.screen, grid_color, (0, y), (screen_w, y), 1)
+    def color(self, node):
+        return {1: self.PINK, 2: self.CYAN, 3: self.GOLD}.get(node.level_req, self.CYAN)
 
-    def _draw_tech_corners(self, rect, color, length=10, thickness=2):
-        # Draw tech bracket corners around node boxes for HUD styling
-        x, y, w, h = rect.x, rect.y, rect.width, rect.height
-        pygame.draw.line(self.screen, color, (x, y), (x + length, y), thickness)
-        pygame.draw.line(self.screen, color, (x, y), (x, y + length), thickness)
-        pygame.draw.line(self.screen, color, (x + w, y), (x + w - length, y), thickness)
-        pygame.draw.line(self.screen, color, (x + w, y), (x + w, y + length), thickness)
-        pygame.draw.line(self.screen, color, (x, y + h), (x + length, y + h), thickness)
-        pygame.draw.line(self.screen, color, (x, y + h), (x, y + h - length), thickness)
-        pygame.draw.line(self.screen, color, (x + w, y + h), (x + w - length, y + h), thickness)
-        pygame.draw.line(self.screen, color, (x + w, y + h), (x + w, y + h - length), thickness)
+    def node_hitbox(self, node):
+        return pygame.Rect(node.pos[0] - 75, node.pos[1] - 75, 150, 220)
+
+    # ------------------------------------------------------------
+    # BACKGROUND, HEADER, TITLE
+    # ------------------------------------------------------------
+
+    def draw_background(self):
+        w, h = self.screen.get_size()
+        if self.bg:
+            iw, ih = self.bg.get_size()
+            scale = max(w / iw, h / ih)
+            size = (int(iw * scale), int(ih * scale))
+            self.screen.blit(pygame.transform.smoothscale(self.bg, size), ((w - size[0]) // 2, (h - size[1]) // 2))
+        else:
+            self.screen.fill(self.DARK)
+
+        shade = pygame.Surface((w, h), pygame.SRCALPHA)
+        shade.fill((3, 5, 18, 58))
+        self.screen.blit(shade, (0, 0))
+
+    def draw_header(self):
+        self.panel(pygame.Rect(28, 24, 300, 50), self.PINK)
+        self.text(f"CREDITS: ${self.economy.credits}", self.body, self.GOLD, (178, 49))
+
+        border = self.PINK if self.back.collidepoint(pygame.mouse.get_pos()) else self.CYAN
+        self.panel(self.back, border)
+        self.text("‹  BACK TO CAFÉ", self.body, border, self.back.center)
+
+    def draw_title(self):
+        cx = (328 + 1040) // 2
+        self.text("DISTRICT MAP", self.title, self.CYAN, (cx, 110))
+        self.text("SELECT YOUR NEXT CAFÉ LOCATION", self.subtitle, self.WHITE, (cx, 142))
+        pygame.draw.line(self.screen, self.CYAN, (cx - 185, 158), (cx + 185, 158), 1)
+
+    # ------------------------------------------------------------
+    # LOCATION ICONS
+    # ------------------------------------------------------------
+
+    def draw_icon(self, node):
+        x, y = node.pos
+        col = self.color(node)
+        unlocked = node.is_unlocked
+        active = self.economy.level == node.level_req
+        hover = self.hover is node
+
+        if not unlocked:
+            col = tuple(max(35, int(c * 0.38)) for c in col)
+
+        # Soft glow
+        if unlocked and (active or hover):
+            pulse = (math.sin(self.t * 3) + 1) / 2
+            glow = pygame.Surface((180, 180), pygame.SRCALPHA)
+            for radius, alpha in ((72, 12), (64, 20), (56, 32)):
+                pygame.draw.circle(glow, (*col, int(alpha + pulse * 8)), (90, 90), radius)
+            self.screen.blit(glow, (x - 90, y - 90))
+
+        # Outer rings
+        pygame.draw.circle(self.screen, (5, 8, 20), (x, y), 59)
+        pygame.draw.circle(self.screen, col, (x, y), 59, 3)
+        pygame.draw.circle(self.screen, col, (x, y), 49, 1)
+
+        # Level-specific district icons
+        if node.level_req == 1:
+            pygame.draw.rect(self.screen, col, (x - 23, y - 12, 38, 28), 3, border_radius=5)
+            pygame.draw.arc(self.screen, col, (x + 10, y - 7, 20, 19), -1.5, 1.5, 3)
+            pygame.draw.line(self.screen, col, (x - 14, y - 20), (x - 9, y - 28), 2)
+            pygame.draw.line(self.screen, col, (x, y - 20), (x + 5, y - 29), 2)
+        elif node.level_req == 2:
+            pts = [(x-25, y-22), (x+25, y-22), (x+12, y+5), (x+6, y+12), (x+6, y+23), (x-6, y+23), (x-6, y+12), (x-12, y+5)]
+            pygame.draw.lines(self.screen, col, True, pts, 3)
+            pygame.draw.line(self.screen, col, (x - 20, y + 29), (x + 20, y + 29), 3)
+            pygame.draw.line(self.screen, col, (x, y + 12), (x, y + 25), 3)
+            pygame.draw.circle(self.screen, col, (x + 14, y - 27), 3)
+        else:
+            bldg = [(x-22, y+27), (x-22, y-15), (x-9, y-15), (x-9, y-32), (x+9, y-32), (x+9, y-15), (x+22, y-15), (x+22, y+27)]
+            pygame.draw.lines(self.screen, col, True, bldg, 3)
+            for ox in (-15, 0, 15):
+                pygame.draw.line(self.screen, col, (x + ox, y - 5), (x + ox, y + 5), 2)
+            pygame.draw.line(self.screen, col, (x - 30, y + 28), (x + 30, y + 28), 3)
+            pygame.draw.circle(self.screen, col, (x, y - 43), 3)
+
+        # Lock badge
+        if not unlocked:
+            pygame.draw.circle(self.screen, (10, 12, 28), (x + 39, y + 39), 15)
+            pygame.draw.circle(self.screen, self.MUTED, (x + 39, y + 39), 15, 2)
+            pygame.draw.rect(self.screen, self.MUTED, (x + 32, y + 38, 14, 11), 2, border_radius=2)
+            pygame.draw.arc(self.screen, self.MUTED, (x + 34, y + 30, 10, 12), math.pi, 2 * math.pi, 2)
+
+    # ------------------------------------------------------------
+    # LOCATION LABELS & ROUTE
+    # ------------------------------------------------------------
+
+    def draw_label(self, node):
+        x, y = node.pos
+        col = self.color(node)
+        if not node.is_unlocked:
+            col = tuple(max(40, int(c * 0.5)) for c in col)
+
+        self.panel(pygame.Rect(x - 125, y + 72, 250, 58), col, 220)
+        self.text(node.name, self.name, self.WHITE, (x, y + 91))
+
+        if node.is_unlocked:
+            active = self.economy.level == node.level_req
+            status, status_col = ("ACTIVE", self.GREEN) if active else ("UNLOCKED", self.CYAN)
+        else:
+            status, status_col = f"LOCKED  •  ${node.cost}", self.MUTED
+
+        self.text(status, self.small, status_col, (x, y + 114))
+
+    def draw_route(self):
+        nodes = list(self.map_manager.nodes.values())
+        for a, b in zip(nodes, nodes[1:]):
+            pygame.draw.line(self.screen, (30, 28, 60), a.pos, b.pos, 5)
+            if a.is_unlocked and b.is_unlocked:
+                pygame.draw.line(self.screen, (55, 120, 155), a.pos, b.pos, 2)
+
+    # ------------------------------------------------------------
+    # CURRENT LOCATION & DISTRICT STATUS
+    # ------------------------------------------------------------
+
+    def draw_current(self):
+        node = next((n for n in self.map_manager.nodes.values() if n.level_req == self.economy.level), None)
+        if not node: return
+
+        self.panel(pygame.Rect(28, 575, 350, 105), self.color(node))
+        self.text("CURRENT LOCATION", self.small, self.WHITE, (110, 592))
+        self.text(node.name, self.name, self.color(node), (190, 620))
+        desc = node.description if len(node.description) <= 43 else node.description[:40] + "..."
+        self.text(desc, self.small, self.MUTED, (203, 651))
+
+    def draw_status(self):
+        rect = pygame.Rect(1010, 568, 245, 118)
+        self.panel(rect, self.CYAN, alpha=220)
+        self.text("DISTRICT STATUS", self.small, self.WHITE, (1132, 585))
+        pygame.draw.line(self.screen, self.CYAN, (1020, 595), (1245, 595), 1)
+
+        self.map_manager.check_unlocks()
+        for i, node in enumerate(self.map_manager.nodes.values()):
+            y = 614 + i * 22
+            active = self.economy.level == node.level_req
+            if active:
+                status_text, col = f"LV.{node.level_req}  ACTIVE", self.GREEN
+                pygame.draw.circle(self.screen, col, (1030, y), 6)
+            elif node.is_unlocked:
+                status_text, col = f"LV.{node.level_req}  UNLOCKED", self.CYAN
+                pygame.draw.circle(self.screen, col, (1030, y), 6, 2)
+            else:
+                status_text, col = f"LV.{node.level_req}  LOCKED", self.MUTED
+                pygame.draw.line(self.screen, col, (1024, y - 4), (1036, y + 4), 2)
+                pygame.draw.line(self.screen, col, (1036, y - 4), (1024, y + 4), 2)
+            self.text(status_text, self.small, col, (1148, y))
+
+    # ------------------------------------------------------------
+    # INPUT & MAIN LOOP
+    # ------------------------------------------------------------
+
+    def update_hover(self):
+        m = pygame.mouse.get_pos()
+        self.hover = next((n for n in self.map_manager.nodes.values() if self.node_hitbox(n).collidepoint(m)), None)
 
     def run(self):
-        clock = pygame.time.Clock()
-        running = True
+        while True:
+            self.t += self.clock.tick(self.FPS) / 1000
+            self.map_manager.check_unlocks()
 
-        while running:
-            dt = clock.tick(60) / 1000.0
-            screen_w, screen_h = self.screen.get_size()
-
-            # Handle player inputs
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_m:
-                        running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left mouse click
-                        pos = event.pos
-                        for node_id, node in self.map_manager.nodes.items():
-                            rect = pygame.Rect(node.pos[0] - 100, node.pos[1] - 50, 200, 100)
-                            if rect.collidepoint(pos):
-                                if node.is_unlocked:
-                                    # Switch active level location only if clicked
-                                    self.economy.level = node.level_req
-                                    self.economy.location = self.economy.LOCATIONS.get(node.level_req, node.name)
-                                    self.economy.save_economy_data()
-                                    print(f"[MAP] Switched active location to {node.name}")
-                                    running = False
-                                else:
-                                    # Attempt to unlock locked node
-                                    if self.map_manager.unlock_node(node_id):
-                                        self.economy.level = node.level_req
-                                        self.economy.location = self.economy.LOCATIONS.get(node.level_req, node.name)
-                                        self.economy.save_economy_data()
-                                        running = False
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_m):
+                    return True
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.back.collidepoint(event.pos):
+                        return True
+                    for node_id, node in self.map_manager.nodes.items():
+                        if self.node_hitbox(node).collidepoint(event.pos):
+                            if self.map_manager.select_node(node_id):
+                                self.economy.level = node.level_req
+                                self.economy.location = self.economy.LOCATIONS.get(node.level_req, node.name)
+                                self.economy.save_economy_data()
+                                print(f"[MAP] Selected: {node.name}")
+                                return True
 
-            # Render background color and tech grid
-            self.screen.fill((12, 8, 22))
-            self._draw_cyber_grid(screen_w, screen_h)
+            self.update_hover()
+            self.draw_background()
+            self.draw_route()
+            self.draw_header()
+            self.draw_title()
 
-            # Title Header & Credits
-            title_surf = self.font_title.render("DISTRICT MAP // SELECT STATION", True, (0, 255, 204))
-            title_rect = title_surf.get_rect(center=(screen_w // 2, 60))
-            self.screen.blit(title_surf, title_rect)
+            for node in self.map_manager.nodes.values():
+                self.draw_icon(node)
+                self.draw_label(node)
 
-            credits_surf = self.font_body.render(f"CREDITS: ${self.economy.credits}", True, (255, 255, 255))
-            self.screen.blit(credits_surf, (50, 50))
+            self.draw_current()
+            self.draw_status()
 
-            hint_surf = self.font_small.render("Click unlocked nodes to switch, or locked nodes to unlock. Press [M] or [ESC] to return.", True, (150, 150, 180))
-            hint_rect = hint_surf.get_rect(center=(screen_w // 2, screen_h - 40))
-            self.screen.blit(hint_surf, hint_rect)
-
-            # Draw glowing circuit connection lines between nodes
-            node_list = list(self.map_manager.nodes.values())
-            for i in range(len(node_list) - 1):
-                p1 = node_list[i].pos
-                p2 = node_list[i+1].pos
-                pygame.draw.line(self.screen, (50, 30, 70), p1, p2, 6)
-                pygame.draw.line(self.screen, (0, 255, 204), p1, p2, 2)
-
-            # Draw Node Picture Cards
-            for node_id, node in self.map_manager.nodes.items():
-                rect = pygame.Rect(node.pos[0] - 100, node.pos[1] - 50, 200, 100)
-                
-                # Determine border color based on status
-                if node.is_unlocked:
-                    border_col = (0, 255, 204) if self.economy.level == node.level_req else (0, 140, 110)
-                else:
-                    border_col = (255, 60, 110)
-
-                # Draw the node picture if it exists, otherwise fallback to a dark rectangle
-                node_img = self.node_images.get(node_id)
-                if node_img:
-                    # Apply a dark tint or draw image directly
-                    self.screen.blit(node_img, rect.topleft)
-                    # Add a semi-transparent dark overlay so text is readable over pictures
-                    overlay = pygame.Surface((200, 100), pygame.SRCALPHA)
-                    overlay.fill((10, 8, 20, 150))
-                    self.screen.blit(overlay, rect.topleft)
-                else:
-                    bg_col = (18, 35, 42) if node.is_unlocked else (38, 18, 30)
-                    pygame.draw.rect(self.screen, bg_col, rect, border_radius=10)
-
-                # Draw outer neon border & tech corners
-                pygame.draw.rect(self.screen, border_col, rect, width=2, border_radius=10)
-                if node.is_unlocked:
-                    self._draw_tech_corners(rect, (0, 255, 204), length=10, thickness=2)
-
-                # Node Title Text with shadow for readability
-                name_surf = self.font_body.render(node.name, True, (255, 255, 255))
-                name_rect = name_surf.get_rect(center=(node.pos[0], node.pos[1] - 15))
-                self.screen.blit(name_surf, name_rect)
-
-                # Status / Cost Text
-                if node.is_unlocked:
-                    status_text = "ACTIVE" if self.economy.level == node.level_req else "UNLOCKED"
-                    status_surf = self.font_small.render(status_text, True, (0, 255, 150))
-                else:
-                    status_text = f"UNLOCK (${node.cost})"
-                    status_surf = self.font_small.render(status_text, True, (255, 120, 150))
-                
-                status_rect = status_surf.get_rect(center=(node.pos[0], node.pos[1] + 18))
-                self.screen.blit(status_surf, status_rect)
-
+            footer = self.small.render("CLICK A LOCATION TO TRAVEL OR UNLOCK  •  [M] / [ESC] RETURN", True, self.MUTED)
+            self.screen.blit(footer, footer.get_rect(center=(640, 703)))
             pygame.display.flip()
-        return True

@@ -1,58 +1,46 @@
 from __future__ import annotations
-import math
-import os
-import time
-import pygame
+import math, os, time, pygame
 from drink import (
-    PlayerDrink,
-    DRINK_MENU,
-    TEMPERATURE_OPTIONS,
-    CAFFEINE_OPTIONS,
-    SWEETNESS_OPTIONS,
-    get_recipe,
-    is_drink_unlocked,
-    is_valid_drink,
+    PlayerDrink, DRINK_MENU, TEMPERATURE_OPTIONS,
+    CAFFEINE_OPTIONS, SWEETNESS_OPTIONS, get_recipe,
+    is_drink_unlocked, is_valid_drink,
 )
-from game_state import (
-    MixingGameState,
-    GameState,
-)
+from game_state import MixingGameState, GameState
 from mini_challenges import MiniChallenge
 
+
 class MixingStation:
-    WIDTH = 1280
-    HEIGHT = 720
+    WIDTH, HEIGHT = 1280, 720
 
-    CYAN = (75, 225, 255)
-    CYAN_LIGHT = (165, 245, 255)
-    PINK = (255, 80, 190)
-    PINK_LIGHT = (255, 165, 225)
-    PURPLE = (185, 105, 255)
-    WHITE = (245, 248, 255)
-    SOFT_WHITE = (215, 222, 240)
-    MUTED = (125, 140, 170)
-    YELLOW = (255, 220, 100)
-    GREEN = (90, 235, 165)
-    LOCKED = (65, 70, 95)
+    CYAN        = (75, 225, 255)
+    CYAN_LIGHT  = (165, 245, 255)
+    PINK        = (255, 80, 190)
+    PINK_LIGHT  = (255, 165, 225)
+    PURPLE      = (185, 105, 255)
+    WHITE       = (245, 248, 255)
+    SOFT_WHITE  = (215, 222, 240)
+    MUTED       = (125, 140, 170)
+    YELLOW      = (255, 220, 100)
+    GREEN       = (90, 235, 165)
+    LOCKED      = (65, 70, 95)
 
-    PANEL = (7, 12, 30, 175)
-    BUTTON = (9, 17, 38, 185)
+    PANEL           = (7, 12, 30, 175)
+    BUTTON          = (9, 17, 38, 185)
     BUTTON_SELECTED = (65, 15, 65, 205)
 
-    def __init__(
-        self,
-        drink=None,
-        level=1,
-        progression=None,
-        rewards=None,
-        economy=None,
-    ):
+    SPLIT_NAMES = {
+        "Hologram Frappe": ("HOLOGRAM", "FRAPPE"),
+        "Stardust Matcha": ("STARDUST", "MATCHA"),
+        "Cyber Fuel": ("CYBER", "FUEL"),
+        "Pixel Lemint": ("PIXEL", "LEMINT"),
+        "Caramel Byte": ("CARAMEL", "BYTE"),
+    }
+
+    def __init__(self, drink=None, level=1, progression=None, rewards=None, economy=None):
         self.drink = drink
         self.player_drink = PlayerDrink()
         self.game_state = MixingGameState()
-        self.progression = progression
-        self.rewards = rewards
-        self.economy = economy
+        self.progression, self.rewards, self.economy = progression, rewards, economy
         self.level = max(1, int(level))
         self.customer_order = None
         self.served = False
@@ -63,18 +51,12 @@ class MixingStation:
 
         self.map_requested = False
         self.leaderboard_requested = False
-
         self.last_xp_change = 0
         self.last_credit_change = 0
         self.reward_feedback_until = 0.0
 
         self._last_time = time.monotonic()
-
-        self.slider_speeds = {
-            "temperature": 0.62,
-            "caffeine": 0.74,
-            "sweetness": 0.86,
-        }
+        self.slider_speeds = {"temperature": 0.62, "caffeine": 0.74, "sweetness": 0.86}
         self._reset_sliders()
 
         self.blend_start_time = 0.0
@@ -94,135 +76,93 @@ class MixingStation:
 
     def _find_font(self, preferred_names):
         if os.path.isdir(self.font_dir):
-            all_files = []
             for root, _, files in os.walk(self.font_dir):
-                for filename in files:
-                    if filename.lower().endswith((".ttf", ".otf")):
-                        all_files.append(os.path.join(root, filename))
-            for wanted in preferred_names:
-                wanted_lower = wanted.lower()
-                for path in all_files:
-                    if wanted_lower in os.path.basename(path).lower():
-                        return path
+                for f in files:
+                    if f.lower().endswith((".ttf", ".otf")):
+                        if any(w.lower() in f.lower() for w in preferred_names):
+                            return os.path.join(root, f)
         for name in preferred_names:
             try:
-                path = pygame.font.match_font(name)
-                if path:
-                    return path
-            except Exception:
-                pass
+                p = pygame.font.match_font(name)
+                if p: return p
+            except Exception: pass
         return None
 
     def _create_fonts(self):
         pygame.font.init()
-        cyber_path = self._find_font(["audiowide", "orbitron", "oxanium", "rajdhani", "neuropol"])
-        clean_path = self._find_font(["rajdhani", "segoe", "bahnschrift", "trebuchet", "verdana"])
+        cyber = self._find_font(["audiowide", "orbitron", "oxanium", "rajdhani", "neuropol"])
+        clean = self._find_font(["rajdhani", "segoe", "bahnschrift", "trebuchet", "verdana"])
+        f = lambda path, sz, b=True: pygame.font.Font(path, sz) if path else pygame.font.SysFont("Arial", sz, bold=b)
 
-        def font(path, size, bold=True):
-            return pygame.font.Font(path, size) if path else pygame.font.SysFont(
-                "Arial", size, bold=bold
-            )
-
-        self.font_title = font(cyber_path, 18)
-        self.font_big_title = font(cyber_path, 19)
-        self.font_menu = font(cyber_path, 10)
-        self.font_button = font(cyber_path, 12)
-        self.font_hud = font(cyber_path, 12)
-        self.font_cup_title = font(cyber_path, 16)
-        self.font_category = font(clean_path, 13)
-        self.font_small = font(clean_path, 10)
-        self.font_medium = font(clean_path, 13)
+        self.font_title     = f(cyber, 18)
+        self.font_big_title = f(cyber, 19)
+        self.font_menu      = f(cyber, 10)
+        self.font_button    = f(cyber, 12)
+        self.font_hud       = f(cyber, 12)
+        self.font_cup_title = f(cyber, 16)
+        self.font_category  = f(clean, 13)
+        self.font_small     = f(clean, 10)
+        self.font_medium    = f(clean, 13)
 
     def _create_layout(self):
         self.hud_rect = pygame.Rect(8, 4, 870, 52)
         self.map_button = pygame.Rect(900, 6, 120, 44)
         self.leaderboard_button = pygame.Rect(1030, 6, 190, 44)
 
-        # Drink menu: lowered enough to clear the XP/HUD bar and enlarged
-        # another ~5% from the previous version.
         self.menu_rect = pygame.Rect(440, 72, 840, 177)
-        self.menu_slots = []
-        slot_width = 92
-        slot_height = 155
-        gap = 0
-        start_x = 452
-        start_y = 84
-        for index, drink_name in enumerate(DRINK_MENU):
-            x = start_x + index * slot_width
-            self.menu_slots.append((drink_name, pygame.Rect(x, start_y, slot_width, slot_height)))
+        self.menu_slots = [
+            (drink, pygame.Rect(452 + i * 92, 84, 92, 155))
+            for i, drink in enumerate(DRINK_MENU)
+        ]
 
-        # Wider customisation panel (+10% horizontally).
         self.customise_rect = pygame.Rect(539, 390, 370, 300)
-        track_x = self.customise_rect.x + 25
-        track_w = self.customise_rect.width - 50
-        self.slider_tracks = {
-            "temperature": pygame.Rect(track_x, 475, track_w, 12),
-            "caffeine": pygame.Rect(track_x, 550, track_w, 12),
-            "sweetness": pygame.Rect(track_x, 625, track_w, 12),
-        }
-        self.slider_hitboxes = {
-            "temperature": pygame.Rect(track_x - 12, 452, track_w + 24, 48),
-            "caffeine": pygame.Rect(track_x - 12, 527, track_w + 24, 48),
-            "sweetness": pygame.Rect(track_x - 12, 602, track_w + 24, 48),
-        }
+        tx, tw = self.customise_rect.x + 25, self.customise_rect.width - 50
+        params_y = (("temperature", 475), ("caffeine", 550), ("sweetness", 625))
+        self.slider_tracks = {p: pygame.Rect(tx, y, tw, 12) for p, y in params_y}
+        self.slider_hitboxes = {p: pygame.Rect(tx - 12, y - 23, tw + 24, 48) for p, y in params_y}
 
-        # Blender widened ~5%.
         self.blender_rect = pygame.Rect(909, 390, 237, 300)
         self.blender_jug_rect = pygame.Rect(948, 465, 158, 130)
         self.blend_button = pygame.Rect(930, 632, 195, 48)
 
-        # Cup station widened another ~6% while staying inside the window.
         self.preview_rect = pygame.Rect(1146, 390, 134, 300)
         self.preview_image_rect = pygame.Rect(1155, 445, 117, 140)
         self.serve_button = pygame.Rect(1156, 632, 115, 48)
 
     def _load_drink_images(self):
-        for drink_name in DRINK_MENU:
-            filename = drink_name.lower().replace(" ", "_") + ".png"
-            path = os.path.join(self.drink_dir, filename)
+        for name in DRINK_MENU:
+            fn = name.lower().replace(" ", "_") + ".png"
             try:
-                image = pygame.image.load(path).convert_alpha()
-                self.drink_images[drink_name] = image
+                self.drink_images[name] = pygame.image.load(os.path.join(self.drink_dir, fn)).convert_alpha()
             except (pygame.error, FileNotFoundError):
-                self.drink_images[drink_name] = None
+                self.drink_images[name] = None
 
     def set_level(self, level):
-        try:
-            self.level = max(1, int(level))
-        except (TypeError, ValueError):
-            self.level = 1
+        try: self.level = max(1, int(level))
+        except (TypeError, ValueError): self.level = 1
 
     def set_progression(self, progression):
         self.progression = progression
         if progression is not None:
             self.set_level(getattr(progression, "level", self.level))
 
-    def set_rewards(self, rewards):
-        self.rewards = rewards
-
-    def set_economy(self, economy):
-        self.economy = economy
+    def set_rewards(self, rewards): self.rewards = rewards
+    def set_economy(self, economy): self.economy = economy
 
     def set_reward_feedback(self, xp_delta=0, credit_delta=0):
-        try:
-            self.last_xp_change = int(xp_delta)
-        except (TypeError, ValueError):
-            self.last_xp_change = 0
-        try:
-            self.last_credit_change = int(credit_delta)
-        except (TypeError, ValueError):
-            self.last_credit_change = 0
+        try: self.last_xp_change = int(xp_delta)
+        except (TypeError, ValueError): self.last_xp_change = 0
+        try: self.last_credit_change = int(credit_delta)
+        except (TypeError, ValueError): self.last_credit_change = 0
         self.reward_feedback_until = time.monotonic() + 2.5
 
     def consume_map_request(self):
-        requested = self.map_requested
-        self.map_requested = False
-        return requested
+        req, self.map_requested = self.map_requested, False
+        return req
 
     def consume_leaderboard_request(self):
-        requested = self.leaderboard_requested
-        self.leaderboard_requested = False
-        return requested
+        req, self.leaderboard_requested = self.leaderboard_requested, False
+        return req
 
     def set_order(self, order):
         self.customer_order = order
@@ -232,114 +172,50 @@ class MixingStation:
         self.served = False
         self._sync_legacy_values()
 
-    def set_customer_order(self, order):
-        self.set_order(order)
+    set_customer_order = set_order
 
     def _attach_legacy_bridge(self):
-        if self.drink is None:
-            return
-        try:
-            self.drink.get_data = self.get_player_drink_data
-        except Exception:
-            pass
+        if self.drink is not None:
+            try: self.drink.get_data = self.get_player_drink_data
+            except Exception: pass
 
     def _sync_legacy_values(self):
-        if self.drink is None:
-            return
-        values = {
+        if self.drink is None: return
+        maps = {
             "temperature": {"Cold": 25, "Normal": 50, "Hot": 75},
             "caffeine": {"Low": 25, "Normal": 50, "High": 75},
             "sweetness": {"Less": 25, "Normal": 50, "Extra": 75},
         }
         try:
-            for field, mapping in values.items():
-                setattr(self.drink, field, mapping.get(
-                    getattr(self.player_drink, field), 50
-                ))
-        except Exception:
-            pass
+            for k, m in maps.items():
+                setattr(self.drink, k, m.get(getattr(self.player_drink, k), 50))
+        except Exception: pass
 
     def _change_selected_drink(self, drink_name):
         self.player_drink.drink_name = drink_name
         self.game_state.selected_drink = drink_name
-        for field in ("temperature", "caffeine", "sweetness"):
-            setattr(self.player_drink, field, None)
-            setattr(self.game_state, f"selected_{field}", None)
-        self.game_state.blend_finished = False
-        self.game_state.served = False
+        for f in ("temperature", "caffeine", "sweetness"):
+            setattr(self.player_drink, f, None)
+            setattr(self.game_state, f"selected_{f}", None)
+        self.game_state.blend_finished = self.game_state.served = self.served = self.liquid_unlocked = False
         self.game_state.state = GameState.CUSTOMISE
-        self._reset_sliders()
-        self.served = False
-        self.liquid_unlocked = False
         self.assembly_phase = "empty"
+        self._reset_sliders()
         self.challenge.start_challenge(drink_name)
         self._sync_legacy_values()
 
-    def update(self, dt=0.0):
-        current_time = time.monotonic()
-        if dt == 0.0:
-            dt = current_time - self._last_time
-        self._last_time = current_time
-        dt = max(0.0, min(dt, 0.1))
-
-        if self.game_state.can_customize() and self.player_drink.drink_name:
-            for parameter in self.slider_positions:
-                if self.slider_locked[parameter]:
-                    continue
-                self.slider_positions[parameter] += (
-                    self.slider_speeds[parameter]
-                    * self.slider_directions[parameter]
-                    * dt
-                )
-                if self.slider_positions[parameter] >= 1.0:
-                    self.slider_positions[parameter] = 1.0
-                    self.slider_directions[parameter] = -1.0
-                elif self.slider_positions[parameter] <= 0.0:
-                    self.slider_positions[parameter] = 0.0
-                    self.slider_directions[parameter] = 1.0
-        self.challenge.update(dt)
-        if self.challenge.done:
-            self.liquid_unlocked = True
-        self._update_blending()
-        self._update_assembly()
+    def _reset_sliders(self):
+        self.slider_positions = {"temperature": 0.08, "caffeine": 0.50, "sweetness": 0.92}
+        self.slider_directions = {"temperature": 1.0, "caffeine": -1.0, "sweetness": 1.0}
+        self.slider_locked = {k: False for k in self.slider_positions}
+        self.slider_results = {k: None for k in self.slider_positions}
+        self.slider_feedback = {k: "CLICK" for k in self.slider_positions}
 
     def _slider_option_from_position(self, parameter):
-        options = {
-            "temperature": TEMPERATURE_OPTIONS,
-            "caffeine": CAFFEINE_OPTIONS,
-            "sweetness": SWEETNESS_OPTIONS,
-        }[parameter]
-        position = self.slider_positions[parameter]
-        centers = (0.08, 0.50, 0.92)
-        index = min(range(3), key=lambda i: abs(position - centers[i]))
-        return options[index], abs(position - centers[index])
-
-    def _reset_sliders(self):
-        self.slider_positions = {
-            "temperature": 0.08,
-            "caffeine": 0.50,
-            "sweetness": 0.92,
-        }
-        self.slider_directions = {
-            "temperature": 1.0,
-            "caffeine": -1.0,
-            "sweetness": 1.0,
-        }
-        self.slider_locked = {
-            "temperature": False,
-            "caffeine": False,
-            "sweetness": False,
-        }
-        self.slider_results = {
-            "temperature": None,
-            "caffeine": None,
-            "sweetness": None,
-        }
-        self.slider_feedback = {
-            "temperature": "CLICK",
-            "caffeine": "CLICK",
-            "sweetness": "CLICK",
-        }
+        opts = {"temperature": TEMPERATURE_OPTIONS, "caffeine": CAFFEINE_OPTIONS, "sweetness": SWEETNESS_OPTIONS}[parameter]
+        pos = self.slider_positions[parameter]
+        idx = min(range(3), key=lambda i: abs(pos - (0.08, 0.50, 0.92)[i]))
+        return opts[idx], abs(pos - (0.08, 0.50, 0.92)[idx])
 
     def _unlock_slider(self, parameter):
         self.slider_locked[parameter] = False
@@ -351,76 +227,61 @@ class MixingStation:
         self._sync_legacy_values()
 
     def _lock_slider(self, parameter):
-        if not self.game_state.can_customize():
-            return
-        value, _ = self._slider_option_from_position(parameter)
-        accepted = getattr(self.game_state, f"select_{parameter}")(value)
-        if not accepted:
-            return
-        setattr(self.player_drink, parameter, value)
+        if not self.game_state.can_customize(): return
+        val, _ = self._slider_option_from_position(parameter)
+        if not getattr(self.game_state, f"select_{parameter}")(val): return
+        setattr(self.player_drink, parameter, val)
         self.slider_locked[parameter] = True
         target = getattr(self.customer_order, parameter, None) if self.customer_order else None
-        correct = target is not None and value == target
+        correct = target is not None and val == target
         self.slider_results[parameter] = correct
         self.slider_feedback[parameter] = "CORRECT" if correct else "WRONG"
         self._sync_legacy_values()
 
+    def update(self, dt=0.0):
+        now = time.monotonic()
+        dt = max(0.0, min(dt or (now - self._last_time), 0.1))
+        self._last_time = now
+
+        if self.game_state.can_customize() and self.player_drink.drink_name:
+            for p, pos in self.slider_positions.items():
+                if self.slider_locked[p]: continue
+                nxt = pos + self.slider_speeds[p] * self.slider_directions[p] * dt
+                if nxt >= 1.0: nxt, self.slider_directions[p] = 1.0, -1.0
+                elif nxt <= 0.0: nxt, self.slider_directions[p] = 0.0, 1.0
+                self.slider_positions[p] = nxt
+
+        self.challenge.update(dt)
+        if self.challenge.done:
+            self.liquid_unlocked = True
+        self._update_blending()
+        self._update_assembly()
+
     def _update_assembly(self):
-        if self.assembly_phase == "empty":
-            return
+        if self.assembly_phase == "empty": return
         elapsed = time.monotonic() - self.assembly_started
         phases = (("ice", 0.4), ("pour", 0.4), ("topping", 0.4))
-        total = 0.0
-        for name, duration in phases:
-            if elapsed < total + duration:
+        tot = 0.0
+        for name, dur in phases:
+            if elapsed < tot + dur:
                 self.assembly_phase = name
                 return
-            total += duration
+            tot += dur
         self.assembly_phase = "ready"
         if self.game_state.state == GameState.BLENDING:
             self.game_state.finish_blending()
             self._sync_legacy_values()
 
-    def _start_assembly(self):
-        self.assembly_phase = "ice"
-        self.assembly_started = time.monotonic()
-
     def _update_blending(self):
-        """
-        Updates the blender animation.
-
-        The blender runs for blend_duration seconds.
-        Once blending finishes, assembly starts ONCE.
-
-        IMPORTANT:
-        We must not call _start_assembly() repeatedly,
-        because that would reset assembly_started every frame.
-        """
-        if self.game_state.state != GameState.BLENDING:
-            return
-
-        current_time = time.monotonic()
-        elapsed = current_time - self.blend_start_time
-
-        # Blender animation
-        self.blender_angle = (elapsed * 720) % 360
-        self.blender_pulse = math.sin(elapsed * 10) * 0.5 + 0.5
-
-        # Start assembly only once.
-        # Without this check, _start_assembly() would reset
-        # assembly_started every frame and the drink would
-        # appear to blend forever.
-        if (
-            elapsed >= self.blend_duration
-            and self.assembly_phase == "empty"
-        ):
-            self._start_assembly()
+        if self.game_state.state != GameState.BLENDING: return
+        el = time.monotonic() - self.blend_start_time
+        self.blender_angle = (el * 720) % 360
+        self.blender_pulse = math.sin(el * 10) * 0.5 + 0.5
+        if el >= self.blend_duration and self.assembly_phase == "empty":
+            self.assembly_phase, self.assembly_started = "ice", time.monotonic()
 
     def handle_event(self, event):
-        if event.type != pygame.MOUSEBUTTONDOWN:
-            return
-        if event.button != 1:
-            return
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1: return
         mouse = event.pos
         self._update_blending()
         if self.challenge.active:
@@ -430,46 +291,28 @@ class MixingStation:
         if self.map_button.collidepoint(mouse):
             self.map_requested = True
             return
-
         if self.leaderboard_button.collidepoint(mouse):
             self.leaderboard_requested = True
             return
 
         for drink_name, rect in self.menu_slots:
-            if not rect.collidepoint(mouse):
-                continue
-            if not is_valid_drink(drink_name):
+            if rect.collidepoint(mouse):
+                if is_valid_drink(drink_name) and is_drink_unlocked(drink_name, self.level):
+                    if self.game_state.state not in (GameState.BLENDING, GameState.READY_TO_SERVE, GameState.SERVED):
+                        self._change_selected_drink(drink_name)
                 return
-            if not is_drink_unlocked(drink_name, self.level):
-                return
-            if self.game_state.state in (
-                GameState.BLENDING,
-                GameState.READY_TO_SERVE,
-                GameState.SERVED,
-            ):
-                return
-            self._change_selected_drink(drink_name)
-            return
 
-        if self.game_state.state in (
-            GameState.CUSTOMISE,
-            GameState.READY_TO_BLEND,
-        ):
-            for parameter, rect in self.slider_hitboxes.items():
-                if not rect.collidepoint(mouse):
-                    continue
-                if self.slider_locked[parameter]:
-                    self._unlock_slider(parameter)
-                else:
-                    self._lock_slider(parameter)
-                return
+        if self.game_state.state in (GameState.CUSTOMISE, GameState.READY_TO_BLEND):
+            for param, rect in self.slider_hitboxes.items():
+                if rect.collidepoint(mouse):
+                    if self.slider_locked[param]: self._unlock_slider(param)
+                    else: self._lock_slider(param)
+                    return
 
         if self.blend_button.collidepoint(mouse):
-            if self.challenge.done:
-                self.liquid_unlocked = True
+            if self.challenge.done: self.liquid_unlocked = True
             if self.liquid_unlocked and self.game_state.start_blending():
-                self.blend_start_time = time.monotonic()
-                self.blender_angle = 0.0
+                self.blend_start_time, self.blender_angle = time.monotonic(), 0.0
             return
 
         if self.serve_button.collidepoint(mouse):
@@ -480,7 +323,6 @@ class MixingStation:
 
     def get_player_drink_data(self):
         return self.game_state.get_player_drink_data()
-
     get_data = get_player_drink_data
 
     def draw(self, screen):
@@ -504,107 +346,73 @@ class MixingStation:
         for drink_name, rect in self.menu_slots:
             unlocked = is_drink_unlocked(drink_name, self.level)
             selected = self.player_drink.drink_name == drink_name
-            if selected:
-                border = self.PINK_LIGHT
-                fill = self.BUTTON_SELECTED
-            elif unlocked:
-                border = self.CYAN
-                fill = self.BUTTON
-            else:
-                border = self.LOCKED
-                fill = (6, 9, 22, 135)
+            border = self.PINK_LIGHT if selected else (self.CYAN if unlocked else self.LOCKED)
+            fill = self.BUTTON_SELECTED if selected else (self.BUTTON if unlocked else (6, 9, 22, 135))
             self._panel(screen, rect, border, fill, radius=12, width=1)
-            image = self.drink_images.get(drink_name)
-            image_area = pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 130)
-            if image is not None:
-                self._image_fit(screen, image, image_area, unlocked)
-            if not unlocked:
-                self._draw_lock(screen, rect.centerx, rect.y + 74)
+
+            img = self.drink_images.get(drink_name)
+            if img: self._image_fit(screen, img, pygame.Rect(rect.x + 6, rect.y + 7, rect.width - 12, 130), unlocked)
+            if not unlocked: self._draw_lock(screen, rect.centerx, rect.y + 74)
             self._draw_drink_name(screen, drink_name, rect, unlocked)
 
     def _draw_drink_name(self, screen, drink_name, rect, unlocked):
-        colour = self.WHITE if unlocked else self.LOCKED
-        if drink_name == "Hologram Frappe":
-            lines = ["HOLOGRAM", "FRAPPE"]
-        elif drink_name == "Stardust Matcha":
-            lines = ["STARDUST", "MATCHA"]
-        elif drink_name == "Cyber Fuel":
-            lines = ["CYBER", "FUEL"]
-        elif drink_name == "Pixel Lemint":
-            lines = ["PIXEL", "LEMINT"]
-        elif drink_name == "Caramel Byte":
-            lines = ["CARAMEL", "BYTE"]
+        col = self.WHITE if unlocked else self.LOCKED
+        if drink_name in self.SPLIT_NAMES:
+            lines = self.SPLIT_NAMES[drink_name]
+            t1 = self.font_menu.render(lines[0], True, col)
+            t2 = self.font_menu.render(lines[1], True, col)
+            screen.blit(t1, t1.get_rect(center=(rect.centerx, rect.bottom - 24)))
+            screen.blit(t2, t2.get_rect(center=(rect.centerx, rect.bottom - 11)))
         else:
-            lines = [drink_name.upper()]
-
-        if len(lines) == 1:
-            text = self.font_menu.render(lines[0], True, colour)
-            screen.blit(text, text.get_rect(center=(rect.centerx, rect.bottom - 14)))
-        else:
-            first = self.font_menu.render(lines[0], True, colour)
-            second = self.font_menu.render(lines[1], True, colour)
-            screen.blit(first, first.get_rect(center=(rect.centerx, rect.bottom - 24)))
-            screen.blit(second, second.get_rect(center=(rect.centerx, rect.bottom - 11)))
+            t = self.font_menu.render(drink_name.upper(), True, col)
+            screen.blit(t, t.get_rect(center=(rect.centerx, rect.bottom - 14)))
 
     def _draw_customise(self, screen):
         self._panel(screen, self.customise_rect, self.CYAN, (6, 12, 29, 190), radius=14, width=2)
-        title = self.font_big_title.render("CUSTOMISE YOUR DRINK", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.customise_rect.centerx, 420)))
-        instruction = self.font_small.render("CLICK WHEN THE INDICATOR HITS THE CORRECT ZONE!", True, self.SOFT_WHITE)
-        screen.blit(instruction, instruction.get_rect(center=(self.customise_rect.centerx, 444)))
+        t = self.font_big_title.render("CUSTOMISE YOUR DRINK", True, self.CYAN_LIGHT)
+        screen.blit(t, t.get_rect(center=(self.customise_rect.centerx, 420)))
+        sub = self.font_small.render("CLICK WHEN THE INDICATOR HITS THE CORRECT ZONE!", True, self.SOFT_WHITE)
+        screen.blit(sub, sub.get_rect(center=(self.customise_rect.centerx, 444)))
 
-        self._draw_timing_slider(screen, "temperature", "TEMPERATURE", TEMPERATURE_OPTIONS, self.CYAN, 465)
-        self._draw_timing_slider(screen, "caffeine", "CAFFEINE LEVEL", CAFFEINE_OPTIONS, self.YELLOW, 540)
-        self._draw_timing_slider(screen, "sweetness", "SWEETNESS LEVEL", SWEETNESS_OPTIONS, self.PINK_LIGHT, 615)
+        self._draw_timing_slider(screen, "temperature", "TEMPERATURE", TEMPERATURE_OPTIONS, self.CYAN)
+        self._draw_timing_slider(screen, "caffeine", "CAFFEINE LEVEL", CAFFEINE_OPTIONS, self.YELLOW)
+        self._draw_timing_slider(screen, "sweetness", "SWEETNESS LEVEL", SWEETNESS_OPTIONS, self.PINK_LIGHT)
 
-    def _draw_timing_slider(self, screen, parameter, label, options, accent, track_y):
-        track = self.slider_tracks[parameter]
-        label_surface = self.font_category.render(label, True, accent)
-        screen.blit(label_surface, (track.x, track.y - 26))
+    def _draw_timing_slider(self, screen, param, label, options, accent):
+        track = self.slider_tracks[param]
+        screen.blit(self.font_category.render(label, True, accent), (track.x, track.y - 26))
 
-        glow = pygame.Rect(track.x - 2, track.y - 2, track.width + 4, track.height + 4)
-        glow_surface = pygame.Surface(glow.size, pygame.SRCALPHA)
-        pygame.draw.rect(glow_surface, (*accent, 70), glow_surface.get_rect(), border_radius=8)
-        screen.blit(glow_surface, glow.topleft)
+        glow = pygame.Surface((track.width + 4, track.height + 4), pygame.SRCALPHA)
+        pygame.draw.rect(glow, (*accent, 70), glow.get_rect(), border_radius=8)
+        screen.blit(glow, (track.x - 2, track.y - 2))
 
         pygame.draw.rect(screen, (15, 24, 48), track, border_radius=6)
         pygame.draw.rect(screen, accent, track, width=2, border_radius=6)
 
         centers = (0.08, 0.50, 0.92)
-        zone_width = max(34, int(track.width * 0.16))
-        for index, option in enumerate(options):
-            cx = int(track.x + track.width * centers[index])
-            zone_rect = pygame.Rect(cx - zone_width // 2, track.y - 5, zone_width, track.height + 10)
-            pygame.draw.rect(screen, (*accent, 28), zone_rect, border_radius=7)
+        zw = max(34, int(track.width * 0.16))
+        for idx, opt in enumerate(options):
+            cx = int(track.x + track.width * centers[idx])
+            pygame.draw.rect(screen, (*accent, 28), pygame.Rect(cx - zw // 2, track.y - 5, zw, track.height + 10), border_radius=7)
             pygame.draw.line(screen, (105, 120, 150), (cx, track.y - 5), (cx, track.bottom + 5), 1)
-            text = self.font_small.render(option.upper(), True, self.WHITE)
-            screen.blit(text, text.get_rect(center=(cx, track.bottom + 18)))
+            t = self.font_small.render(opt.upper(), True, self.WHITE)
+            screen.blit(t, t.get_rect(center=(cx, track.bottom + 18)))
 
-        position = self.slider_positions[parameter]
-        indicator_x = int(track.x + track.width * position)
-        pygame.draw.circle(screen, (0, 0, 0), (indicator_x, track.centery), 9)
-        pygame.draw.circle(screen, accent, (indicator_x, track.centery), 7)
-        pygame.draw.circle(screen, self.WHITE, (indicator_x, track.centery), 2)
-        if self.slider_locked[parameter]:
-            pygame.draw.circle(screen, self.WHITE, (indicator_x, track.centery), 11, width=2)
+        ix = int(track.x + track.width * self.slider_positions[param])
+        pygame.draw.circle(screen, (0, 0, 0), (ix, track.centery), 9)
+        pygame.draw.circle(screen, accent, (ix, track.centery), 7)
+        pygame.draw.circle(screen, self.WHITE, (ix, track.centery), 2)
+        if self.slider_locked[param]:
+            pygame.draw.circle(screen, self.WHITE, (ix, track.centery), 11, width=2)
 
-        result = self.slider_results[parameter]
-        locked = self.slider_locked[parameter]
-        if locked and result is True:
-            feedback = "✓ LOCKED"
-            colour = self.GREEN
-        elif locked and result is False:
-            feedback = "✕ WRONG"
-            colour = self.PINK_LIGHT
-        elif self.slider_feedback[parameter] == "ADJUSTING":
-            feedback = "ADJUSTING"
-            colour = self.CYAN_LIGHT
-        else:
-            feedback = "CLICK"
-            colour = self.MUTED
+        res, locked = self.slider_results[param], self.slider_locked[param]
+        if locked and res is True: fb, col = "✓ LOCKED", self.GREEN
+        elif locked and res is False: fb, col = "✕ WRONG", self.PINK_LIGHT
+        elif self.slider_feedback[param] == "ADJUSTING": fb, col = "ADJUSTING", self.CYAN_LIGHT
+        else: fb, col = "CLICK", self.MUTED
 
-        feedback_text = self.font_small.render(feedback, True, colour)
-        screen.blit(feedback_text, (track.right - feedback_text.get_width(), track.y - 26))
+        fbt = self.font_small.render(fb, True, col)
+        screen.blit(fbt, (track.right - fbt.get_width(), track.y - 26))
 
     def _ingredients_for(self, drink):
         return {
@@ -616,12 +424,11 @@ class MixingStation:
         }.get(drink, ["milk"])
 
     def _draw_ingredient(self, screen, kind, x, y, scale=1.0):
-        c = self.CYAN_LIGHT
-        if kind == "milk": pygame.draw.ellipse(screen,(240,248,255),(x-16,y-10,x+16,y+10))
+        if kind == "milk": pygame.draw.ellipse(screen,(240,248,255),(x-16,y-10,32,20))
         elif kind == "coffee": pygame.draw.circle(screen,(105,65,45),(x,y),12)
         elif kind == "chocolate": pygame.draw.rect(screen,(90,55,45),(x-12,y-9,24,18),border_radius=4)
         elif kind == "syrup": pygame.draw.line(screen,(225,135,90),(x-10,y-8),(x+10,y+8),5)
-        elif kind == "mint": pygame.draw.ellipse(screen,(90,235,165),(x-7,y-14,x+8,y+9))
+        elif kind == "mint": pygame.draw.ellipse(screen,(90,235,165),(x-7,y-14,15,23))
         elif kind == "cookie": pygame.draw.circle(screen,(205,140,80),(x,y),12)
         elif kind == "caramel": pygame.draw.line(screen,(240,175,85),(x-12,y),(x+12,y),5)
         elif kind == "matcha": pygame.draw.circle(screen,(165,195,105),(x,y),12)
@@ -629,7 +436,7 @@ class MixingStation:
         elif kind == "orb": pygame.draw.circle(screen,(210,150,255),(x,y),12)
         elif kind == "ice": pygame.draw.rect(screen,(190,235,255),(x-9,y-9,18,18),border_radius=4)
         elif kind == "star":
-            pts=[(x+math.cos(-math.pi/2+i*math.pi/2.5)*13,y+math.sin(-math.pi/2+i*math.pi/2.5)*13) for i in range(5)]
+            pts = [(x+math.cos(-math.pi/2+i*math.pi/2.5)*13, y+math.sin(-math.pi/2+i*math.pi/2.5)*13) for i in range(5)]
             pygame.draw.polygon(screen,(255,225,110),pts)
         elif kind == "spice": pygame.draw.circle(screen,(235,155,95),(x,y),10)
         elif kind == "water": pygame.draw.circle(screen,(130,205,255),(x,y),11)
@@ -637,8 +444,8 @@ class MixingStation:
 
     def _draw_blender(self, screen):
         self._panel(screen, self.blender_rect, self.PURPLE, (6, 10, 27, 145))
-        title = self.font_big_title.render("BLENDER", True, self.CYAN_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 22)))
+        t = self.font_big_title.render("BLENDER", True, self.CYAN_LIGHT)
+        screen.blit(t, t.get_rect(center=(self.blender_rect.centerx, self.blender_rect.y + 22)))
 
         jug = self.blender_jug_rect.copy()
         is_blending = self.game_state.state == GameState.BLENDING
@@ -646,12 +453,9 @@ class MixingStation:
         if is_blending:
             jug.x += int(math.sin(time.monotonic() * 30) * 2)
             jug.y += int(math.cos(time.monotonic() * 25))
-
-        if is_blending:
-            glow_surface = pygame.Surface((jug.width + 28, jug.height + 28), pygame.SRCALPHA)
-            alpha = int(30 + self.blender_pulse * 40)
-            pygame.draw.rect(glow_surface, (75, 225, 255, alpha), glow_surface.get_rect(), border_radius=25, width=5)
-            screen.blit(glow_surface, (jug.x - 14, jug.y - 14))
+            glow = pygame.Surface((jug.width + 28, jug.height + 28), pygame.SRCALPHA)
+            pygame.draw.rect(glow, (75, 225, 255, int(30 + self.blender_pulse * 40)), glow.get_rect(), border_radius=25, width=5)
+            screen.blit(glow, (jug.x - 14, jug.y - 14))
 
         pygame.draw.rect(screen, (17, 25, 52), jug, border_radius=23)
         pygame.draw.rect(screen, self.CYAN_LIGHT, jug, width=2, border_radius=23)
@@ -670,80 +474,66 @@ class MixingStation:
         drink_name = self.player_drink.drink_name
         if is_blending and drink_name:
             recipe = get_recipe(drink_name)
-            liquid_colour = recipe.liquid_color if recipe else (150,150,255)
+            col = recipe.liquid_color if recipe else (150, 150, 255)
             if time.monotonic() - self.blend_start_time < 0.55:
-                pygame.draw.line(screen, liquid_colour, (jug.centerx, jug.y-20), (jug.centerx, jug.y+28), 8)
-                pygame.draw.circle(screen, self.WHITE, (jug.centerx, jug.y+30), 4)
+                pygame.draw.line(screen, col, (jug.centerx, jug.y - 20), (jug.centerx, jug.y + 28), 8)
+                pygame.draw.circle(screen, self.WHITE, (jug.centerx, jug.y + 30), 4)
             ingredients = self._ingredients_for(drink_name)
             elapsed = time.monotonic() - self.blend_start_time
             for i, kind in enumerate(ingredients):
-                t = elapsed - i * 0.28
-                if 0 <= t <= 0.7:
-                    x = jug.centerx + (i - (len(ingredients)-1)/2) * 30
-                    y = jug.y - 15 + min(75, t * 150)
+                te = elapsed - i * 0.28
+                if 0 <= te <= 0.7:
+                    x = jug.centerx + (i - (len(ingredients) - 1) / 2) * 30
+                    y = jug.y - 15 + min(75, te * 150)
                     self._draw_ingredient(screen, kind, int(x), int(y), 0.65)
+
         if drink_name and (self.liquid_unlocked or is_blending):
             recipe = get_recipe(drink_name)
-            liquid_colour = recipe.liquid_color if recipe else (150, 150, 255)
-
+            col = recipe.liquid_color if recipe else (150, 150, 255)
             if drink_name == "Hologram Frappe" and is_blending:
-                cycle = time.monotonic() * 3
-                liquid_colour = (
-                    int(180 + 55 * (math.sin(cycle) + 1) / 2),
-                    int(150 + 80 * (math.sin(cycle + 2) + 1) / 2),
-                    int(200 + 55 * (math.sin(cycle + 4) + 1) / 2),
+                cyc = time.monotonic() * 3
+                col = (
+                    int(180 + 55 * (math.sin(cyc) + 1) / 2),
+                    int(150 + 80 * (math.sin(cyc + 2) + 1) / 2),
+                    int(200 + 55 * (math.sin(cyc + 4) + 1) / 2),
                 )
 
-            liquid_height = inner.height - 22
-            if is_blending:
-                liquid_height += int(math.sin(time.monotonic() * 12) * 4)
+            lh = inner.height - 22 + (int(math.sin(time.monotonic() * 12) * 4) if is_blending else 0)
+            liquid = pygame.Rect(inner.x + 4, inner.bottom - lh - 4, inner.width - 8, lh)
+            pygame.draw.rect(screen, col, liquid, border_radius=14)
 
-            liquid = pygame.Rect(inner.x + 4, inner.bottom - liquid_height - 4, inner.width - 8, liquid_height)
-            pygame.draw.rect(screen, liquid_colour, liquid, border_radius=14)
-
-            highlight_colour = (
-                min(255, liquid_colour[0] + 45),
-                min(255, liquid_colour[1] + 45),
-                min(255, liquid_colour[2] + 45),
-            )
-            highlight = pygame.Rect(liquid.x + 7, liquid.y + 6, liquid.width - 14, 6)
-            pygame.draw.rect(screen, highlight_colour, highlight, border_radius=4)
+            hcol = (min(255, col[0] + 45), min(255, col[1] + 45), min(255, col[2] + 45))
+            pygame.draw.rect(screen, hcol, pygame.Rect(liquid.x + 7, liquid.y + 6, liquid.width - 14, 6), border_radius=4)
 
             shimmer_y = int(liquid.y + liquid.height * (0.35 + 0.12 * math.sin(time.monotonic() * 2.5)))
             pygame.draw.line(screen, (255, 255, 255, 110), (liquid.x + 12, shimmer_y), (liquid.right - 12, shimmer_y), 1)
 
             if is_blending:
-                wave_y = liquid.y + 25
-                wave_width = liquid.width - 22
-                wave_left = liquid.x + 11
-                points = []
-                for index in range(9):
-                    px = wave_left + index * (wave_width / 8)
-                    py = wave_y + math.sin(time.monotonic() * 8 + index) * 5
-                    points.append((int(px), int(py)))
-                pygame.draw.lines(screen, self.WHITE, False, points, 2)
-
-                current_time = time.monotonic()
-                for index in range(6):
-                    phase = current_time * (1.5 + index * 0.18) + index
-                    bubble_x = liquid.x + 20 + (index * 19) % max(20, liquid.width - 30)
-                    bubble_y = liquid.bottom - 15 - (phase * 32) % max(20, liquid.height - 20)
-                    pygame.draw.circle(screen, (240, 250, 255), (int(bubble_x), int(bubble_y)), 3)
+                pts = [
+                    (int(liquid.x + 11 + idx * ((liquid.width - 22) / 8)),
+                     int(liquid.y + 25 + math.sin(time.monotonic() * 8 + idx) * 5))
+                    for idx in range(9)
+                ]
+                pygame.draw.lines(screen, self.WHITE, False, pts, 2)
+                now = time.monotonic()
+                for idx in range(6):
+                    ph = now * (1.5 + idx * 0.18) + idx
+                    bx = liquid.x + 20 + (idx * 19) % max(20, liquid.width - 30)
+                    by = liquid.bottom - 15 - (ph * 32) % max(20, liquid.height - 20)
+                    pygame.draw.circle(screen, (240, 250, 255), (int(bx), int(by)), 3)
         else:
-            text = self.font_small.render("COMPLETE INGREDIENT CHALLENGE", True, self.MUTED)
-            screen.blit(text, text.get_rect(center=inner.center))
+            txt = self.font_small.render("COMPLETE INGREDIENT CHALLENGE", True, self.MUTED)
+            screen.blit(txt, txt.get_rect(center=inner.center))
 
-        core_x = jug.centerx
-        core_y = jug.bottom - 20
+        core_x, core_y = jug.centerx, jug.bottom - 20
         pygame.draw.circle(screen, (12, 17, 35), (core_x, core_y), 11)
         pygame.draw.circle(screen, self.PINK, (core_x, core_y), 3)
 
         if is_blending:
             angle = math.radians(self.blender_angle)
-            for offset in (0, math.pi / 2, math.pi, 3 * math.pi / 2):
-                blade_angle = angle + offset
-                end_x = core_x + math.cos(blade_angle) * 25
-                end_y = core_y + math.sin(blade_angle) * 25
+            for off in (0, math.pi / 2, math.pi, 3 * math.pi / 2):
+                end_x = core_x + math.cos(angle + off) * 25
+                end_y = core_y + math.sin(angle + off) * 25
                 pygame.draw.line(screen, self.CYAN_LIGHT, (core_x, core_y), (int(end_x), int(end_y)), 3)
 
         base = pygame.Rect(jug.x - 10, jug.bottom - 2, jug.width + 20, 22)
@@ -751,30 +541,13 @@ class MixingStation:
         pygame.draw.rect(screen, self.PINK, base, width=1, border_radius=10)
 
         if is_blending:
-            elapsed = time.monotonic() - self.blend_start_time
-            ratio = max(0, min(1, elapsed / self.blend_duration))
-            progress_rect = pygame.Rect(
-                self.blend_button.x + 8,
-                self.blend_button.y - 8,
-                self.blend_button.width - 16,
-                4,
-            )
-            pygame.draw.rect(screen, (20, 25, 45), progress_rect, border_radius=2)
-            pygame.draw.rect(
-                screen,
-                self.CYAN,
-                pygame.Rect(
-                    progress_rect.x,
-                    progress_rect.y,
-                    int(progress_rect.width * ratio),
-                    progress_rect.height,
-                ),
-                border_radius=2,
-            )
+            ratio = max(0, min(1, (time.monotonic() - self.blend_start_time) / self.blend_duration))
+            pr = pygame.Rect(self.blend_button.x + 8, self.blend_button.y - 8, self.blend_button.width - 16, 4)
+            pygame.draw.rect(screen, (20, 25, 45), pr, border_radius=2)
+            pygame.draw.rect(screen, self.CYAN, pygame.Rect(pr.x, pr.y, int(pr.width * ratio), pr.height), border_radius=2)
 
         self._action_button(
-            screen,
-            self.blend_button,
+            screen, self.blend_button,
             ("BLENDING..." if is_blending else "BLEND"),
             self.PINK,
             self.game_state.can_blend() and self.liquid_unlocked and self.assembly_phase == "empty",
@@ -783,85 +556,46 @@ class MixingStation:
 
     def _draw_preview(self, screen):
         self._panel(screen, self.preview_rect, self.PINK, (7, 10, 26, 150))
-        title = self.font_cup_title.render("CUP STATION", True, self.PINK_LIGHT)
-        screen.blit(title, title.get_rect(center=(self.preview_rect.centerx, 420)))
+        t = self.font_cup_title.render("CUP STATION", True, self.PINK_LIGHT)
+        screen.blit(t, t.get_rect(center=(self.preview_rect.centerx, 420)))
         self._draw_cup_sequence(screen)
+
         ready = self.game_state.state == GameState.READY_TO_SERVE and self.assembly_phase == "ready"
         label = "READY!" if ready else self.assembly_phase.upper()
-        colour = self.GREEN if ready else self.CYAN_LIGHT
-        txt = self.font_small.render(label, True, colour)
+        col = self.GREEN if ready else self.CYAN_LIGHT
+        txt = self.font_small.render(label, True, col)
         screen.blit(txt, txt.get_rect(center=(self.preview_rect.centerx, 600)))
         self._action_button(screen, self.serve_button, "SERVE", self.CYAN, ready, large=False)
 
     def _draw_cup_sequence(self, screen):
-        # Keep the physical cup animation for ICE -> POUR -> TOPPING.
-        # Once the drink is fully assembled, replace it with the exact
-        # drink artwork used by the top menu so the finished cup visually
-        # matches the selected drink display.
         r = pygame.Rect(self.preview_rect.x + 24, 455, 86, 125)
-        cx = r.centerx
-        phase = self.assembly_phase
+        cx, phase = r.centerx, self.assembly_phase
 
         if phase == "ready":
-            drink_image = self.drink_images.get(self.player_drink.drink_name)
-            if drink_image is not None:
-                # Finished drink artwork: same source image as the menu.
-                target = self.preview_image_rect.inflate(-4, -4)
-                self._image_fit(screen, drink_image, target, True)
+            img = self.drink_images.get(self.player_drink.drink_name)
+            if img is not None:
+                self._image_fit(screen, img, self.preview_image_rect.inflate(-4, -4), True)
             else:
-                # Safe fallback if an image is missing.
-                pygame.draw.polygon(
-                    screen,
-                    (225, 235, 250),
-                    [(r.x + 7, r.y), (r.right - 7, r.y),
-                     (r.right - 16, r.bottom), (r.x + 16, r.bottom)]
-                )
+                pygame.draw.polygon(screen, (225, 235, 250), [(r.x+7, r.y), (r.right-7, r.y), (r.right-16, r.bottom), (r.x+16, r.bottom)])
                 recipe = get_recipe(self.player_drink.drink_name)
                 c = recipe.liquid_color if recipe else (150, 150, 255)
-                pygame.draw.polygon(
-                    screen, c,
-                    [(r.x + 16, r.y + 45), (r.right - 16, r.y + 45),
-                     (r.right - 22, r.bottom - 10), (r.x + 22, r.bottom - 10)]
-                )
+                pygame.draw.polygon(screen, c, [(r.x+16, r.y+45), (r.right-16, r.y+45), (r.right-22, r.bottom-10), (r.x+22, r.bottom-10)])
             return
 
-        # Physical cup used during assembly.
-        pygame.draw.polygon(
-            screen,
-            (225, 235, 250),
-            [(r.x + 7, r.y), (r.right - 7, r.y),
-             (r.right - 16, r.bottom), (r.x + 16, r.bottom)]
-        )
-        pygame.draw.polygon(
-            screen,
-            (35, 45, 70),
-            [(r.x + 12, r.y + 8), (r.right - 12, r.y + 8),
-             (r.right - 20, r.bottom - 12), (r.x + 20, r.bottom - 12)]
-        )
+        # Physical cup used during assembly
+        pygame.draw.polygon(screen, (225, 235, 250), [(r.x+7, r.y), (r.right-7, r.y), (r.right-16, r.bottom), (r.x+16, r.bottom)])
+        pygame.draw.polygon(screen, (35, 45, 70), [(r.x+12, r.y+8), (r.right-12, r.y+8), (r.right-20, r.bottom-12), (r.x+20, r.bottom-12)])
 
         if phase in ("ice", "pour", "topping"):
             for i in range(5):
-                x = r.x + 18 + (i % 2) * 25
-                y = r.y + 18 + (i // 2) * 24
-                pygame.draw.rect(
-                    screen, (205, 235, 255),
-                    (x, y, 15, 12), border_radius=3
-                )
+                pygame.draw.rect(screen, (205, 235, 255), (r.x + 18 + (i % 2) * 25, r.y + 18 + (i // 2) * 24, 15, 12), border_radius=3)
 
         if phase in ("pour", "topping") and self.player_drink.drink_name:
             recipe = get_recipe(self.player_drink.drink_name)
             c = recipe.liquid_color if recipe else (150, 150, 255)
-
-            pygame.draw.polygon(
-                screen, c,
-                [(r.x + 16, r.y + 45), (r.right - 16, r.y + 45),
-                 (r.right - 22, r.bottom - 10), (r.x + 22, r.bottom - 10)]
-            )
-
+            pygame.draw.polygon(screen, c, [(r.x+16, r.y+45), (r.right-16, r.y+45), (r.right-22, r.bottom-10), (r.x+22, r.bottom-10)])
             if phase == "pour":
-                pygame.draw.line(
-                    screen, c, (cx, 425), (cx, r.y + 45), 8
-                )
+                pygame.draw.line(screen, c, (cx, 425), (cx, r.y + 45), 8)
 
         if phase == "topping":
             self._draw_toppings(screen, cx, r.y + 42)
@@ -873,61 +607,49 @@ class MixingStation:
             yy = int(r.y - 8 + math.sin(time.monotonic() * 12) * 6)
             pygame.draw.line(screen, self.PINK, (cx, yy), (cx, r.y + 10), 5)
 
-    def _draw_toppings(self,screen,cx,y):
+    def _draw_toppings(self, screen, cx, y):
         toppings = get_recipe(self.player_drink.drink_name).toppings if self.player_drink.drink_name else ()
-        for i,t in enumerate(toppings[:3]):
-            x=cx+(i-1)*18
-            if "mint" in t: pygame.draw.ellipse(screen,(90,235,165),(x-8,y-8,x+8,y+8))
-            elif "chocolate" in t or "cookie" in t: pygame.draw.circle(screen,(90,55,45),(x,y),7)
-            elif "caramel" in t: pygame.draw.line(screen,(235,170,80),(x-8,y-5),(x+8,y+5),4)
-            elif "meteor" in t: pygame.draw.polygon(screen,(210,230,250),[(x-7,y),(x+5,y-6),(x+8,y+6)])
-            else: pygame.draw.circle(screen,(245,245,255),(x,y),8)
+        for i, t in enumerate(toppings[:3]):
+            x = cx + (i - 1) * 18
+            if "mint" in t: pygame.draw.ellipse(screen, (90, 235, 165), (x - 8, y - 8, 16, 16))
+            elif "chocolate" in t or "cookie" in t: pygame.draw.circle(screen, (90, 55, 45), (x, y), 7)
+            elif "caramel" in t: pygame.draw.line(screen, (235, 170, 80), (x - 8, y - 5), (x + 8, y + 5), 4)
+            elif "meteor" in t: pygame.draw.polygon(screen, (210, 230, 250), [(x - 7, y), (x + 5, y - 6), (x + 8, y + 6)])
+            else: pygame.draw.circle(screen, (245, 245, 255), (x, y), 8)
 
     def _panel(self, screen, rect, border, fill, radius=14, width=2):
-        surface = pygame.Surface(rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(surface, fill, surface.get_rect(), border_radius=radius)
-        screen.blit(surface, rect.topleft)
+        s = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(s, fill, s.get_rect(), border_radius=radius)
+        screen.blit(s, rect.topleft)
         pygame.draw.rect(screen, border, rect, width=width, border_radius=radius)
 
     def _action_button(self, screen, rect, text, accent, enabled, large=False):
-        mouse = pygame.mouse.get_pos()
-        hover = enabled and rect.collidepoint(mouse)
-        if enabled:
-            border = self.PINK_LIGHT if hover else accent
-            fill = (45, 12, 52, 205)
-            text_colour = self.WHITE
-        else:
-            border = (60, 65, 85)
-            fill = (7, 10, 22, 160)
-            text_colour = self.MUTED
+        hover = enabled and rect.collidepoint(pygame.mouse.get_pos())
+        border = (self.PINK_LIGHT if hover else accent) if enabled else (60, 65, 85)
+        fill = (45, 12, 52, 205) if enabled else (7, 10, 22, 160)
+        col = self.WHITE if enabled else self.MUTED
 
         if hover:
-            glow = pygame.Rect(rect.x - 2, rect.y - 2, rect.width + 4, rect.height + 4)
-            pygame.draw.rect(screen, (255, 100, 210), glow, width=1, border_radius=13)
+            pygame.draw.rect(screen, (255, 100, 210), rect.inflate(4, 4), width=1, border_radius=13)
 
         self._panel(screen, rect, border, fill, radius=12, width=1)
         font = self.font_big_title if large else self.font_button
-        label = font.render(text, True, text_colour)
-        screen.blit(label, label.get_rect(center=rect.center))
+        lbl = font.render(text, True, col)
+        screen.blit(lbl, lbl.get_rect(center=rect.center))
 
     def _image_fit(self, screen, image, target, bright=True):
-        if image is None:
-            return
-        width, height = image.get_size()
-        if width <= 0 or height <= 0:
-            return
-        scale = min(target.width / width, target.height / height)
-        size = (max(1, int(width * scale)), max(1, int(height * scale)))
-        scaled = pygame.transform.smoothscale(image, size)
+        if not image or target.width <= 0 or target.height <= 0: return
+        w, h = image.get_size()
+        if w <= 0 or h <= 0: return
+        scale = min(target.width / w, target.height / h)
+        scaled = pygame.transform.smoothscale(image, (max(1, int(w * scale)), max(1, int(h * scale))))
         if not bright:
             scaled = scaled.copy()
             scaled.fill((70, 70, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        destination = scaled.get_rect(center=target.center)
-        screen.blit(scaled, destination)
+        screen.blit(scaled, scaled.get_rect(center=target.center))
 
     def _draw_lock(self, screen, x, y):
-        body = pygame.Rect(x - 9, y, 18, 15)
-        pygame.draw.rect(screen, self.LOCKED, body, border_radius=4)
+        pygame.draw.rect(screen, self.LOCKED, pygame.Rect(x - 9, y, 18, 15), border_radius=4)
         pygame.draw.arc(screen, self.LOCKED, pygame.Rect(x - 6, y - 11, 12, 16), math.pi, 2 * math.pi, 2)
         pygame.draw.circle(screen, (25, 28, 45), (x, y + 7), 2)
 
