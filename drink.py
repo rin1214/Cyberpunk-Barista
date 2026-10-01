@@ -5,6 +5,13 @@ TEMPERATURE_OPTIONS = ("Cold", "Normal", "Hot")
 CAFFEINE_OPTIONS = ("Low", "Normal", "High")
 SWEETNESS_OPTIONS = ("Less", "Normal", "Extra")
 
+# Price tier per unlock level
+LEVEL_PRICES = {
+    1: 5,   # Level 1 drinks cost $5
+    2: 10,  # Level 2 drinks cost $10
+    3: 15   # Level 3 drinks cost $15
+}
+
 
 @dataclass(frozen=True)
 class DrinkRecipe:
@@ -12,6 +19,11 @@ class DrinkRecipe:
     unlock_level: int
     toppings: tuple
     liquid_color: tuple
+
+    @property
+    def price(self) -> int:
+        """Returns the price based on the drink's unlock level ($5, $10, or $15)."""
+        return LEVEL_PRICES.get(self.unlock_level, 5)
 
     def is_unlocked(self, level):
         try:
@@ -73,6 +85,12 @@ DRINK_MENU = tuple(DRINK_RECIPES)
 
 def get_recipe(drink_name):
     return DRINK_RECIPES.get(drink_name)
+
+
+def get_drink_price(drink_name):
+    """Retrieves the price for a specific drink based on its level tier."""
+    recipe = get_recipe(drink_name)
+    return recipe.price if recipe else 5
 
 
 def is_valid_drink(drink_name):

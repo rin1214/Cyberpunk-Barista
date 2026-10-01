@@ -90,10 +90,13 @@
         "location": "Cyber Penthouse"
     },
     "~": {
-        "credits": 100,
-        "xp": 0,
+        "credits": 213,
+        "xp": 540,
         "level": 1,
-        "location": "Back Alley Kiosk"
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true
+        }
     },
     "yoyo": {
         "credits": 100,
@@ -103,9 +106,12 @@
     },
     "YOYO": {
         "credits": 108,
-        "xp": 550,
-        "level": 3,
-        "location": "Cyber Penthouse"
+        "xp": 500,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true
+        }
     },
     "Y": {
         "credits": 100,
