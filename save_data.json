@@ -1,190 +1,45 @@
 {
     "lucy": {
-        "credits": 2302,
-        "xp": 1240,
-        "level": 3,
-        "location": "Cyber Penthouse"
-    },
-    "Rin": {
-        "credits": 180,
-        "xp": 20,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "kian": {
-        "credits": 100,
-        "xp": 0,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "yin": {
-        "credits": 54,
-        "xp": 180,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "mahi": {
-        "credits": 80,
-        "xp": 210,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "alex": {
-        "credits": 180,
-        "xp": 400,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "leon": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "kl": {
-        "credits": 199,
-        "xp": 35,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "oo": {
-        "credits": 199,
-        "xp": 35,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "avery": {
-        "credits": 424,
-        "xp": 35,
-        "level": 3,
-        "location": "Cyber Penthouse"
-    },
-    "syahmi": {
-        "credits": 373,
-        "xp": 35,
-        "level": 3,
-        "location": "Cyber Penthouse"
-    },
-    "k": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "zahrah": {
-        "credits": 183,
-        "xp": 15,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "TJ yuh": {
-        "credits": 793,
-        "xp": 100,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "you": {
-        "credits": 1360,
-        "xp": 450,
-        "level": 3,
-        "location": "Cyber Penthouse"
-    },
-    "~": {
-        "credits": 213,
-        "xp": 540,
-        "level": 1,
-        "location": "Back Alley Kiosk",
-        "unlocked_levels": {
-            "1": true
-        }
-    },
-    "yoyo": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "YOYO": {
-        "credits": 108,
-        "xp": 500,
-        "level": 1,
-        "location": "Back Alley Kiosk",
-        "unlocked_levels": {
-            "1": true
-        }
-    },
-    "Y": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "lola": {
-        "credits": 332,
-        "xp": 830,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "ww": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    "ko": {
-        "credits": 228,
-        "xp": 260,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "adel": {
-        "credits": 322,
-        "xp": 490,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "kk": {
-        "credits": 505,
-        "xp": 900,
-        "level": 2,
-        "location": "Neon Lounge"
-    },
-    "ll": {
-        "credits": 100,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk"
-    },
-    ";lucy": {
-        "credits": 187,
-        "xp": 2310,
-        "level": 3,
-        "location": "Cyber Penthouse",
-        "unlocked_levels": {
-            "1": true,
-            "3": true,
-            "2": true
-        }
-    },
-    "sue": {
-        "credits": 52,
-        "xp": 1220,
-        "level": 3,
-        "location": "Cyber Penthouse",
-        "unlocked_levels": {
-            "1": true,
-            "2": true,
-            "3": true
-        }
-    },
-    "hik": {
-        "credits": 8,
+        "credits": 90,
         "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk",
         "unlocked_levels": {
             "1": true,
-            "2": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "kiki": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "Lucy": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "aila": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
             "3": false
         }
     }
