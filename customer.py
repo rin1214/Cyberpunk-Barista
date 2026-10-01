@@ -55,10 +55,10 @@ class Customer:
     # Full archetype profile including rare low-patience, high-paying archetypes (Corp Spy & Cyberpunk Cat)
     ARCHETYPE_DETAILS = {
         "runner": {"patience": 35.0, "pay_mult": 1.0, "weight": 50},
-        "exec": {"patience": 22.0, "pay_mult": 1.8, "weight": 30},
-        "hacker": {"patience": 28.0, "pay_mult": 1.3, "weight": 20},
-        "drone_pilot": {"patience": 24.0, "pay_mult": 1.4, "weight": 15},
-        "corp_spy": {"patience": 15.0, "pay_mult": 2.5, "weight": 8},  # Rare, low patience, high pay
+        "exec": {"patience": 35.0, "pay_mult": 1.8, "weight": 30},
+        "hacker": {"patience": 35.0, "pay_mult": 1.3, "weight": 20},
+        "drone_pilot": {"patience": 30.0, "pay_mult": 1.4, "weight": 15},
+        "corp_spy": {"patience": 18.0, "pay_mult": 2.5, "weight": 8},  # Rare, low patience, high pay
         "cyberpunk_cat": {"patience": 18.0, "pay_mult": 3.0, "weight": 4},  # Rare, low patience, highest pay
     }
 
@@ -105,14 +105,10 @@ class Customer:
         self.target_caffeine = self._caffeine_to_number(self.order.caffeine)
         self.target_temperature = self._temperature_to_number(self.order.temperature)
         
-        # Scale base patience based on type and level difficulty scaling
-        base_patience = archetype_info["patience"]
-        if self.level == 2:
-            base_patience *= 0.85
-        elif self.level >= 3:
-            base_patience *= 0.70
-
-        self.max_patience = base_patience
+        # Patience is determined by the customer archetype only.
+        # Do not reduce it again based on level: higher levels should be harder
+        # through the drink/minigame requirements, not hidden patience scaling.
+        self.max_patience = archetype_info["patience"]
         self.current_patience = self.max_patience
         
         # UI fonts and feedback setup
