@@ -5,14 +5,12 @@ TEMPERATURE_OPTIONS = ("Cold", "Normal", "Hot")
 CAFFEINE_OPTIONS = ("Low", "Normal", "High")
 SWEETNESS_OPTIONS = ("Less", "Normal", "Extra")
 
-# Price tier per unlock level
+
 LEVEL_PRICES = {
-    1: 5,   # Level 1 drinks cost $5
-    2: 10,  # Level 2 drinks cost $10
-    3: 15   # Level 3 drinks cost $15
+    1: 12,
+    2: 18,
+    3: 22,
 }
-
-
 @dataclass(frozen=True)
 class DrinkRecipe:
     name: str
@@ -22,7 +20,7 @@ class DrinkRecipe:
 
     @property
     def price(self) -> int:
-        """Returns the price based on the drink's unlock level ($5, $10, or $15)."""
+        """Return the price based on the drink's unlock level."""
         return LEVEL_PRICES.get(self.unlock_level, 5)
 
     def is_unlocked(self, level):

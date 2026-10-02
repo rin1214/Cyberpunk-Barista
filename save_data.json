@@ -1,9 +1,9 @@
 {
     "lucy": {
-        "credits": 1307,
-        "xp": 1280,
-        "level": 3,
-        "location": "Cyber Penthouse",
+        "credits": 1567,
+        "xp": 580,
+        "level": 2,
+        "location": "Neon Lounge",
         "unlocked_levels": {
             "1": true,
             "2": true,
@@ -326,6 +326,72 @@
         }
     },
     "lcuy": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "Barista": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "nancy": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "david": {
+        "credits": 100,
+        "xp": 0,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "zz": {
+        "credits": 124,
+        "xp": 180,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "cc": {
+        "credits": 112,
+        "xp": 40,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "ss": {
         "credits": 100,
         "xp": 0,
         "level": 1,
