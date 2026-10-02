@@ -271,8 +271,6 @@ SPAWN_DELAY = 1.5
 LEVEL_KEYS = {pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3}
 LEVEL_NODES = {1: "neon_alley", 2: "cyber_dock", 3: "high_rise"}
 successful_drinks = 0
-total_successful_drinks = 0
-game_finished = False
 
 def run_level_transition(new_level, economy, progression, mixing_station, player_name):
     new_level = max(1, min(int(new_level), 3))
@@ -315,6 +313,17 @@ while running:
             print(f"[STATION ERROR] {error}")
         try:
             if mixing_station.consume_exit_request():
+                try:
+                    economy.save_economy_data()
+                except Exception as error:
+                    print(f"[MAIN] Exit save warning: {error}")
+                GameEndScreen(screen).run(
+                    player_name=economy.player_name,
+                    level=progression.level,
+                    successful_drinks=successful_drinks,
+                    xp=economy.xp,
+                    credits=economy.credits,
+                )
                 running = False
                 continue
         except Exception as error:
@@ -338,8 +347,6 @@ while running:
                 progression.xp = max(0, int(economy.xp))
                 reward_system.reset()
                 successful_drinks = 0
-                total_successful_drinks = 0
-                game_finished = False
                 ensure_game_music(start_screen)
                 active_barista = choose_barista(screen, economy, player_name)
                 if active_barista is None:
@@ -386,8 +393,6 @@ while running:
                 except Exception as error:
                     print(f"[MAIN] Reset warning: {error}")
                 successful_drinks = 0
-                total_successful_drinks = 0
-                game_finished = False
                 progression.level = economy.level
                 progression.xp = economy.xp
                 sync_level_systems(economy, progression, mixing_station)
@@ -491,9 +496,6 @@ while running:
                 successful_order = (accuracy_result.correct_count == 4)
                 if successful_order:
                     successful_drinks += 1
-                    total_successful_drinks += 1
-                if progression.level >= 3 and successful_drinks >= 10:
-                    game_finished = True
                 try:
                     economy.apply_reward(reward_result)
                     if jax_bonus:
@@ -521,76 +523,9 @@ while running:
                         mixing_station.reset()
                     except Exception as error:
                         print(f"[STATION RESET ERROR] {error}")
-                if game_finished:
-                    end_screen = GameEndScreen(screen)
-                    end_result = end_screen.run(
-                        player_name=economy.player_name,
-                        level=progression.level,
-                        successful_drinks=total_successful_drinks,
-                        xp=progression.xp,
-                        credits=economy.credits,
-                    )
-                    if end_result == "play_again":
-                        economy.reset_economy()
-                        progression.reset()
-                        reward_system.reset()
-                        mixing_station.reset()
-                        successful_drinks = 0
-                        total_successful_drinks = 0
-                        game_finished = False
-                        progression.level = 1
-                        progression.xp = 0
-                        sync_level_systems(economy, progression, mixing_station)
-                        active_bg = load_level_background(1)
-                        active_customer = refresh_customer(1, mixing_station)
-                        if hasattr(order_scene, "set_barista"):
-                            order_scene.set_barista(active_barista)
-                        order_scene.start(active_customer, level=progression.level)
-                        spawn_timer = 0.0
-                        ensure_game_music(start_screen)
-                    elif end_result == "main_menu":
-                        start_screen = StartScreen(screen)
-                        new_player_name = start_screen.run()
-                        if new_player_name is not None:
-                            player_name = new_player_name
-                            economy.player_name = player_name
-                            economy.load_economy_data()
-                            active_barista = choose_barista(screen, economy, player_name)
-                            if active_barista is None:
-                                running = False
-                                continue
-                            if hasattr(mixing_station, "set_barista"):
-                                mixing_station.set_barista(active_barista)
-                            if hasattr(order_scene, "set_barista"):
-                                order_scene.set_barista(active_barista)
-                            try:
-                                current_lvl = int(economy.level)
-                            except (ValueError, TypeError):
-                                current_lvl = 1
-                            progression.reset()
-                            progression.level = max(1, min(current_lvl, 3))
-                            progression.xp = max(0, int(economy.xp))
-                            reward_system.reset()
-                            mixing_station.reset()
-                            successful_drinks = 0
-                            total_successful_drinks = 0
-                            game_finished = False
-                            sync_level_systems(economy, progression, mixing_station)
-                            active_bg = load_level_background(progression.level)
-                            active_customer = refresh_customer(progression.level, mixing_station)
-                            if hasattr(order_scene, "set_barista"):
-                                order_scene.set_barista(active_barista)
-                            order_scene.start(active_customer, level=progression.level)
-                            spawn_timer = 0.0
-                            ensure_game_music(start_screen)
-                        else:
-                            running = False
-                    else:
-                        running = False
 
     if (
         running
-        and not game_finished
         and active_customer is not None
         and not mixing_station.challenge.paused
     ):
@@ -611,7 +546,7 @@ while running:
         except Exception as error:
             print(f"[CUSTOMER FINISHED ERROR] {error}")
 
-    if running and not game_finished and active_customer is None:
+    if running and active_customer is None:
         spawn_timer -= dt
         if spawn_timer <= 0:
             active_bg = load_level_background(progression.level)

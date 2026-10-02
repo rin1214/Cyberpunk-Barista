@@ -178,12 +178,11 @@ class GameEndScreen:
             (250, "SUCCESSFUL DRINKS", self.successful_drinks, PINK),
             (300, "FINAL LEVEL", self.level, PURPLE),
             (350, "TOTAL XP", self.xp, CYAN),
-            (400, "CREDITS EARNED", f"${self.credits}", GOLD),
+            (400, "CURRENT CREDITS", f"${self.credits}", GOLD),
         ):
             self.stat(*args)
         self.buttons.clear()
-        self.button("play_again", pygame.Rect(735, 555, 205, 58), "PLAY AGAIN", CYAN)
-        self.button("main_menu", pygame.Rect(955, 555, 205, 58), "MAIN MENU", PINK)
+        self.button("exit", pygame.Rect(842, 555, 220, 58), "EXIT TO DESKTOP", PINK)
 
     def draw(self):
         self.background()
@@ -195,7 +194,7 @@ class GameEndScreen:
                 self.result, self.running = "quit", False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.result, self.running = "main_menu", False
+                    self.result, self.running = "exit_to_desktop", False
                 elif event.key in (pygame.K_SPACE, pygame.K_RETURN) and self.phase < 3:
                     self.phase += 1
                     self.phase_start = pygame.time.get_ticks()
@@ -203,10 +202,8 @@ class GameEndScreen:
                 if self.phase < 3:
                     self.phase += 1
                     self.phase_start = pygame.time.get_ticks()
-                elif self.buttons.get("play_again", pygame.Rect(0, 0, 0, 0)).collidepoint(event.pos):
-                    self.result, self.running = "play_again", False
-                elif self.buttons.get("main_menu", pygame.Rect(0, 0, 0, 0)).collidepoint(event.pos):
-                    self.result, self.running = "main_menu", False
+                elif self.buttons.get("exit", pygame.Rect(0, 0, 0, 0)).collidepoint(event.pos):
+                    self.result, self.running = "exit_to_desktop", False
 
     def run(self, player_name="BARISTA", level=3, successful_drinks=0, xp=0, credits=0):
         self.player_name = str(player_name).upper()
