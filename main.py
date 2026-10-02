@@ -72,6 +72,15 @@ def ensure_game_music(start_screen=None):
             except (TypeError, ValueError):
                 volume = 0.30
             muted = bool(getattr(start_screen, "muted", False))
+        else:
+            # Keep the volume chosen in the F menu instead of resetting it to 30%
+            station = globals().get("mixing_station")
+            if station is not None:
+                try:
+                    volume = float(getattr(station, "music_volume", volume))
+                except (TypeError, ValueError):
+                    pass
+                muted = bool(getattr(station, "music_muted", False))
         volume = max(0.0, min(volume, 1.0))
         pygame.mixer.music.set_volume(0.0 if muted else volume)
         if pygame.mixer.music.get_busy():
@@ -423,7 +432,6 @@ while running:
         if active_customer is not None:
             active_customer.draw(screen)
         mixing_station.draw(screen)
-        economy.draw(combo_count=current_combo, dt=0.0)
         pygame.display.flip()
         continue
 
