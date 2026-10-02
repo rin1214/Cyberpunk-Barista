@@ -184,21 +184,21 @@ class MixingStation:
         ]
 
         # Customise panel + animated sliders
-        self.customise_rect = pygame.Rect(539, 390, 370, 300)
+        self.customise_rect = pygame.Rect(502, 390, 370, 300)
         tx, tw = self.customise_rect.x + 25, self.customise_rect.width - 50
         params_y = (("temperature", 475), ("caffeine", 550), ("sweetness", 625))
         self.slider_tracks   = {p: pygame.Rect(tx, y, tw, 12) for p, y in params_y}
         self.slider_hitboxes = {p: pygame.Rect(tx - 12, y - 23, tw + 24, 48) for p, y in params_y}
 
-        # Blender panel
-        self.blender_rect     = pygame.Rect(909,  390, 237, 300)
-        self.blender_jug_rect = pygame.Rect(948,  465, 158, 130)
-        self.blend_button     = pygame.Rect(930,  632, 195, 48)
+        # Blender panel (increased horizontal width by 10%: 237 -> 261)
+        self.blender_rect     = pygame.Rect(872,  390, 261, 300)
+        self.blender_jug_rect = pygame.Rect(self.blender_rect.centerx - 87, 465, 174, 130)
+        self.blend_button     = pygame.Rect(self.blender_rect.centerx - 107, 632, 215, 48)
 
-        # Cup-preview / serve panel
-        self.preview_rect       = pygame.Rect(1146, 390, 134, 300)
-        self.preview_image_rect = pygame.Rect(1155, 445, 117, 140)
-        self.serve_button       = pygame.Rect(1156, 632, 115, 48)
+        # Cup-preview / serve panel (increased horizontal width by 10%: 134 -> 147)
+        self.preview_rect       = pygame.Rect(1133, 390, 147, 300)
+        self.preview_image_rect = pygame.Rect(self.preview_rect.centerx - 64, 445, 129, 140)
+        self.serve_button       = pygame.Rect(self.preview_rect.centerx - 63, 632, 127, 48)
 
         # Pause/settings overlay modal
         mw, mh = 700, 590
@@ -763,7 +763,7 @@ class MixingStation:
         self._action_button(screen, self.serve_button, "SERVE", self.CYAN, ready, large=False)
 
     def _draw_cup_sequence(self, screen):
-        r     = pygame.Rect(self.preview_rect.x + 24, 455, 86, 125)
+        r     = pygame.Rect(self.preview_rect.centerx - 47, 455, 95, 125)
         cx    = r.centerx
         phase = self.assembly_phase
 
@@ -786,7 +786,7 @@ class MixingStation:
 
         if phase in ("ice", "pour", "topping"):
             for i in range(5):
-                pygame.draw.rect(screen, (205, 235, 250), (r.x + 18 + (i % 2) * 25, r.y + 18 + (i // 2) * 24, 15, 12), border_radius=3)
+                pygame.draw.rect(screen, (205, 235, 250), (r.x + 20 + (i % 2) * 28, r.y + 18 + (i // 2) * 24, 15, 12), border_radius=3)
 
         if phase in ("pour", "topping") and self.player_drink.drink_name:
             recipe = get_recipe(self.player_drink.drink_name)
