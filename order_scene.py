@@ -19,7 +19,9 @@ class OrderScene:
         self.ready = False
         # True when the player has manually skipped the current typewriter text.
         self.dialogue_skipped = False
+        self.clue_drink = ""
 
+        # Clickable areas for the existing skip/continue hints.
         # Keep these aligned with the hint text drawn in the dialogue bubbles.
         self.customer_skip_rect = pygame.Rect(160, 188, 480, 38)
         self.barista_skip_rect = pygame.Rect(640, 188, 480, 38)
@@ -54,6 +56,7 @@ class OrderScene:
         if os.path.exists(path):
             try:
                 raw = pygame.image.load(path).convert_alpha()
+                # Small order-scene portrait: behind the counter, not a giant foreground sprite.
                 self.barista_image = pygame.transform.smoothscale(raw, (285, 285))
                 print(f"[ORDER SCENE] Loaded {self.barista_name} avatar.")
             except pygame.error as error:
@@ -80,7 +83,7 @@ class OrderScene:
         return None
 
     def _load_all_back_customer_sprites(self):
-        #Loads back-facing sprites for all 6 cyberpunk customers
+        """Loads back-facing sprites for all 6 cyberpunk archetypes including the Cyberpunk Cat & Corp Spy."""
         archetypes = ["runner", "hacker", "exec", "drone_pilot", "corp_spy", "cyberpunk_cat"]
         sprites = {}
         for ctype in archetypes:
@@ -140,11 +143,46 @@ class OrderScene:
                     self.customer.image = back_img
 
         self.customer_text = self._make_customer_text(customer)
-        self.barista_text = "Got it! Logging recipe parameters into the brew queue now..."
+        self.barista_text = "Let me think... I think I know what you mean. I'll make it."
 
     def _make_customer_text(self, customer):
+        # The customer gives clues instead of saying the drink name. The
+        # actual order values remain unchanged, so the existing mixing and
+        # accuracy systems continue to use the same customer order.
         o = customer.order
-        return f"Hi! Can I get one {o.drink}, temperature {o.temperature.lower()}, {o.caffeine.lower()} caffeine, and {o.sweetness.lower()} sweet?"
+        ingredient_clues = {
+            "Neon Latte": "a smooth coffee taste with a creamy finish",
+            "Milkyway": "something creamy with a little chocolate comfort",
+            "Void Chai": "something warm and gently spiced",
+            "Cyber Fuel": "something powerful that feels like an energy boost",
+            "Hologram Frappe": "something cold, colourful and fun",
+            "Pixel Lemint": "something cool and refreshing with a minty kick",
+            "Stardust Matcha": "something earthy, smooth and calming",
+            "Caramel Byte": "something rich, sweet and caramel-like",
+            "Meteorite": "something cold with a strong, futuristic kick",
+        }
+        temp_clues = {
+            "Hot": "warm", "Cold": "chilled", "Normal": "balanced in temperature"
+        }
+        caffeine_clues = {
+            "Low": "I don't need much of a caffeine hit",
+            "Normal": "a normal caffeine kick would be fine",
+            "High": "I really need the caffeine to wake me up",
+        }
+        sweet_clues = {
+            "Less": "and please keep the sweetness light",
+            "Normal": "with a balanced sweetness",
+            "Extra": "and don't hold back on the sweetness",
+        }
+        drink_hint = ingredient_clues.get(o.drink, "something that fits the mood I'm after")
+        temp = temp_clues.get(o.temperature, "the right temperature")
+        caffeine = caffeine_clues.get(o.caffeine, "a suitable caffeine level")
+        sweet = sweet_clues.get(o.sweetness, "the sweetness just right")
+        self.clue_drink = o.drink
+        return (
+            f"Hi! I'm after {drink_hint}. Make it {temp}. "
+            f"{caffeine}, {sweet}."
+        )
 
     def handle_event(self, event):
         """Processes clicks or keypresses to skip text typing or advance dialogues."""
@@ -160,6 +198,8 @@ class OrderScene:
             if event.button != 1:
                 return
 
+            # Any left-click anywhere on the order scene skips/advances.
+            # No need to click the dialogue box or hint text specifically.
             self._handle_advance()
 
     def _handle_advance(self):
@@ -205,6 +245,7 @@ class OrderScene:
         self.t += dt
         
         if self.phase == 0:
+            # Do not overwrite a manual click-to-skip with the typewriter timer.
             if not self.dialogue_skipped:
                 self.shown = int(self.t * 18)
                 if self.shown >= len(self.customer_text):
@@ -265,7 +306,7 @@ class OrderScene:
         if self.barista_image is None:
             return
 
-        # Keep the character staff behind the counter.
+        # Keep the character compact enough to read as staff behind the counter.
         target_w, target_h = 235, 235
         image = pygame.transform.smoothscale(
             self.barista_image, (target_w, target_h)
@@ -279,7 +320,7 @@ class OrderScene:
         screen.blit(image, rect)
         screen.set_clip(old_clip)
 
-        # name of barista
+        # Put the name below the counter, like the customer's name.
         self._label(
             screen,
             self.barista_name.upper(),
@@ -289,31 +330,40 @@ class OrderScene:
         )
 
     def _draw_customer_bubble(self, screen):
-        bx, by, bw, bh = 140, 80, 520, 145
+        bx, by, bw = 140, 80, 520
+        current_text = self.customer_text[:self.shown]
+        lines = self._wrap_lines(current_text, bw - 40)
+        hint = "► CLICK TO SKIP / CONTINUE"
+        # Size the bubble from the actual wrapped dialogue so long clues never
+        # collide with the skip/continue hint.
+        bh = max(145, 76 + len(lines) * 24 + 40)
         bubble_rect = pygame.Rect(bx, by, bw, bh)
         pygame.draw.rect(screen, (10, 18, 40), bubble_rect, border_radius=16)
         pygame.draw.rect(screen, self.accent, bubble_rect, width=2, border_radius=16)
         screen.blit(self.big.render("CUSTOMER ORDER", True, self.pink), (bx + 20, by + 12))
-        current_text = self.customer_text[:self.shown]
-        self._wrap(screen, current_text, bx + 20, by + 48, bw - 40)
-        
-        hint = "► CLICK TO SKIP / CONTINUE"
-        screen.blit(self.small.render(hint, True, self.accent), (bx + 20, by + 112))
+        self._draw_wrapped_lines(screen, lines, bx + 20, by + 48)
+
+        hint_y = by + 48 + len(lines) * 24 + 8
+        screen.blit(self.small.render(hint, True, self.accent), (bx + 20, hint_y))
         points = [(390, bubble_rect.bottom), (420, bubble_rect.bottom), (405, bubble_rect.bottom + 16)]
         pygame.draw.polygon(screen, (10, 18, 40), points)
         pygame.draw.line(screen, self.accent, (390, bubble_rect.bottom), (405, bubble_rect.bottom + 16), 2)
         pygame.draw.line(screen, self.accent, (405, bubble_rect.bottom + 16), (420, bubble_rect.bottom), 2)
 
     def _draw_barista_bubble(self, screen):
-        bx, by, bw, bh = 620, 80, 520, 145
+        bx, by, bw = 620, 80, 520
+        current_text = self.barista_text[:self.shown]
+        lines = self._wrap_lines(current_text, bw - 40)
+        hint = "► CLICK TO START MIXING" if self.ready else "► CLICK TO SKIP"
+        bh = max(145, 76 + len(lines) * 24 + 40)
         bubble_rect = pygame.Rect(bx, by, bw, bh)
         pygame.draw.rect(screen, (20, 12, 40), bubble_rect, border_radius=16)
         pygame.draw.rect(screen, self.pink, bubble_rect, width=2, border_radius=16)
         screen.blit(self.big.render("BARISTA RESPONSE", True, self.accent), (bx + 20, by + 12))
-        current_text = self.barista_text[:self.shown]
-        self._wrap(screen, current_text, bx + 20, by + 48, bw - 40)
-        hint = "► CLICK TO START MIXING" if self.ready else "► CLICK TO SKIP"
-        screen.blit(self.small.render(hint, True, self.accent), (bx + 20, by + 112))
+        self._draw_wrapped_lines(screen, lines, bx + 20, by + 48)
+
+        hint_y = by + 48 + len(lines) * 24 + 8
+        screen.blit(self.small.render(hint, True, self.accent), (bx + 20, hint_y))
         points = [(830, bubble_rect.bottom), (860, bubble_rect.bottom), (845, bubble_rect.bottom + 16)]
         pygame.draw.polygon(screen, (20, 12, 40), points)
         pygame.draw.line(screen, self.pink, (830, bubble_rect.bottom), (845, bubble_rect.bottom + 16), 2)
@@ -324,20 +374,29 @@ class OrderScene:
         s = self.font.render(text, True, (235, 245, 255))
         screen.blit(s, s.get_rect(center=(640, 30)))
 
-    def _wrap(self, screen, text, x, y, width):
+    def _wrap_lines(self, text, width):
         words = text.split()
+        lines = []
         line = ""
-        yy = y
         for word in words:
             test = (line + " " + word).strip()
-            if self.font.size(test)[0] > width:
-                screen.blit(self.font.render(line, True, (225, 235, 250)), (x, yy))
-                yy += 24
+            if line and self.font.size(test)[0] > width:
+                lines.append(line)
                 line = word
             else:
                 line = test
         if line:
-            screen.blit(self.font.render(line, True, (225, 235, 250)), (x, yy))
+            lines.append(line)
+        return lines
+
+    def _draw_wrapped_lines(self, screen, lines, x, y):
+        for index, line in enumerate(lines):
+            screen.blit(self.font.render(line, True, (225, 235, 250)), (x, y + index * 24))
+
+    def _wrap(self, screen, text, x, y, width):
+        # Kept for compatibility with any existing callers.
+        lines = self._wrap_lines(text, width)
+        self._draw_wrapped_lines(screen, lines, x, y)
 
     def _label(self, screen, text, x, y, color):
         s = self.small.render(text, True, color)
