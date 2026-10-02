@@ -98,6 +98,7 @@ class MixingStation:
         self.exit_requested        = False
         self.return_start_requested = False
         self.show_menu_overlay     = False
+        self.show_recipes_overlay  = False
         self.slider_speeds = {"temperature": 0.62, "caffeine": 0.74, "sweetness": 0.86}
         self._reset_sliders()
 
@@ -164,9 +165,14 @@ class MixingStation:
         self.hud_rect = pygame.Rect(8, 4, 730, 52)
 
         # Top-bar navigation buttons
-        self.menu_button        = pygame.Rect(750,  6, 130, 44)
-        self.map_button         = pygame.Rect(890,  6, 120, 44)
-        self.leaderboard_button = pygame.Rect(1020, 6, 200, 44)
+        # Keep MENU for the existing settings/pause feature and add a separate
+        # RECIPES button for the new read-only recipe book.
+        self.menu_button        = pygame.Rect(750,  6, 90, 44)
+        self.recipes_button     = pygame.Rect(845, 6, 110, 44)
+        self.map_button         = pygame.Rect(960, 6, 100, 44)
+        self.leaderboard_button = pygame.Rect(1065, 6, 155, 44)
+        self.recipes_overlay = pygame.Rect(70, 55, 1140, 610)
+        self.recipes_close_button = pygame.Rect(1030, 80, 145, 38)
 
         # Drink-selection menu row
         self.menu_rect  = pygame.Rect(440, 72, 840, 177)
@@ -416,6 +422,16 @@ class MixingStation:
             elif event.key == pygame.K_l and not self.show_menu_overlay:
                 self.leaderboard_requested = True; return
 
+        if self.show_recipes_overlay:
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_r):
+                self.show_recipes_overlay = False
+                return
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.recipes_close_button.collidepoint(event.pos):
+                    self.show_recipes_overlay = False
+                return
+            return
+
         if self.show_menu_overlay:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse = event.pos
@@ -434,7 +450,8 @@ class MixingStation:
         if self.challenge.active:
             self.challenge.handle_event(event); return
 
-        if   self.menu_button.collidepoint(mouse):        self.show_menu_overlay = True; return
+        if   self.recipes_button.collidepoint(mouse):     self.show_recipes_overlay = True; return
+        elif self.menu_button.collidepoint(mouse):        self.show_menu_overlay = True; return
         elif self.map_button.collidepoint(mouse):         self.map_requested = True; return
         elif self.leaderboard_button.collidepoint(mouse): self.leaderboard_requested = True; return
 
@@ -473,12 +490,59 @@ class MixingStation:
         self.challenge.draw(screen)
         if self.show_menu_overlay:
             self._draw_audio_menu_overlay(screen)
+        if self.show_recipes_overlay:
+            self._draw_recipes_overlay(screen)
 
     def _draw_hud(self, screen):
         if self.show_menu_overlay: return
         self._action_button(screen, self.menu_button,        "MENU  [F]",         self.YELLOW, True, large=False)
+        self._action_button(screen, self.recipes_button,     "RECIPES",            self.CYAN,   True, large=False)
         self._action_button(screen, self.map_button,         "MAP  [M]",           self.CYAN,   True, large=False)
         self._action_button(screen, self.leaderboard_button, "LEADERBOARD  [L]",   self.PINK,   True, large=False)
+
+    def _draw_recipes_overlay(self, screen):
+        # Read-only recipe book: it never changes gameplay state.
+        dim = pygame.Surface((self.WIDTH, self.HEIGHT), pygame.SRCALPHA)
+        dim.fill((2, 4, 12, 225))
+        screen.blit(dim, (0, 0))
+        self._panel(screen, self.recipes_overlay, self.PINK, (7, 12, 32, 248), radius=20, width=2)
+        title = self.font_big_title.render("CYBER CAFÉ RECIPES", True, self.CYAN_LIGHT)
+        screen.blit(title, title.get_rect(center=(640, 88)))
+        sub = self.font_small.render("Study the profiles before choosing a drink from the menu.", True, self.SOFT_WHITE)
+        screen.blit(sub, sub.get_rect(center=(640, 114)))
+        self._action_button(screen, self.recipes_close_button, "CLOSE", self.PINK, True, large=False)
+
+        profiles = {
+            "Neon Latte": "coffee • creamy • smooth",
+            "Milkyway": "creamy • chocolate • comforting",
+            "Void Chai": "spiced • warm • rich",
+            "Cyber Fuel": "energy • powerful • futuristic",
+            "Hologram Frappe": "cold • colourful • playful",
+            "Pixel Lemint": "minty • refreshing • cool",
+            "Caramel Byte": "caramel • rich • sweet",
+            "Stardust Matcha": "earthy • smooth • calming",
+            "Meteorite": "cold • intense • futuristic",
+        }
+        unlocked = [d for d in DRINK_MENU if is_drink_unlocked(d, self.level)]
+        for i, drink_name in enumerate(unlocked):
+            col, row = i % 3, i // 3
+            rect = pygame.Rect(105 + col * 365, 145 + row * 165, 340, 155)
+            self._panel(screen, rect, self.CYAN, (9, 18, 40, 235), radius=12, width=1)
+            name = self.font_medium.render(drink_name.upper(), True, self.PINK_LIGHT)
+            screen.blit(name, (rect.x + 14, rect.y + 12))
+            recipe = get_recipe(drink_name)
+            toppings = " • ".join(str(t).replace("_", " ").title() for t in (recipe.toppings if recipe else ())) or "No topping"
+            profile = profiles.get(drink_name, "specialty cyber café drink")
+            price = recipe.price if recipe else "-"
+            unlock_level = recipe.unlock_level if recipe else self.level
+            self._recipe_line(screen, "PROFILE", profile, rect.x + 14, rect.y + 46)
+            self._recipe_line(screen, "TOPPING", toppings, rect.x + 14, rect.y + 74)
+            self._recipe_line(screen, "LEVEL", str(unlock_level), rect.x + 14, rect.y + 102)
+            self._recipe_line(screen, "PRICE", f"${price}", rect.x + 14, rect.y + 126)
+
+    def _recipe_line(self, screen, label, value, x, y):
+        surf = self.font_small.render(f"{label}: {value}", True, self.SOFT_WHITE)
+        screen.blit(surf, (x, y))
 
     def _draw_audio_menu_overlay(self, screen):
         """Full-screen pause/settings overlay with audio controls and menu actions."""

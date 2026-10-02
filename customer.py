@@ -305,16 +305,36 @@ class Customer:
         
         pygame.draw.rect(screen, (0, 225, 255), bubble_rect, width=2, border_radius=sy(12))
         
-        header = self.font_order.render(f"ORDER: {self.current_type.upper()}", True, (255, 110, 220))
+        header = self.font_order.render(f"CUSTOMER: {self.current_type.upper()}", True, (255, 110, 220))
         screen.blit(header, (bubble_rect.x + sx(12), bubble_rect.y + sy(8)))
         pygame.draw.line(screen, (55, 90, 120), (bubble_rect.x + sx(12), bubble_rect.y + sy(27)), (bubble_rect.right - sx(12), bubble_rect.y + sy(27)), width=1)
         
+        # Show clues instead of revealing the requested drink name.
+        # Keep the existing customer name, patience timer and patience bar unchanged.
+        drink_profiles = {
+            "Neon Latte": "smooth coffee + creamy",
+            "Milkyway": "creamy + chocolate",
+            "Void Chai": "warm + spiced",
+            "Cyber Fuel": "powerful + energy boost",
+            "Hologram Frappe": "cold + colourful + fun",
+            "Pixel Lemint": "cool + refreshing + minty",
+            "Stardust Matcha": "earthy + smooth + calming",
+            "Caramel Byte": "rich + sweet + caramel",
+            "Meteorite": "cold + strong futuristic kick",
+        }
+
+        hint = drink_profiles.get(
+            self.order.drink,
+            "something that fits the customer's mood"
+        )
+
         order_lines = [
-            ("DRINK", self.order.drink),
+            ("HINT", hint),
             ("TEMP", self.order.temperature),
             ("CAFFEINE", self.order.caffeine),
             ("SWEETNESS", self.order.sweetness),
         ]
+
         text_y = bubble_rect.y + sy(34)
         for label, value in order_lines:
             label_surface = self.font_small.render(label, True, (120, 145, 170))
