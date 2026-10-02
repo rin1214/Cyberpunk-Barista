@@ -80,7 +80,7 @@ class MiniChallenge:
         self.panel = pygame.Rect(280, 92, 720, 540)
         self.exit_button = pygame.Rect(928, 162, 58, 28)
         self.pause_button = pygame.Rect(846, 162, 76, 28)
-        self.guide_button = pygame.Rect(756, 162, 84, 28)
+        self.guide_button = pygame.Rect(928, 126, 58, 28)
         self.grid = pygame.Rect(473, 275, 334, 334)
 
         self.ft = pygame.font.SysFont("arial", 29, True)
@@ -129,14 +129,14 @@ class MiniChallenge:
         self.debris_list = []
         self.spawn_timer = 0
         self.blocked_count = 0
-        self.target_blocked = 10
+        self.target_blocked = 15
 
         self.player_lane = 1
         self.barriers = []
         self.barrier_timer = 0
         self.key_cooldown = 0.0
         self.dodged_count = 0
-        self.target_dodged = 10
+        self.target_dodged = 15
         self.last_open_lane = -1
 
         # Level 3
@@ -144,7 +144,7 @@ class MiniChallenge:
         self.solder_path = []
         self.glitch_tiles = set()
         self.solder_connections = 0
-        self.target_connections = 3
+        self.target_connections = 5
         self.glitch_timer = 0.0
         self.pulse_phase = 0.0
 
@@ -156,7 +156,7 @@ class MiniChallenge:
         self.dash_speed = 340.0
         self.dash_score = 0
         self.dash_combo = 0
-        self.target_dash_score = 1200
+        self.target_dash_score = 2800
 
         self.aim_targets = []
         self.aim_targets_left = 20
@@ -164,7 +164,7 @@ class MiniChallenge:
         self.aim_score = 0
         self.aim_best_combo = 0
         self.aim_spawn_timer = 0.0
-        self.target_aim_score = 2200
+        self.target_aim_score = 3800
 
         self.rhythm_notes = []
         self.rhythm_spawn_timer = 0.0
@@ -172,7 +172,7 @@ class MiniChallenge:
         self.rhythm_combo = 0
         self.rhythm_score = 0
         self.rhythm_speed = 320.0
-        self.target_rhythm_score = 2500
+        self.target_rhythm_score = 5000
 
     # ---------------- EFFECTS ----------------
 
@@ -231,8 +231,8 @@ class MiniChallenge:
 
         elif drink_name == "Hologram Frappe":
             self.level_mode = "WASD_RUN"
-            self.time_left = 999.0   # no timer: this challenge is target based
-            self.target_dodged = 10
+            self.time_left = 999.0  
+            self.target_dodged = 15
             self.dodged_count = 0
             self.message = ""
             self.player_lane, self.barriers, self.barrier_timer = 1, [], 0
@@ -241,8 +241,8 @@ class MiniChallenge:
 
         elif drink_name == "Pixel Lemint":
             self.level_mode = "SOLDER"
-            self.time_left = 999.0   # no timer: this challenge is target based
-            self.target_connections = 3
+            self.time_left = 999.0  
+            self.target_connections = 5
             self.message = ""
             self.solder_connections = 0
             self._reset_solder_board()
@@ -295,8 +295,6 @@ class MiniChallenge:
         self.solder_path = []
         self.is_soldering = False
 
-        # Glitch tiles only live in the middle columns. Keep generating until
-        # the board is guaranteed solvable (green side can reach blue side).
         interior = [
             (r, c) for r in range(self.N) for c in range(1, self.N - 1)
         ]
@@ -450,7 +448,7 @@ class MiniChallenge:
             if f["life"] <= 0:
                 self.floating_texts.remove(f)
 
-        if self.level_mode not in ("DEFLECT", "SOLDER", "WASD_RUN"):
+        if self.level_mode not in ("DEFLECT", "WASD_RUN", "SOLDER", "NEON_DASH", "AIM_RUSH", "RHYTHM_RUSH"):
             self.time_left = max(0, self.time_left - dt)
             if self.time_left <= 0:
                 self._check_win_condition()
@@ -466,6 +464,20 @@ class MiniChallenge:
 
         if self.level_mode in updates:
             updates[self.level_mode](dt)
+
+        # Level 2 and Level 3 are target-based only.
+        # Finish only when the required target is actually achieved.
+        if not self.done:
+            target_reached = {
+                "DEFLECT": self.blocked_count >= self.target_blocked,
+                "WASD_RUN": self.dodged_count >= self.target_dodged,
+                "SOLDER": self.solder_connections >= self.target_connections,
+                "NEON_DASH": self.dash_score >= self.target_dash_score,
+                "AIM_RUSH": self.aim_score >= self.target_aim_score,
+                "RHYTHM_RUSH": self.rhythm_score >= self.target_rhythm_score,
+            }
+            if target_reached.get(self.level_mode, False):
+                self._finish()
 
         return False
 
@@ -488,7 +500,7 @@ class MiniChallenge:
     # ---------------- NEON DASH ----------------
 
     def _start_neon_dash(self):
-        self.time_left = 18
+        self.time_left = 999.0
         self.dash_player_y = 535
         self.dash_velocity = 0
         self.dash_on_ground = True
@@ -612,17 +624,17 @@ class MiniChallenge:
         self._text(
             screen,
             f"SCORE {self.dash_score} / {self.target_dash_score}",
-            self.fs, self.accent, 300
+            self.fs, self.accent, 220
         )
         self._text(
             screen, f"COMBO x{self.dash_combo}",
-            self.fs, (255, 230, 120), 325
+            self.fs, (255, 230, 120), 240
         )
 
     # ---------------- AIM RUSH ----------------
 
     def _start_aim_rush(self):
-        self.time_left = 20
+        self.time_left = 999.0
         self.aim_targets = []
         self.aim_targets_left = 20
         self.aim_combo = 0
@@ -752,18 +764,18 @@ class MiniChallenge:
         self._text(
             screen,
             f"SCORE {self.aim_score} / {self.target_aim_score}",
-            self.fs, self.accent, 300
+            self.fs, self.accent, 220
         )
         self._text(
             screen,
             f"COMBO x{self.aim_combo}",
-            self.fs, (255, 230, 120), 325
+            self.fs, (255, 230, 120), 240
         )
 
     # ---------------- RHYTHM ----------------
 
     def _start_rhythm_rush(self):
-        self.time_left = 22
+        self.time_left = 999.0
         self.rhythm_notes = []
         self.rhythm_spawn_timer = 0.2
         self.rhythm_hit_count = 0
@@ -912,7 +924,7 @@ class MiniChallenge:
             f"SCORE {self.rhythm_score} / {self.target_rhythm_score}",
             self.fs,
             self.accent,
-            300
+            220
         )
 
         self._text(
@@ -920,7 +932,7 @@ class MiniChallenge:
             f"COMBO x{self.rhythm_combo}",
             self.fs,
             (255, 230, 120),
-            325
+            240
         )
 
     # ---------------- DEFLECT ----------------
@@ -1273,7 +1285,7 @@ class MiniChallenge:
                 int(f["y"])
             )
 
-        if self.level_mode not in ("DEFLECT", "SOLDER", "WASD_RUN"):
+        if self.level_mode not in ("DEFLECT", "WASD_RUN", "SOLDER", "NEON_DASH", "AIM_RUSH", "RHYTHM_RUSH"):
             seconds = max(
                 0,
                 int(self.time_left + 0.999)
@@ -1432,7 +1444,7 @@ class MiniChallenge:
                     [
                         "Move the shield with your mouse.",
                         "Block incoming debris before it hits the core.",
-                        "Block 10 objects to complete the challenge."
+                        "Block 15 objects to complete the challenge."
                     ]
                 ),
                 "WASD_RUN": (
@@ -1440,7 +1452,7 @@ class MiniChallenge:
                     [
                         "Use A / D or LEFT / RIGHT to change lanes.",
                         "Avoid the barriers and keep moving forward.",
-                        "Dodge 10 barriers to complete the challenge."
+                        "Dodge 15 barriers to complete the challenge."
                     ]
                 ),
                 "SOLDER": (
@@ -1448,7 +1460,7 @@ class MiniChallenge:
                     [
                         "Click and drag from IN to OUT to connect the circuit.",
                         "Avoid the red glitch tiles while drawing the path.",
-                        "Complete 3 connections to finish."
+                        "Complete 5 connections to finish."
                     ]
                 ),
                 "NEON_DASH": (
@@ -1456,7 +1468,8 @@ class MiniChallenge:
                     [
                         "Press SPACE / W / UP or click to jump.",
                         "Jump over spikes and drones without crashing.",
-                        "Reach 1,200 points to complete the challenge."
+                        "Reach 2,800 points to complete the challenge.",
+                        "TARGET BASED — NO TIMER. Misses and crashes cost score/combo."
                     ]
                 ),
                 "AIM_RUSH": (
@@ -1464,7 +1477,8 @@ class MiniChallenge:
                     [
                         "Click the bright targets as quickly as possible.",
                         "Avoid the red X / danger targets.",
-                        "Reach 2,200 points to complete the challenge."
+                        "Reach 3,800 points to complete the challenge.",
+                        "TARGET BASED — NO TIMER. Avoid danger targets and keep your combo."
                     ]
                 ),
                 "RHYTHM_RUSH": (
@@ -1472,7 +1486,8 @@ class MiniChallenge:
                     [
                         "Click the matching lane when each note reaches the hit line.",
                         "Use your mouse to hit the notes accurately.",
-                        "Reach 2,500 points to complete the challenge."
+                        "Reach 5,000 points to complete the challenge.",
+                        "TARGET BASED — NO TIMER. Accuracy and combo are critical."
                     ]
                 ),
             }
