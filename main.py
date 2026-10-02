@@ -58,7 +58,7 @@ def load_level_background(level_num):
         bg_cache[level_num] = fallback
         return fallback
 
-MUSIC_FILE = os.path.join(PROJECT_ROOT, "assets", "mahirah", "audio", "cyberpunk_cafe_theme.wav")
+MUSIC_FILE = os.path.join(PROJECT_ROOT, "assets", "audio", "cyberpunk_cafe_theme.wav")
 
 def ensure_game_music(start_screen=None):
     try:

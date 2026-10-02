@@ -19,7 +19,7 @@ class MapScreen:
         self.clock = pygame.time.Clock()
         self.t, self.hover = 0, None
         root = project_root or os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(root, "assets", "mahirah", "ui", "district_map_bg.png")
+        path = os.path.join(root, "assets", "ui", "district_map_bg.png")
 
         try:
             self.bg = pygame.image.load(path).convert()

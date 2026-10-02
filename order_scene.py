@@ -41,7 +41,7 @@ class OrderScene:
     def _load_selected_barista(self):
         project_root = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(
-            project_root, "assets", "mahirah", "baristas",
+            project_root, "assets", "baristas",
             f"{self.barista_name.lower()}.png"
         )
         self.barista_image = None
