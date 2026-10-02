@@ -246,14 +246,18 @@ class MiniChallenge:
         elif drink_name == "Meteorite":
             self.level_mode = "NEON_DASH"
             self._start_neon_dash()
+            # Show the mini-game guide before Level 3 gameplay starts.
+            self.show_guide = True
 
         elif drink_name == "Stardust Matcha":
             self.level_mode = "AIM_RUSH"
             self._start_aim_rush()
+            self.show_guide = True
 
         elif drink_name == "Caramel Byte":
             self.level_mode = "RHYTHM_RUSH"
             self._start_rhythm_rush()
+            self.show_guide = True
 
         else:
             # Level 1
@@ -325,14 +329,9 @@ class MiniChallenge:
                 self._aim_click(*event.pos)
 
         elif self.level_mode == "RHYTHM_RUSH":
-            if event.type == pygame.KEYDOWN:
-                keys = {
-                    pygame.K_a: 0, pygame.K_s: 1,
-                    pygame.K_d: 2, pygame.K_f: 3
-                }
-                if event.key in keys:
-                    self._rhythm_press(keys[event.key])
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Mouse-only controls for Caramel Byte / RHYTHM BLITZ.
+            # Keyboard A/S/D/F input has been intentionally removed.
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._rhythm_press(
                     max(0, min(3, int((event.pos[0] - 500) / 70)))
                 )
@@ -1377,20 +1376,81 @@ class MiniChallenge:
             )
 
         else:
+            guide_data = {
+                "DEFLECT": (
+                    "DEFLECTION FIELD",
+                    [
+                        "Move the shield with your mouse.",
+                        "Block incoming debris before it hits the core.",
+                        "Block 12 objects to complete the challenge."
+                    ]
+                ),
+                "WASD_RUN": (
+                    "OVERDRIVE RUN",
+                    [
+                        "Use A / D or LEFT / RIGHT to change lanes.",
+                        "Avoid the barriers and keep moving forward.",
+                        "Dodge 14 barriers to complete the challenge."
+                    ]
+                ),
+                "SOLDER": (
+                    "QUANTUM SOLDER",
+                    [
+                        "Click and drag from IN to OUT to connect the circuit.",
+                        "Avoid glitch tiles while drawing the path.",
+                        "Complete 5 connections to finish."
+                    ]
+                ),
+                "NEON_DASH": (
+                    "NEON DASH EXTREME",
+                    [
+                        "Press SPACE / W / UP or click to jump.",
+                        "Jump over spikes and drones without crashing.",
+                        "Reach 1,200 points to complete the challenge."
+                    ]
+                ),
+                "AIM_RUSH": (
+                    "HYPER FLICK AIM ARENA",
+                    [
+                        "Click the bright targets as quickly as possible.",
+                        "Avoid the red X / danger targets.",
+                        "Reach 2,200 points to complete the challenge."
+                    ]
+                ),
+                "RHYTHM_RUSH": (
+                    "RHYTHM BLITZ",
+                    [
+                        "Click the matching lane when each note reaches the hit line.",
+                        "Use your mouse to hit the notes accurately.",
+                        "Reach 2,500 points to complete the challenge."
+                    ]
+                ),
+            }
+
+            title, lines = guide_data.get(
+                self.level_mode,
+                (
+                    "LEVEL GUIDE",
+                    ["Follow the on-screen instructions to complete the challenge."]
+                )
+            )
+
             self._text(
                 screen,
-                "LEVEL GUIDE",
+                title,
                 self.ft,
                 (245, 248, 255),
                 305
             )
-            self._text(
-                screen,
-                "Instructions for this level can be added here.",
-                self.fs,
-                (210, 218, 240),
-                355
-            )
+
+            for index, line in enumerate(lines):
+                self._text(
+                    screen,
+                    line,
+                    self.fs,
+                    (210, 218, 240),
+                    350 + index * 34
+                )
 
         button = pygame.Rect(
             565, 500, 150, 40
