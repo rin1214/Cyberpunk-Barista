@@ -8,3 +8,5 @@ venv/
 *.log
 .vscode/
 save_data.json
+barista_unlocks.json
+barista_unlocks_backup.json
