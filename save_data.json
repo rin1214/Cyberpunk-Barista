@@ -304,8 +304,8 @@
         }
     },
     "sue": {
-        "credits": 105,
-        "xp": 40,
+        "credits": 115,
+        "xp": 120,
         "level": 1,
         "location": "Back Alley Kiosk",
         "unlocked_levels": {
