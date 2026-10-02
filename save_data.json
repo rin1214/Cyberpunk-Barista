@@ -1,16 +1,5 @@
 {
     "lucy": {
-        "credits": 90,
-        "xp": 0,
-        "level": 1,
-        "location": "Back Alley Kiosk",
-        "unlocked_levels": {
-            "1": true,
-            "2": false,
-            "3": false
-        }
-    },
-    "kiki": {
         "credits": 100,
         "xp": 0,
         "level": 1,
@@ -21,9 +10,9 @@
             "3": false
         }
     },
-    "Lucy": {
-        "credits": 100,
-        "xp": 0,
+    "mimi": {
+        "credits": 110,
+        "xp": 80,
         "level": 1,
         "location": "Back Alley Kiosk",
         "unlocked_levels": {
@@ -32,7 +21,7 @@
             "3": false
         }
     },
-    "aila": {
+    "lia": {
         "credits": 100,
         "xp": 0,
         "level": 1,
