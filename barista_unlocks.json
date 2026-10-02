@@ -1,5 +1,11 @@
 {
-  "Ryu": true,
-  "Kira": true,
-  "Jax": false
+  "players": {
+    "lucy": {
+      "unlocked": [
+        "Ryu",
+        "Kira"
+      ],
+      "selected": "Kira"
+    }
+  }
 }
