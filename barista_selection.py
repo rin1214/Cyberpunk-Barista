@@ -7,7 +7,7 @@ import time
 
 import pygame
 
-# ── Barista roster ─────────────────────────────────────────────────────────────
+#  Barista roster
 BARISTA_DATA = {
     "Ryu": {
         "cost": 0,
@@ -39,7 +39,7 @@ BARISTAS        = ("Ryu", "Kira", "Jax")
 SAVE_FILE       = "barista_unlocks.json"
 BACKGROUND_FILE = "barista_selection_bg.jpg"
 
-# ── Shared palette (mirrors MixingStation) ─────────────────────────────────────
+# Shared palette (mirrors MixingStation) 
 _CYAN   = (75,  225, 255)
 _PINK   = (255, 80,  190)
 _YELLOW = (255, 220, 100)
@@ -50,7 +50,7 @@ _DARK   = (5,   8,   22)
 
 
 class BaristaSelection:
-    """Barista selection screen — on-theme with the game's cyberpunk aesthetic."""
+    """Barista selection screen """
 
     WIDTH, HEIGHT = 1280, 720
 
@@ -86,7 +86,7 @@ class BaristaSelection:
         self._load_background()
         self._load_avatars()
 
-    # ── Fonts ──────────────────────────────────────────────────────────────────
+    # Fonts 
 
     def _init_fonts(self):
         pygame.font.init()
@@ -120,7 +120,7 @@ class BaristaSelection:
         self.font_selected = F(bold_path, 16)   # selected banner
         self.font_status   = F(med_path,  12)   # status message
 
-    # ── Save / load ────────────────────────────────────────────────────────────
+    # Save / load 
 
     @staticmethod
     def _normalise_name(name):
@@ -206,7 +206,7 @@ class BaristaSelection:
             print(f"[BARISTA] Credit update failed: {e}")
             return False
 
-    # ── Assets ─────────────────────────────────────────────────────────────────
+    # Assets  
 
     def _load_background(self):
         path = os.path.join(self.root, "assets", "baristas", BACKGROUND_FILE)
@@ -225,7 +225,7 @@ class BaristaSelection:
             except (pygame.error, FileNotFoundError):
                 self.avatars[name] = None
 
-    # ── Draw helpers ───────────────────────────────────────────────────────────
+    # Draw helpers
 
     def _pulse(self, speed=2.0, lo=0.5, hi=1.0):
         t = time.monotonic() - self._t0
@@ -268,7 +268,7 @@ class BaristaSelection:
             pygame.draw.line(s, (0, 0, 0, alpha), (0, y), (rect.width, y))
         self.screen.blit(s, rect.topleft)
 
-    # ── Card ───────────────────────────────────────────────────────────────────
+    # Card 
 
     def _draw_card(self, name, rect):
         info     = BARISTA_DATA[name]
@@ -286,7 +286,7 @@ class BaristaSelection:
         bw     = 2 if is_sel else 1
         self._glow_rect(rect, bcolor, border=bw, pulse=pulse)
 
-        # Scanline overlay for CRT feel
+        # Scanline overlay 
         self._scanlines(rect, alpha=18 if is_sel else 12)
 
         # Top accent stripe when selected
@@ -295,7 +295,7 @@ class BaristaSelection:
             stripe.fill((*color, 210))
             self.screen.blit(stripe, rect.topleft)
 
-        # ── Avatar (large upper half of card)
+        # Avatar 
         av_box = pygame.Rect(rect.x + 14, rect.y + 12, rect.width - 28, 185)
         avatar = self.avatars.get(name)
         if avatar:
@@ -316,18 +316,18 @@ class BaristaSelection:
             self._blit("[ LOCKED ]", self.font_label, (160, 170, 200),
                        av_box.centerx, av_box.centery, center=True)
 
-        # ── Divider under avatar
+        # Divider under avatar
         div_y = rect.y + 204
         pygame.draw.line(self.screen, (*color, 80 if is_sel else 35),
                          (rect.x + 18, div_y), (rect.right - 18, div_y), 1)
 
-        # ── Name + role
+        # Name + role
         self._blit(name.upper(), self.font_name, color,
                    rect.centerx, div_y + 16, center=True)
         self._blit(info["role"], self.font_role, _MUTED,
                    rect.centerx, div_y + 38, center=True)
 
-        # ── Ability section
+        # Ability section
         ab_y = div_y + 60
         # micro label with underline
         lr = self._blit("ABILITY", self.font_label, color, rect.x + 20, ab_y)
@@ -336,13 +336,13 @@ class BaristaSelection:
                          (rect.x + 20 + lr.width, lr.bottom + 1), 1)
         self._blit(info["ability"], self.font_ability, _WHITE, rect.x + 20, ab_y + 14)
 
-        # ── Description
+        # Description
         dy = ab_y + 36
         for line in info["description"].splitlines():
             self._blit(line, self.font_desc, _MUTED, rect.x + 20, dy)
             dy += 18
 
-        # ── Card button
+        # Card button
         btn = pygame.Rect(rect.x + 18, rect.bottom - 52, rect.width - 36, 38)
         self.buttons[name] = btn
 
@@ -369,7 +369,7 @@ class BaristaSelection:
             self._blit(f"UNLOCK  CREDITS {cost:,}", self.font_btn, tc,
                        btn.centerx, btn.centery, center=True)
 
-    # ── Full draw ──────────────────────────────────────────────────────────────
+    # Full draw 
 
     def draw(self):
         # Background
@@ -383,7 +383,7 @@ class BaristaSelection:
         tint.fill((3, 5, 18, 115))
         self.screen.blit(tint, (0, 0))
 
-        # ── Header bar
+        # Header bar
         hdr = pygame.Surface((self.WIDTH, 125), pygame.SRCALPHA)
         hdr.fill((4, 8, 22, 172))
         self.screen.blit(hdr, (0, 0))
@@ -408,18 +408,18 @@ class BaristaSelection:
         pygame.draw.rect(self.screen, _YELLOW, chip_r, 2, border_radius=6)
         self.screen.blit(cs, cs.get_rect(center=chip_r.center))
 
-        # ── Cards
+        #Cards
         for name, rect in self.cards.items():
             self._draw_card(name, rect)
 
-        # ── Selected banner
+        # Selected banner
         sel_c = BARISTA_DATA[self.selected]["color"]
         self._blit(f"SELECTED:  {self.selected.upper()}",
                    self.font_selected, sel_c, self.WIDTH // 2, 560, center=True)
         self._blit(self.status_message, self.font_status, self.status_color,
                    self.WIDTH // 2, 585, center=True)
 
-        # ── Confirm button
+        # Confirm button
         active = self.is_unlocked(self.selected)
         bc     = _PINK if active else (72, 75, 105)
         fc     = (50, 14, 62) if active else (24, 26, 38)
@@ -434,7 +434,7 @@ class BaristaSelection:
         self._blit("CONFIRM BARISTA", self.font_confirm, tc,
                    self.confirm_button.centerx, self.confirm_button.centery, center=True)
 
-    # ── Interaction ────────────────────────────────────────────────────────────
+    # Interaction 
 
     def _activate(self, name):
         if self.is_unlocked(name):

@@ -55,7 +55,7 @@ class CustomerOrder:
         return f"{self.drink} | {self.temperature} | {self.caffeine} Caffeine | {self.sweetness} Sweet"
 
 class Customer:
-    # Full archetype profile including rare low-patience, high-paying archetypes (Corp Spy & Cyberpunk Cat)
+    # Full archetype profile 
     ARCHETYPE_DETAILS = {
         "runner": {"patience": 35.0, "pay_mult": 1.0, "weight": 50},
         "exec": {"patience": 35.0, "pay_mult": 1.8, "weight": 30},
@@ -70,7 +70,7 @@ class Customer:
         self.y_counter = sy(y_counter)
         self.level = current_level
         
-        # FIXED: Level-based customer pools (Level 1: runner/exec/hacker, Level 2: +drone_pilot, Level 3: +corp_spy & cyberpunk_cat)
+        # Level-based customer pools (Level 1: runner/exec/hacker, Level 2: +drone_pilot, Level 3: +corp_spy & cyberpunk_cat)
         if self.level == 1:
             self.customer_pool = ["runner", "exec", "hacker"]
             self.pool_weights = [50, 30, 20]
@@ -109,8 +109,6 @@ class Customer:
         self.target_temperature = self._temperature_to_number(self.order.temperature)
         
         # Patience is determined by the customer archetype only.
-        # Do not reduce it again based on level: higher levels should be harder
-        # through the drink/minigame requirements, not hidden patience scaling.
         self.max_patience = archetype_info["patience"]
         self.current_patience = self.max_patience
         
