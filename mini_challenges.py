@@ -1469,7 +1469,7 @@ class MiniChallenge:
                         "Press SPACE / W / UP or click to jump.",
                         "Jump over spikes and drones without crashing.",
                         "Reach 2,800 points to complete the challenge.",
-                        "TARGET BASED — NO TIMER. Misses and crashes cost score/combo."
+                        "Misses and crashes cost score/combo."
                     ]
                 ),
                 "AIM_RUSH": (
@@ -1478,7 +1478,7 @@ class MiniChallenge:
                         "Click the bright targets as quickly as possible.",
                         "Avoid the red X / danger targets.",
                         "Reach 3,800 points to complete the challenge.",
-                        "TARGET BASED — NO TIMER. Avoid danger targets and keep your combo."
+                        "Avoid danger targets and keep your combo."
                     ]
                 ),
                 "RHYTHM_RUSH": (
@@ -1487,7 +1487,7 @@ class MiniChallenge:
                         "Click the matching lane when each note reaches the hit line.",
                         "Use your mouse to hit the notes accurately.",
                         "Reach 5,000 points to complete the challenge.",
-                        "TARGET BASED — NO TIMER. Accuracy and combo are critical."
+                        "Accuracy and combo are critical."
                     ]
                 ),
             }

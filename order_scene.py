@@ -17,6 +17,12 @@ class OrderScene:
         self.barista_text = ""
         self.shown = 0
         self.ready = False
+        # True when the player has manually skipped the current typewriter text.
+        self.dialogue_skipped = False
+
+        # Keep these aligned with the hint text drawn in the dialogue bubbles.
+        self.customer_skip_rect = pygame.Rect(160, 188, 480, 38)
+        self.barista_skip_rect = pygame.Rect(640, 188, 480, 38)
         
         self.font = pygame.font.Font(None, 28)
         self.small = pygame.font.Font(None, 22)
@@ -48,7 +54,6 @@ class OrderScene:
         if os.path.exists(path):
             try:
                 raw = pygame.image.load(path).convert_alpha()
-                # Small order-scene portrait: behind the counter, not a giant foreground sprite.
                 self.barista_image = pygame.transform.smoothscale(raw, (285, 285))
                 print(f"[ORDER SCENE] Loaded {self.barista_name} avatar.")
             except pygame.error as error:
@@ -75,7 +80,7 @@ class OrderScene:
         return None
 
     def _load_all_back_customer_sprites(self):
-        """Loads back-facing sprites for all 6 cyberpunk archetypes including the Cyberpunk Cat & Corp Spy."""
+        #Loads back-facing sprites for all 6 cyberpunk customers
         archetypes = ["runner", "hacker", "exec", "drone_pilot", "corp_spy", "cyberpunk_cat"]
         sprites = {}
         for ctype in archetypes:
@@ -107,6 +112,7 @@ class OrderScene:
         self.phase = 0
         self.shown = 0
         self.ready = False
+        self.dialogue_skipped = False
         
         # Synchronize customer type properties across all 6 expanded archetypes
         available_types = ["runner", "hacker", "exec", "drone_pilot", "corp_spy", "cyberpunk_cat"]
@@ -144,27 +150,38 @@ class OrderScene:
         """Processes clicks or keypresses to skip text typing or advance dialogues."""
         if not self.active:
             return
-        if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
-            if event.type == pygame.KEYDOWN and event.key not in (pygame.K_SPACE, pygame.K_RETURN):
+        if event.type == pygame.KEYDOWN:
+            if event.key not in (pygame.K_SPACE, pygame.K_RETURN):
                 return
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button != 1:
+            self._handle_advance()
+            return
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button != 1:
                 return
+
             self._handle_advance()
 
     def _handle_advance(self):
+        # First click while text is still being typed: immediately reveal the
+        # entire current dialogue. The next click advances to the next part.
         if self.phase == 0:
             if self.shown < len(self.customer_text):
                 self.shown = len(self.customer_text)
+                self.dialogue_skipped = True
             else:
                 self.phase = 1
                 self.t = 0.0
                 self.shown = 0
+                self.dialogue_skipped = False
         elif self.phase == 1:
             if self.shown < len(self.barista_text):
                 self.shown = len(self.barista_text)
+                self.dialogue_skipped = True
             else:
                 self.phase = 2
                 self.ready = True
+                self.dialogue_skipped = False
         elif self.ready:
             self._finish()
 
@@ -188,15 +205,18 @@ class OrderScene:
         self.t += dt
         
         if self.phase == 0:
-            self.shown = int(self.t * 18)
-            if self.shown >= len(self.customer_text):
-                self.shown = len(self.customer_text)
+            if not self.dialogue_skipped:
+                self.shown = int(self.t * 18)
+                if self.shown >= len(self.customer_text):
+                    self.shown = len(self.customer_text)
         elif self.phase == 1:
-            self.shown = int(self.t * 22)
-            if self.shown >= len(self.barista_text):
-                self.shown = len(self.barista_text)
-                self.phase = 2
-                self.ready = True
+            # Do not overwrite a manual click-to-skip with the typewriter timer.
+            if not self.dialogue_skipped:
+                self.shown = int(self.t * 22)
+                if self.shown >= len(self.barista_text):
+                    self.shown = len(self.barista_text)
+                    self.phase = 2
+                    self.ready = True
 
     def draw(self, screen):
         if not self.active or not self.customer:
@@ -245,7 +265,7 @@ class OrderScene:
         if self.barista_image is None:
             return
 
-        # Keep the character compact enough to read as staff behind the counter.
+        # Keep the character staff behind the counter.
         target_w, target_h = 235, 235
         image = pygame.transform.smoothscale(
             self.barista_image, (target_w, target_h)
@@ -259,7 +279,7 @@ class OrderScene:
         screen.blit(image, rect)
         screen.set_clip(old_clip)
 
-        # Put the name below the counter, like the customer's name.
+        # name of barista
         self._label(
             screen,
             self.barista_name.upper(),
