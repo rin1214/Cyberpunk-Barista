@@ -1,6 +1,7 @@
 import json
 import os
 import pygame
+from drink import LEVEL_PRICES
 
 class UIEconomy:
     SAVE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "save_data.json")
@@ -18,11 +19,7 @@ class UIEconomy:
         3: 500   # Cost for Cyber Penthouse
     }
 
-    DRINK_PRICES = {
-        1: 5,  #Level 1 drink price
-        2: 10, #Level 2 drink price
-        3: 15, #Level 3 drink price
-    }
+    DRINK_PRICES = LEVEL_PRICES
 
     LOCATIONS = {
         1: "Back Alley Kiosk",

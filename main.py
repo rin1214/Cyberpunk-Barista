@@ -6,6 +6,7 @@ from drink import Drink
 from level_unlock_screen import LevelUnlockScreen
 from loading_screen import LoadingScreen
 from start_screen import StartScreen
+from instructions_screen import InstructionScreen
 from station import MixingStation
 from ui_economy import UIEconomy
 from progression import Progression
@@ -217,6 +218,15 @@ if player_name is None:
 
 ensure_game_music(start_screen)
 economy = UIEconomy(screen=screen, player_name=player_name)
+loading_screen = LoadingScreen(screen)
+
+if not loading_screen.run(player_name=player_name, level=economy.level, duration=5.8):
+    pygame.quit()
+    sys.exit()
+
+if not InstructionScreen(screen).run():
+    pygame.quit()
+    sys.exit()
 
 # Barista selection is handled by barista_selection.py. Unlocks are per player.
 active_barista = choose_barista(screen, economy, player_name)
@@ -231,19 +241,18 @@ except (ValueError, TypeError):
 current_saved_level = max(1, min(current_saved_level, 3))
 progression = Progression(level=current_saved_level, xp=economy.xp)
 progression.level = current_saved_level
+
+if not loading_screen.run(player_name=player_name, level=progression.level, duration=4):
+    pygame.quit()
+    sys.exit()
+
 reward_system = RewardSystem()
 map_manager = MapManager(economy_ref=economy)
 leaderboard_manager = LeaderboardManager(economy_ref=economy)
 level_unlock_screen = LevelUnlockScreen(screen)
-loading_screen = LoadingScreen(screen)
 mini_challenge = MiniChallenge()
 sync_level_systems(economy, progression, None)
 ensure_game_music(start_screen)
-
-loading_ok = loading_screen.run(player_name=player_name, level=progression.level, duration=5.8)
-if not loading_ok:
-    pygame.quit()
-    sys.exit()
 
 ensure_game_music(start_screen)
 drink = Drink()
@@ -352,11 +361,21 @@ while running:
                 reward_system.reset()
                 successful_drinks = 0
                 ensure_game_music(start_screen)
+                if not loading_screen.run(
+                    player_name=player_name,
+                    level=progression.level,
+                    duration=5.8,
+                ):
+                    running = False
+                    continue
+                if not InstructionScreen(screen).run():
+                    running = False
+                    continue
                 active_barista = choose_barista(screen, economy, player_name)
                 if active_barista is None:
                     running = False
                     continue
-                if not loading_screen.run(player_name=player_name, level=progression.level, duration=5.8):
+                if not loading_screen.run(player_name=player_name, level=progression.level, duration=4):
                     running = False
                     continue
                 ensure_game_music(start_screen)

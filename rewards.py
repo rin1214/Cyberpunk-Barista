@@ -1,10 +1,5 @@
-
 from dataclasses import dataclass
-
-
-# ============================================================
-# REWARD RESULT
-# ============================================================
+from drink import LEVEL_PRICES
 
 @dataclass
 class RewardResult:
@@ -41,17 +36,17 @@ class RewardResult:
 
 class RewardSystem:
 
-    # Base Level 1 Rewards: (XP, Credits)
+   
     BASE_REWARDS = {
-        4: (40, 5),   # PERFECT (4/4): +40 XP base, $5
+        4: (40, LEVEL_PRICES[1]),  
         3: (20, 0),
         2: (10, 0),
         1: (0, 0),
         0: (0, 0),
     }
 
-    CANCELLATION_FEE = 10  # Flat $10 penalty for ANY wrong drink
-    XP_PER_BAR = 100        # Bonus XP awarded per 2x combo milestone
+    CANCELLATION_FEE = 10  
+    XP_PER_BAR = 100       
     SPEED_XP_BONUS = 10
 
     def __init__(self):
@@ -91,8 +86,8 @@ class RewardSystem:
         # PERFECT DRINK (4/4) -> GAIN XP & CREDITS
         # ====================================================
         if correct_count == 4:
-            base_xp, base_credits = self.get_base_reward(4)
-            base_credits = base_credits * current_level
+            base_xp, _ = self.get_base_reward(4)
+            base_credits = LEVEL_PRICES[current_level]
 
             # Combo Bonus XP: Award extra XP on every 2x combo milestone
             combo_bonus_xp = 0

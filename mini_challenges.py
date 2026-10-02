@@ -129,7 +129,7 @@ class MiniChallenge:
         self.debris_list = []
         self.spawn_timer = 0
         self.blocked_count = 0
-        self.target_blocked = 15
+        self.target_blocked = 8
 
         self.player_lane = 1
         self.barriers = []
@@ -900,7 +900,7 @@ class MiniChallenge:
             self.accent,
             (465, 530),
             (745, 530),
-            5
+            10
         )
 
         for note in self.rhythm_notes:
@@ -995,10 +995,6 @@ class MiniChallenge:
                 self.debris_list.clear()
                 self.screen_shake = 0.6
                 self.jumpscare_flash = 0.45
-                self.blocked_count = max(
-                    0,
-                    self.blocked_count - 3
-                )
 
     # ---------------- WASD ----------------
 
