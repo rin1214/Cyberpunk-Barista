@@ -13,15 +13,15 @@ class UIEconomy:
 
     # Costs required to unlock levels via map nodes using credits
     LEVEL_UNLOCK_COSTS = {
-        1: 0,    # Level 1 is free/unlocked by default
+        1: 0,    # Level 1 is unlocked by default
         2: 250,  # Cost for Neon Lounge
         3: 500   # Cost for Cyber Penthouse
     }
 
     DRINK_PRICES = {
-        1: 5,
-        2: 10,
-        3: 15,
+        1: 5,  #Level 1 drink price
+        2: 10, #Level 2 drink price
+        3: 15, #Level 3 drink price
     }
 
     LOCATIONS = {
@@ -31,12 +31,12 @@ class UIEconomy:
     }
     
     # Cyberpunk Theme Palette
-    COLOR_BG_SOLID = (12, 14, 22)      # Solid dark chassis
-    COLOR_BORDER = (0, 240, 255)      # Cyan border glow
-    COLOR_TEXT = (240, 245, 255)      # Soft white text
-    COLOR_GOLD = (255, 200, 0)        # Credits gold
-    COLOR_PINK = (255, 0, 110)        # Combo pink
-    COLOR_CYAN = (0, 240, 255)        # Accent cyan
+    COLOR_BG_SOLID = (12, 14, 22)     
+    COLOR_BORDER = (0, 240, 255)      # Cyan
+    COLOR_TEXT = (240, 245, 255)      # White
+    COLOR_GOLD = (255, 200, 0)        # Gold
+    COLOR_PINK = (255, 0, 110)        # Pink
+    COLOR_CYAN = (0, 240, 255)        # Cyan
 
     def __init__(self, screen, player_name="Player"):
         self.screen = screen
@@ -49,7 +49,7 @@ class UIEconomy:
         self.level = self.STARTING_LEVEL
         self.location = self.LOCATIONS[self.STARTING_LEVEL]
         
-        # Track unlocked levels: Level 1 starts unlocked, others start locked
+        # Track unlocked levels
         self.unlocked_levels = {
             1: True,
             2: False,
@@ -128,7 +128,6 @@ class UIEconomy:
         return self.credits >= cost
 
     def unlock_level_with_credits(self, level):
-        """Deducts credits and permanently unlocks the level map node."""
         level = int(level)
         if self.can_unlock_level(level):
             cost = self.LEVEL_UNLOCK_COSTS.get(level, 0)
@@ -309,7 +308,6 @@ class UIEconomy:
     # CYBERPUNK HUD DRAWING IMPLEMENTATION
     # =========================================================================
     def draw_hud(self, combo_count=1):
-        """Draws the top Cyber-Deck HUD header constrained before MAP/LEADERBOARD buttons."""
         screen_w = self.screen.get_width()
         
         hud_height = 60
@@ -324,7 +322,7 @@ class UIEconomy:
         font_main = pygame.font.SysFont("Consolas", 15, bold=True)
         font_sub = pygame.font.SysFont("Consolas", 12, bold=True)
         
-        # 1. Barista Name & 2. Location (Left Block)
+        # Barista Name & Location
         name_txt = font_main.render(f"BARISTA: {self.player_name.upper()}", True, self.COLOR_BORDER)
         loc_txt = font_sub.render(f"LOCATION: {self.location.upper()}", True, self.COLOR_TEXT)
         self.screen.blit(name_txt, (hud_rect.x + 12, hud_rect.y + 12))
@@ -332,7 +330,7 @@ class UIEconomy:
         
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 220, hud_rect.y + 10), (hud_rect.x + 220, hud_rect.bottom - 10), 1)
         
-        # 3. Level & 4. Unlimited Numeric XP (Center Block)
+        # Level & XP
         xp_x = hud_rect.x + 232
         
         lvl_txt = font_main.render(f"LVL {self.level}", True, self.COLOR_CYAN)
@@ -343,7 +341,7 @@ class UIEconomy:
             
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 375, hud_rect.y + 10), (hud_rect.x + 375, hud_rect.bottom - 10), 1)
         
-        # 5. Credits Display
+        # Credits Display
         cred_x = hud_rect.x + 388
         cred_lbl = font_sub.render("CREDITS", True, (150, 160, 180))
         cred_val = font_main.render(f"${self.credits:,}", True, self.COLOR_GOLD)
@@ -352,7 +350,7 @@ class UIEconomy:
         
         pygame.draw.line(self.screen, (50, 60, 80), (hud_rect.x + 500, hud_rect.y + 10), (hud_rect.x + 500, hud_rect.bottom - 10), 1)
         
-        # 6. Combo Counter Display
+        # Combo Counter Display
         combo_x = hud_rect.x + 512
         combo_txt = font_main.render("COMBO", True, self.COLOR_PINK)
         combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
