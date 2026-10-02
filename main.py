@@ -309,6 +309,15 @@ def ensure_game_music(start_screen=None):
             except (TypeError, ValueError):
                 volume = 0.30
             muted = bool(getattr(start_screen, "muted", False))
+        else:
+            # Keep the volume chosen in the F menu instead of resetting it to 30%
+            station = globals().get("mixing_station")
+            if station is not None:
+                try:
+                    volume = float(getattr(station, "music_volume", volume))
+                except (TypeError, ValueError):
+                    pass
+                muted = bool(getattr(station, "music_muted", False))
         volume = max(0.0, min(volume, 1.0))
         pygame.mixer.music.set_volume(0.0 if muted else volume)
         if pygame.mixer.music.get_busy():
@@ -552,6 +561,54 @@ while running:
         except Exception as error:
             print(f"[EXIT ERROR] {error}")
         try:
+            if mixing_station.consume_return_start_request():
+                # Back to the start screen, then repeat the same steps as a fresh launch
+                start_screen = StartScreen(screen)
+                new_player_name = start_screen.run()
+                if new_player_name is None:
+                    running = False
+                    continue
+                player_name = new_player_name
+                economy.player_name = player_name
+                economy.load_economy_data()
+                try:
+                    current_lvl = int(economy.level)
+                except (ValueError, TypeError):
+                    current_lvl = 1
+                progression.reset()
+                progression.level = max(1, min(current_lvl, 3))
+                progression.xp = max(0, int(economy.xp))
+                reward_system.reset()
+                successful_drinks = 0
+                total_successful_drinks = 0
+                game_finished = False
+                ensure_game_music(start_screen)
+
+                if not loading_screen.run(player_name=player_name, level=progression.level, duration=5.8):
+                    running = False
+                    continue
+                ensure_game_music(start_screen)
+                if not instruction_screen.run():
+                    running = False
+                    continue
+                ensure_game_music(start_screen)
+
+                active_barista = BaristaSelectScreen(screen, economy).run()
+                ensure_game_music(start_screen)
+                if hasattr(mixing_station, "set_barista"):
+                    mixing_station.set_barista(active_barista)
+                if hasattr(order_scene, "set_barista"):
+                    order_scene.set_barista(active_barista)
+                mixing_station.reset()
+                sync_level_systems(economy, progression, mixing_station)
+                active_bg = load_level_background(progression.level)
+                active_customer = refresh_customer(progression.level, mixing_station)
+                order_scene.start(active_customer, level=progression.level)
+                spawn_timer = 0.0
+                continue
+        except Exception as error:
+            print(f"[RETURN TO START ERROR] {error}")
+        try:
             if mixing_station.consume_map_request():
                 active_bg, active_customer = open_map(
                     screen, map_manager, economy, progression, mixing_station, active_customer
@@ -619,7 +676,6 @@ while running:
         if active_customer is not None:
             active_customer.draw(screen)
         mixing_station.draw(screen)
-        economy.draw(combo_count=current_combo, dt=0.0)
         pygame.display.flip()
         continue
 

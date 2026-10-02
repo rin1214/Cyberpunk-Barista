@@ -7,6 +7,7 @@ from drink import (
 )
 from game_state import MixingGameState, GameState
 from mini_challenges import MiniChallenge
+from audio_settings import AudioSettings
 
 
 class MixingStation:
@@ -54,15 +55,11 @@ class MixingStation:
         self.map_requested = False
         self.leaderboard_requested = False
         self.exit_requested = False
+        self.return_start_requested = False
         self.show_menu_overlay = False
 
-        # Settings Audio States
-        self.music_volume = 0.30
-        self.sfx_volume = 0.16
-        self.music_muted = False
-        self.sfx_muted = False
-        self.dragging_slider = None
-        self.registered_sfx = []  # List of pygame.mixer.Sound instances to control volume
+        # Audio settings live in audio_settings.py
+        self.audio = AudioSettings()
 
         self.last_xp_change = 0
         self.last_credit_change = 0
@@ -90,7 +87,7 @@ class MixingStation:
         self._load_drink_images()
         self._create_layout()
         self._attach_legacy_bridge()
-        self._apply_audio_volumes()
+        self.audio.apply_volumes()
 
     def _load_ui_images(self):
         """Loads audio settings background from assets/mahirah/ui/."""
@@ -166,42 +163,60 @@ class MixingStation:
         self.serve_button = pygame.Rect(1156, 632, 115, 48)
 
         # Full-Screen Settings Centered Modal Layout
-        mw, mh = 700, 560
-        self.overlay_rect = pygame.Rect((self.WIDTH - mw) // 2, (self.HEIGHT - mh) // 2 - 20, mw, mh)
-        self.close_overlay_btn = pygame.Rect((self.WIDTH - 250) // 2, self.overlay_rect.bottom + 40, 250, 42)
+        mw, mh = 700, 590
+        self.overlay_rect = pygame.Rect((self.WIDTH - mw) // 2, (self.HEIGHT - mh) // 2 - 40, mw, mh)
+        self.close_overlay_btn = pygame.Rect((self.WIDTH - 250) // 2, self.overlay_rect.bottom + 22, 250, 42)
 
-        # Audio Controls Positioning inside modal
-        self.music_track = pygame.Rect(self.overlay_rect.x + 180, self.overlay_rect.y + 175, 360, 14)
-        self.sfx_track = pygame.Rect(self.overlay_rect.x + 180, self.overlay_rect.y + 265, 360, 14)
-        self.music_mute_btn = pygame.Rect(self.overlay_rect.x + 100, self.overlay_rect.y + 335, 220, 44)
-        self.sfx_mute_btn = pygame.Rect(self.overlay_rect.x + 380, self.overlay_rect.y + 335, 220, 44)
+        # Audio controls are positioned inside the modal by AudioSettings
+        self.audio.set_layout(self.overlay_rect)
 
         # Menu actions: keep Resume / Exit together with Audio Settings.
         self.resume_menu_btn = pygame.Rect(self.overlay_rect.x + 80, self.overlay_rect.y + 410, 250, 48)
         self.exit_menu_btn = pygame.Rect(self.overlay_rect.x + 370, self.overlay_rect.y + 410, 250, 48)
+        self.return_start_btn = pygame.Rect(self.overlay_rect.x + 80, self.overlay_rect.y + 472, 540, 48)
 
+    # --- Audio compatibility layer (other files still use these names) ---
     def register_sfx_sound(self, sound_obj: pygame.mixer.Sound):
-        """Register a Pygame Sound instance so its volume stays synchronized."""
-        if sound_obj and sound_obj not in self.registered_sfx:
-            self.registered_sfx.append(sound_obj)
-            sound_obj.set_volume(0.0 if self.sfx_muted else self.sfx_volume)
+        self.audio.register_sfx_sound(sound_obj)
 
     def get_effective_sfx_volume(self):
-        """Returns the actual effective sound effects volume (0.0 if muted)."""
-        return 0.0 if self.sfx_muted else self.sfx_volume
+        return self.audio.get_effective_sfx_volume()
 
-    def _apply_audio_volumes(self):
-        """Applies current volume and mute settings directly to Pygame Mixer."""
-        if pygame.mixer.get_init():
-            effective_music_vol = 0.0 if self.music_muted else self.music_volume
-            pygame.mixer.music.set_volume(effective_music_vol)
+    @property
+    def music_volume(self):
+        return self.audio.music_volume
 
-            effective_sfx_vol = 0.0 if self.sfx_muted else self.sfx_volume
-            for snd in self.registered_sfx:
-                try:
-                    snd.set_volume(effective_sfx_vol)
-                except Exception:
-                    pass
+    @music_volume.setter
+    def music_volume(self, value):
+        self.audio.music_volume = value
+        self.audio.apply_volumes()
+
+    @property
+    def sfx_volume(self):
+        return self.audio.sfx_volume
+
+    @sfx_volume.setter
+    def sfx_volume(self, value):
+        self.audio.sfx_volume = value
+        self.audio.apply_volumes()
+
+    @property
+    def music_muted(self):
+        return self.audio.music_muted
+
+    @music_muted.setter
+    def music_muted(self, value):
+        self.audio.music_muted = bool(value)
+        self.audio.apply_volumes()
+
+    @property
+    def sfx_muted(self):
+        return self.audio.sfx_muted
+
+    @sfx_muted.setter
+    def sfx_muted(self, value):
+        self.audio.sfx_muted = bool(value)
+        self.audio.apply_volumes()
 
     def _load_drink_images(self):
         for name in DRINK_MENU:
@@ -254,6 +269,10 @@ class MixingStation:
 
     def consume_exit_request(self):
         req, self.exit_requested = self.exit_requested, False
+        return req
+
+    def consume_return_start_request(self):
+        req, self.return_start_requested = self.return_start_requested, False
         return req
 
     def set_order(self, order):
@@ -335,16 +354,8 @@ class MixingStation:
         dt = max(0.0, min(dt or (now - self._last_time), 0.1))
         self._last_time = now
 
-        if self.show_menu_overlay and self.dragging_slider:
-            mx, _ = pygame.mouse.get_pos()
-            if self.dragging_slider == "music":
-                rel = max(0.0, min(1.0, (mx - self.music_track.x) / self.music_track.width))
-                self.music_volume = rel
-                self._apply_audio_volumes()
-            elif self.dragging_slider == "sfx":
-                rel = max(0.0, min(1.0, (mx - self.sfx_track.x) / self.sfx_track.width))
-                self.sfx_volume = rel
-                self._apply_audio_volumes()
+        if self.show_menu_overlay:
+            self.audio.update_drag(pygame.mouse.get_pos()[0])
 
         # The Menu is a real gameplay pause. Keep audio controls responsive,
         # but do not advance any gameplay/challenge/blending timers while it is open.
@@ -410,31 +421,17 @@ class MixingStation:
                     self.show_menu_overlay = False
                     self.exit_requested = True
                     return
+                elif self.return_start_btn.collidepoint(mouse):
+                    self.show_menu_overlay = False
+                    self.return_start_requested = True
+                    return
                 elif self.close_overlay_btn.collidepoint(mouse):
                     self.show_menu_overlay = False
                     return
-                elif self.music_track.inflate(20, 20).collidepoint(mouse):
-                    self.dragging_slider = "music"
-                    rel = max(0.0, min(1.0, (mouse[0] - self.music_track.x) / self.music_track.width))
-                    self.music_volume = rel
-                    self._apply_audio_volumes()
-                    return
-                elif self.sfx_track.inflate(20, 20).collidepoint(mouse):
-                    self.dragging_slider = "sfx"
-                    rel = max(0.0, min(1.0, (mouse[0] - self.sfx_track.x) / self.sfx_track.width))
-                    self.sfx_volume = rel
-                    self._apply_audio_volumes()
-                    return
-                elif self.music_mute_btn.collidepoint(mouse):
-                    self.music_muted = not self.music_muted
-                    self._apply_audio_volumes()
-                    return
-                elif self.sfx_mute_btn.collidepoint(mouse):
-                    self.sfx_muted = not self.sfx_muted
-                    self._apply_audio_volumes()
+                elif self.audio.handle_mouse_down(mouse):
                     return
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.dragging_slider = None
+                self.audio.handle_mouse_up()
             return
 
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1: return
@@ -528,63 +525,8 @@ class MixingStation:
         # Main Centered Panel Box
         self._panel(screen, self.overlay_rect, self.PINK, (7, 12, 32, 245), radius=20, width=2)
 
-        # Header Title Box
-        head_box = pygame.Rect(self.overlay_rect.x + (self.overlay_rect.width - 400) // 2, self.overlay_rect.y + 25, 400, 48)
-        self._panel(screen, head_box, self.CYAN, (12, 22, 48, 230), radius=12, width=2)
-
-        htxt = self.font_big_title.render("AUDIO SETTINGS", True, self.CYAN_LIGHT)
-        screen.blit(htxt, htxt.get_rect(center=head_box.center))
-
-        # Subtitle Under Header
-        sub = self.font_small.render("CYBERPUNK CAFÉ  //  SYSTEM CONTROLS", True, self.MUTED)
-        screen.blit(sub, sub.get_rect(center=(self.overlay_rect.centerx, self.overlay_rect.y + 92)))
-
-        # Separator Line
-        pygame.draw.line(screen, (35, 50, 85), (self.overlay_rect.x + 40, self.overlay_rect.y + 115), (self.overlay_rect.right - 40, self.overlay_rect.y + 115), 1)
-
-        # --- MUSIC VOLUME Section ---
-        m_lbl = self.font_hud.render("MUSIC VOLUME", True, self.WHITE)
-        screen.blit(m_lbl, (self.overlay_rect.x + 180, self.overlay_rect.y + 145))
-
-        # Slider Track
-        pygame.draw.rect(screen, (15, 25, 50), self.music_track, border_radius=7)
-        pygame.draw.rect(screen, self.CYAN, self.music_track, width=1, border_radius=7)
-        cur_m_val = 0.0 if self.music_muted else self.music_volume
-        fill_m = pygame.Rect(self.music_track.x, self.music_track.y, int(self.music_track.width * cur_m_val), self.music_track.height)
-        pygame.draw.rect(screen, self.CYAN, fill_m, border_radius=7)
-
-        # Handle Knob
-        hx = self.music_track.x + int(self.music_track.width * cur_m_val)
-        pygame.draw.circle(screen, self.PINK, (hx, self.music_track.centery), 11)
-        pygame.draw.circle(screen, self.WHITE, (hx, self.music_track.centery), 5)
-
-        m_pct = self.font_hud.render(f"{int(cur_m_val * 100)}%", True, self.WHITE)
-        screen.blit(m_pct, (self.music_track.right + 20, self.music_track.y - 2))
-
-        # --- SOUND EFFECTS Section ---
-        s_lbl = self.font_hud.render("SOUND EFFECTS", True, self.WHITE)
-        screen.blit(s_lbl, (self.overlay_rect.x + 180, self.overlay_rect.y + 235))
-
-        # Slider Track
-        pygame.draw.rect(screen, (15, 25, 50), self.sfx_track, border_radius=7)
-        pygame.draw.rect(screen, self.CYAN, self.sfx_track, width=1, border_radius=7)
-        cur_s_val = 0.0 if self.sfx_muted else self.sfx_volume
-        fill_s = pygame.Rect(self.sfx_track.x, self.sfx_track.y, int(self.sfx_track.width * cur_s_val), self.sfx_track.height)
-        pygame.draw.rect(screen, self.PINK, fill_s, border_radius=7)
-
-        # Handle Knob
-        shx = self.sfx_track.x + int(self.sfx_track.width * cur_s_val)
-        pygame.draw.circle(screen, self.CYAN, (shx, self.sfx_track.centery), 11)
-        pygame.draw.circle(screen, self.WHITE, (shx, self.sfx_track.centery), 5)
-
-        s_pct = self.font_hud.render(f"{int(cur_s_val * 100)}%", True, self.WHITE)
-        screen.blit(s_pct, (self.sfx_track.right + 20, self.sfx_track.y - 2))
-
-        # --- MUTE BUTTONS ---
-        m_txt = "UNMUTE MUSIC" if self.music_muted else "MUTE MUSIC"
-        s_txt = "UNMUTE SFX" if self.sfx_muted else "MUTE SFX"
-        self._action_button(screen, self.music_mute_btn, m_txt, self.PINK if self.music_muted else self.CYAN, True, large=False)
-        self._action_button(screen, self.sfx_mute_btn, s_txt, self.PINK if self.sfx_muted else self.CYAN, True, large=False)
+        # Audio header, sliders and mute buttons (drawn by audio_settings.py)
+        self.audio.draw(screen, self)
 
         # --- MENU ACTIONS ---
         self._action_button(
@@ -593,20 +535,21 @@ class MixingStation:
         self._action_button(
             screen, self.exit_menu_btn, "EXIT TO DESKTOP", self.PINK, True, large=False
         )
+        self._action_button(
+            screen, self.return_start_btn, "RETURN TO START SCREEN", self.CYAN, True, large=False
+        )
 
         # Subtitle Line / keyboard hint
         pygame.draw.line(screen, (35, 50, 85), (self.overlay_rect.x + 40, self.overlay_rect.bottom - 55), (self.overlay_rect.right - 40, self.overlay_rect.bottom - 55), 1)
         tag = self.font_small.render("RESUME OR EXIT  •  USE MENU BUTTON", True, self.CYAN_LIGHT)
         screen.blit(tag, tag.get_rect(center=(self.overlay_rect.centerx, self.overlay_rect.bottom - 30)))
 
+        # Close button below the settings box
+        self._draw_close_button(screen)
+
     def _draw_close_button(self, screen):
         rect = self.close_overlay_btn
-        hover = rect.collidepoint(pygame.mouse.get_pos())
-        border = self.PINK_LIGHT if hover else self.CYAN
-        text_col = self.WHITE if hover else self.CYAN
-        self._panel(screen, rect, border, (6, 10, 26, 240), radius=10, width=2)
-        lbl = self.font_close.render("‹  CLOSE MENU", True, text_col)
-        screen.blit(lbl, lbl.get_rect(center=rect.center))
+        self._action_button(screen, rect, "CLOSE  [F / ESC]", self.PINK, True, large=False)
 
         # Small hint text under the close button
         hint = self.font_hint.render("ADJUST VOLUME BASED ON YOUR PREFERENCE", True, self.MUTED)
@@ -941,6 +884,7 @@ class MixingStation:
         self.map_requested = False
         self.leaderboard_requested = False
         self.exit_requested = False
+        self.return_start_requested = False
         self.show_menu_overlay = False
         self.last_xp_change = 0
         self.last_credit_change = 0
