@@ -35,7 +35,7 @@ CHALLENGES = {
         "symbols": ["milk", "spice", "syrup", "star", "ice"],
     },
     "Cyber Fuel": {
-        "title": "DEFLECTION FIELD V2",
+        "title": "GRAVITY SHIELD PROTOCOL",
         "ingredient": "METEORITE DUST",
         "accent": (255, 90, 120),
     },
@@ -45,7 +45,7 @@ CHALLENGES = {
         "accent": (140, 255, 120),
     },
     "Pixel Lemint": {
-        "title": "QUANTUM SOLDER OVERDRIVE",
+        "title": "PIXEL CIRCUIT LINK",
         "ingredient": "CARAMEL BYTE",
         "accent": (255, 180, 60),
     },
@@ -129,14 +129,14 @@ class MiniChallenge:
         self.debris_list = []
         self.spawn_timer = 0
         self.blocked_count = 0
-        self.target_blocked = 12
+        self.target_blocked = 10
 
         self.player_lane = 1
         self.barriers = []
         self.barrier_timer = 0
         self.key_cooldown = 0.0
         self.dodged_count = 0
-        self.target_dodged = 14
+        self.target_dodged = 10
         self.last_open_lane = -1
 
         # Level 3
@@ -144,7 +144,7 @@ class MiniChallenge:
         self.solder_path = []
         self.glitch_tiles = set()
         self.solder_connections = 0
-        self.target_connections = 5
+        self.target_connections = 3
         self.glitch_timer = 0.0
         self.pulse_phase = 0.0
 
@@ -223,30 +223,34 @@ class MiniChallenge:
 
         if drink_name == "Cyber Fuel":
             self.level_mode = "DEFLECT"
-            self.time_left = 16
+            self.time_left = 999.0
             self.blocked_count = 0
             self.message = ""
             self.debris_list, self.spawn_timer = [], 0
+            self.show_guide = True
 
         elif drink_name == "Hologram Frappe":
             self.level_mode = "WASD_RUN"
-            self.time_left = 16
+            self.time_left = 999.0   # no timer: this challenge is target based
+            self.target_dodged = 10
             self.dodged_count = 0
             self.message = ""
             self.player_lane, self.barriers, self.barrier_timer = 1, [], 0
             self.key_cooldown, self.last_open_lane = 0, -1
+            self.show_guide = True
 
         elif drink_name == "Pixel Lemint":
             self.level_mode = "SOLDER"
-            self.time_left = 22
+            self.time_left = 999.0   # no timer: this challenge is target based
+            self.target_connections = 3
             self.message = ""
             self.solder_connections = 0
             self._reset_solder_board()
+            self.show_guide = True
 
         elif drink_name == "Meteorite":
             self.level_mode = "NEON_DASH"
             self._start_neon_dash()
-            # Show the mini-game guide before Level 3 gameplay starts.
             self.show_guide = True
 
         elif drink_name == "Stardust Matcha":
@@ -260,20 +264,53 @@ class MiniChallenge:
             self.show_guide = True
 
         else:
-            # Level 1
             self.level_mode = "MATCH3"
             self.time_left = 20
             self.message = ""
             self.board = self._new_board()
             self.show_guide = True
 
+    def _solder_has_path(self, glitch_tiles):
+        """True if the IN column (green) can reach the OUT column (blue)
+        without stepping on any glitch tile."""
+        last_col = self.N - 1
+        seen = {(r, 0) for r in range(self.N)}
+        stack = list(seen)
+        while stack:
+            r, c = stack.pop()
+            if c == last_col:
+                return True
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr, nc = r + dr, c + dc
+                if (
+                    0 <= nr < self.N and 0 <= nc < self.N
+                    and (nr, nc) not in seen
+                    and (nr, nc) not in glitch_tiles
+                ):
+                    seen.add((nr, nc))
+                    stack.append((nr, nc))
+        return False
+
     def _reset_solder_board(self):
         self.solder_path = []
         self.is_soldering = False
-        self.glitch_tiles = {
-            (random.randint(0, 4), random.randint(1, 3))
-            for _ in range(10)
-        }
+
+        # Glitch tiles only live in the middle columns. Keep generating until
+        # the board is guaranteed solvable (green side can reach blue side).
+        interior = [
+            (r, c) for r in range(self.N) for c in range(1, self.N - 1)
+        ]
+        count = 10
+        glitch = set()
+        for attempt in range(300):
+            if attempt and attempt % 60 == 0:
+                count = max(4, count - 1)
+            glitch = set(random.sample(interior, count))
+            if self._solder_has_path(glitch):
+                break
+        else:
+            glitch = set()   # safety net: an empty board is always solvable
+        self.glitch_tiles = glitch
         self.glitch_timer = 0
 
     # ---------------- INPUT ----------------
@@ -329,8 +366,6 @@ class MiniChallenge:
                 self._aim_click(*event.pos)
 
         elif self.level_mode == "RHYTHM_RUSH":
-            # Mouse-only controls for Caramel Byte / RHYTHM BLITZ.
-            # Keyboard A/S/D/F input has been intentionally removed.
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._rhythm_press(
                     max(0, min(3, int((event.pos[0] - 500) / 70)))
@@ -415,10 +450,10 @@ class MiniChallenge:
             if f["life"] <= 0:
                 self.floating_texts.remove(f)
 
-        self.time_left = max(0, self.time_left - dt)
-
-        if self.time_left <= 0:
-            self._check_win_condition()
+        if self.level_mode not in ("DEFLECT", "SOLDER", "WASD_RUN"):
+            self.time_left = max(0, self.time_left - dt)
+            if self.time_left <= 0:
+                self._check_win_condition()
 
         updates = {
             "DEFLECT": self._update_deflect,
@@ -940,6 +975,9 @@ class MiniChallenge:
                         self.accent,
                         10
                     )
+                    
+                    if self.blocked_count >= self.target_blocked:
+                        self._finish()
 
             elif debris["dist"] < 25:
                 self.debris_list.clear()
@@ -1015,6 +1053,9 @@ class MiniChallenge:
             elif barrier["y"] > 580:
                 self.barriers.remove(barrier)
                 self.dodged_count += 1
+                if self.dodged_count >= self.target_dodged:
+                    self._finish()
+                    return
 
     # ---------------- SOLDER ----------------
 
@@ -1026,11 +1067,19 @@ class MiniChallenge:
 
             if not self.is_soldering and len(self.glitch_tiles) > 4:
                 old = random.choice(list(self.glitch_tiles))
-                self.glitch_tiles.remove(old)
-                self.glitch_tiles.add((
-                    random.randint(0, 4),
-                    random.randint(1, 3)
-                ))
+                remaining = self.glitch_tiles - {old}
+                options = [
+                    (r, c)
+                    for r in range(self.N)
+                    for c in range(1, self.N - 1)
+                    if (r, c) not in self.glitch_tiles
+                ]
+                random.shuffle(options)
+                for new in options:
+                    candidate = remaining | {new}
+                    if self._solder_has_path(candidate):
+                        self.glitch_tiles = candidate
+                        break
 
         if not self.is_soldering:
             return
@@ -1224,22 +1273,23 @@ class MiniChallenge:
                 int(f["y"])
             )
 
-        seconds = max(
-            0,
-            int(self.time_left + 0.999)
-        )
+        if self.level_mode not in ("DEFLECT", "SOLDER", "WASD_RUN"):
+            seconds = max(
+                0,
+                int(self.time_left + 0.999)
+            )
 
-        self._text(
-            screen,
-            f"TIME  {seconds}s",
-            self.fs,
-            (
-                (255, 100, 120)
-                if self.time_left <= 4
-                else self.accent
-            ),
-            682
-        )
+            self._text(
+                screen,
+                f"TIME  {seconds}s",
+                self.fs,
+                (
+                    (255, 100, 120)
+                    if self.time_left <= 4
+                    else self.accent
+                ),
+                682
+            )
 
         if self.paused:
             pause = pygame.Surface(
@@ -1378,11 +1428,11 @@ class MiniChallenge:
         else:
             guide_data = {
                 "DEFLECT": (
-                    "DEFLECTION FIELD",
+                    "GRAVITY SHIELD PROTOCOL",
                     [
                         "Move the shield with your mouse.",
                         "Block incoming debris before it hits the core.",
-                        "Block 12 objects to complete the challenge."
+                        "Block 10 objects to complete the challenge."
                     ]
                 ),
                 "WASD_RUN": (
@@ -1390,15 +1440,15 @@ class MiniChallenge:
                     [
                         "Use A / D or LEFT / RIGHT to change lanes.",
                         "Avoid the barriers and keep moving forward.",
-                        "Dodge 14 barriers to complete the challenge."
+                        "Dodge 10 barriers to complete the challenge."
                     ]
                 ),
                 "SOLDER": (
-                    "QUANTUM SOLDER",
+                    "PIXEL CIRCUIT LINK",
                     [
                         "Click and drag from IN to OUT to connect the circuit.",
-                        "Avoid glitch tiles while drawing the path.",
-                        "Complete 5 connections to finish."
+                        "Avoid the red glitch tiles while drawing the path.",
+                        "Complete 3 connections to finish."
                     ]
                 ),
                 "NEON_DASH": (
@@ -1697,7 +1747,7 @@ class MiniChallenge:
         if self.level_mode == "SOLDER":
             self._text(
                 screen,
-                f"QUANTUM LINKS: {self.solder_connections} / TARGET {self.target_connections}",
+                f"CIRCUITS LINKED: {self.solder_connections} / TARGET {self.target_connections}",
                 self.strike_title_font,
                 (210, 218, 240),
                 y
@@ -1891,30 +1941,12 @@ class MiniChallenge:
                     border_radius=10
                 )
 
-                if glitch:
-                    self._text(
-                        screen,
-                        "X",
-                        self.fb,
-                        (255, 255, 255),
-                        rect.centery
+                label = "X" if glitch else "IN" if c == 0 else "OUT" if c == 4 else None
+                if label:
+                    label_img = (self.fb if glitch else self.fs).render(
+                        label, True, (255, 255, 255)
                     )
-                elif c == 0:
-                    self._text(
-                        screen,
-                        "IN",
-                        self.fs,
-                        (255, 255, 255),
-                        rect.centery
-                    )
-                elif c == 4:
-                    self._text(
-                        screen,
-                        "OUT",
-                        self.fs,
-                        (255, 255, 255),
-                        rect.centery
-                    )
+                    screen.blit(label_img, label_img.get_rect(center=rect.center))
 
         if len(self.solder_path) > 1:
             points = [
