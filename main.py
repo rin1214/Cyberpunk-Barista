@@ -168,6 +168,10 @@ def open_map(screen, map_manager, economy, progression, mixing_station, active_c
         )
         return active_bg, new_customer
     progression.level = new_level
+    # Keep the mixing station's drink availability in sync with the
+    # level selected on the map. This ensures Level 1 shows only the
+    # first 3 drinks and Level 2 shows only the first 6 drinks.
+    sync_level_systems(economy, progression, mixing_station)
     active_bg = load_level_background(progression.level)
     if active_customer is not None:
         sync_station_order(mixing_station, active_customer)
