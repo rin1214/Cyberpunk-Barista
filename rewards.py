@@ -1,12 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-REWARD SYSTEM
-============================================================
-
-This file calculates the rewards and penalties earned
-after serving one customer.
-"""
 
 from dataclasses import dataclass
 

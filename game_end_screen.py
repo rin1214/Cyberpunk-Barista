@@ -4,7 +4,7 @@ import pygame
 
 WIDTH, HEIGHT, FPS = 1280, 720, 60
 ROOT = os.path.dirname(os.path.abspath(__file__))
-END_DIR = os.path.join(ROOT, "assets", "mahirah", "end_game")
+END_DIR = os.path.join(ROOT, "assets", "end_game")
 FONT_DIR = os.path.join(ROOT, "assets", "fonts")
 BG_FILE = os.path.join(END_DIR, "end_game_background.png")
 

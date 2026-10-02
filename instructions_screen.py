@@ -12,7 +12,7 @@ class InstructionScreen:
 
         path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "assets", "mahirah", "ui", "how_to_play.png"
+            "assets", "ui", "how_to_play.png"
         )
 
         try:

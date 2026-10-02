@@ -23,7 +23,7 @@ class LeaderboardScreen:
 
         root = project_root or os.path.dirname(os.path.abspath(__file__))
         bg_path = os.path.join(
-            root, "assets", "mahirah", "ui", "leaderboard_bg.png"
+            root, "assets", "ui", "leaderboard_bg.png"
         )
 
         try:

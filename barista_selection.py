@@ -160,7 +160,7 @@ class BaristaSelection:
             return False
 
     def _load_background(self):
-        path = os.path.join(self.project_root, "assets", "mahirah", "baristas", BACKGROUND_FILE)
+        path = os.path.join(self.project_root, "assets", "baristas", BACKGROUND_FILE)
         try:
             image = pygame.image.load(path).convert()
             self.background = pygame.transform.smoothscale(image, (self.WIDTH, self.HEIGHT))
@@ -168,7 +168,7 @@ class BaristaSelection:
             self.background = None
 
     def _load_avatars(self):
-        avatar_dir = os.path.join(self.project_root, "assets", "mahirah", "baristas")
+        avatar_dir = os.path.join(self.project_root, "assets", "baristas")
         for name, info in BARISTA_DATA.items():
             path = os.path.join(avatar_dir, info["avatar"])
             try:

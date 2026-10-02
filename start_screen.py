@@ -2,9 +2,7 @@ import os
 import pygame
 
 class StartScreen:
-    """Cyberpunk Café — Start Screen (1280 × 720).
-    Clean, compact, highly responsive, with perfectly proportioned UI assets.
-    """
+    
     WIDTH, HEIGHT, FPS = 1280, 720, 60
 
     # ── Theme Colors ──────────────────────────────────────────────────────────
@@ -36,9 +34,9 @@ class StartScreen:
 
         # Paths & Assets
         root = os.path.dirname(os.path.abspath(__file__))
-        self.start_root = os.path.join(root, "assets", "mahirah", "start")
-        self.ui_root    = os.path.join(root, "assets", "mahirah", "ui")
-        self.audio_root = os.path.join(root, "assets", "mahirah", "audio")
+        self.start_root = os.path.join(root, "assets", "start")
+        self.ui_root    = os.path.join(root, "assets", "ui")
+        self.audio_root = os.path.join(root, "assets", "audio")
         self.font_root  = os.path.join(root, "assets", "fonts")
 
         self._load_all_assets()

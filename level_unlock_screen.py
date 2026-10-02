@@ -13,7 +13,7 @@ class LevelUnlockScreen:
         self.screen = screen
         self.clock = pygame.time.Clock()
         self._root = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  "assets", "mahirah", "unlock")
+                                  "assets", "unlock")
         self._cache = {}
         self.images = {lvl: self._load(fn) for lvl, fn in self.LEVEL_IMAGES.items()}
 

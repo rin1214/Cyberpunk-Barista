@@ -28,8 +28,8 @@ class LoadingScreen:
         self.clock = pygame.time.Clock()
 
         root = os.path.dirname(os.path.abspath(__file__))
-        start_dir   = os.path.join(root, "assets", "mahirah", "start")
-        loading_dir = os.path.join(root, "assets", "mahirah", "loading")
+        start_dir   = os.path.join(root, "assets", "start")
+        loading_dir = os.path.join(root, "assets", "loading")
 
         self.background = self._load("loading_bg.png", loading_dir) \
                        or self._load("start_bg.png", start_dir)
