@@ -1,16 +1,13 @@
 """
-audio_settings.py
------------------
-All audio-settings logic for the Cyberpunk Cafe game lives here:
-volume / mute state, applying volumes to pygame, SFX registration,
-slider + mute-button input handling, and drawing the audio controls
-inside the F-menu panel.
+============================================================
+CYBERPUNK CAFÉ
+AUDIO SETTINGS SYSTEM
+============================================================
 
-station.py creates one AudioSettings object (self.audio) and delegates to it.
+This file manages all audio settings, sound effects, and menu controls for the game.
 """
 
 import pygame
-
 
 class AudioSettings:
     DEFAULT_MUSIC_VOLUME = 0.30
@@ -25,7 +22,7 @@ class AudioSettings:
         self.dragging_slider = None          # None, "music" or "sfx"
         self.registered_sfx = []             # pygame.mixer.Sound objects kept in sync
 
-        # --- Layout (filled in by set_layout) ---
+        # --- Layout ---
         self.panel_rect = pygame.Rect(0, 0, 0, 0)
         self.music_track = pygame.Rect(0, 0, 0, 0)
         self.sfx_track = pygame.Rect(0, 0, 0, 0)
@@ -119,10 +116,7 @@ class AudioSettings:
     def draw(self, screen, ui):
         """
         Draw the AUDIO SETTINGS header, both sliders and both mute buttons.
-
-        `ui` is the owner (MixingStation). It supplies the shared look:
-        colors (CYAN, CYAN_LIGHT, PINK, WHITE, MUTED), fonts (font_big_title,
-        font_small, font_hud) and the helpers _panel() and _action_button().
+        
         """
         rect = self.panel_rect
 
