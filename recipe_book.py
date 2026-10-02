@@ -103,7 +103,7 @@ RECIPE_GRID_ORDER = [
 
 
 class RecipeBook:
-    """Cyber Café Recipes Overlay: Clean, authentic cyberpunk recipe handbook."""
+    """Cyberpunk Cafe Recipe Book Overlay: Clean, authentic cyberpunk recipe handbook."""
 
     WIDTH, HEIGHT = 1280, 720
 
@@ -265,9 +265,9 @@ class RecipeBook:
         # Neon coffee icon above title
         self._draw_neon_coffee_icon(screen, (640, 68))
 
-        # Title: CYBER CAFÉ (Cyan) + RECIPES (Pink)
-        t_cyber = self.font_title.render("CYBER CAFÉ", True, self.CYAN)
-        t_rec = self.font_title.render(" RECIPES", True, self.PINK)
+        # Title: CYBERPUNK CAFE (Cyan) + RECIPE BOOK (Pink)
+        t_cyber = self.font_title.render("CYBERPUNK CAFE", True, self.CYAN)
+        t_rec = self.font_title.render(" RECIPE BOOK", True, self.PINK)
         total_w = t_cyber.get_width() + t_rec.get_width()
         start_x = 640 - (total_w // 2)
         y_title = 84
