@@ -5,7 +5,7 @@
         "Ryu",
         "Kira"
       ],
-      "selected": "Ryu"
+      "selected": "Kira"
     },
     "yoyo": {
       "unlocked": [
@@ -50,6 +50,30 @@
       "selected": "Ryu"
     },
     "ss": {
+      "unlocked": [
+        "Ryu"
+      ],
+      "selected": "Ryu"
+    },
+    "aa": {
+      "unlocked": [
+        "Ryu"
+      ],
+      "selected": "Ryu"
+    },
+    "lola": {
+      "unlocked": [
+        "Ryu"
+      ],
+      "selected": "Ryu"
+    },
+    "kk": {
+      "unlocked": [
+        "Ryu"
+      ],
+      "selected": "Ryu"
+    },
+    "test_player": {
       "unlocked": [
         "Ryu"
       ],

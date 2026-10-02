@@ -8,6 +8,9 @@ from drink import (
     get_unlocked_drinks,
 )
 
+# Track last drink ordered so the next customer never repeats the same drink
+_last_drink: str | None = None
+
 # 1280x720 Game Resolution Scaling Helpers
 GAME_WIDTH = 1280
 GAME_HEIGHT = 720
@@ -124,12 +127,21 @@ class Customer:
         self.feedback_color = (0, 255, 150)
 
     def _generate_order(self):
+        global _last_drink
         unlocked_drinks = get_unlocked_drinks(self.level)
         if not unlocked_drinks:
             unlocked_drinks = get_unlocked_drinks(1)
-        
+
+        # Exclude the last drink so no two customers in a row order the same thing
+        pool = [d for d in unlocked_drinks if d != _last_drink]
+        if not pool:   # only one drink available – can't avoid repeating
+            pool = unlocked_drinks
+
+        chosen = random.choice(pool)
+        _last_drink = chosen
+
         return CustomerOrder(
-            drink=random.choice(unlocked_drinks),
+            drink=chosen,
             temperature=random.choice(TEMPERATURE_OPTIONS),
             caffeine=random.choice(CAFFEINE_OPTIONS),
             sweetness=random.choice(SWEETNESS_OPTIONS),
