@@ -474,7 +474,9 @@ while running:
     if active_customer is not None:
         active_customer.draw(screen)
     mixing_station.draw(screen)
-    economy.draw(combo_count=current_combo, dt=dt)
+    recipe_page_open = getattr(mixing_station, "show_recipes_overlay", False) or getattr(getattr(mixing_station, "recipe_book", None), "is_open", False)
+    if not getattr(mixing_station, "show_menu_overlay", False) and not recipe_page_open:
+        economy.draw(combo_count=current_combo, dt=dt)
 
     if mini_challenge.active or mini_challenge.done:
         mini_challenge.update(dt)
@@ -595,7 +597,7 @@ while running:
         print(f"[STATION DRAW ERROR] {error}")
     if mini_challenge.active or mini_challenge.done:
         mini_challenge.draw(screen)
-    if not getattr(mixing_station, "show_menu_overlay", False):
+    if not getattr(mixing_station, "show_menu_overlay", False) and not recipe_page_open:
         try:
             economy.draw(combo_count=current_combo, dt=dt)
         except Exception as error:

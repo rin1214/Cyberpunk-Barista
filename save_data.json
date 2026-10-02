@@ -1,9 +1,9 @@
 {
     "lucy": {
-        "credits": 1647,
-        "xp": 980,
-        "level": 1,
-        "location": "Back Alley Kiosk",
+        "credits": 1701,
+        "xp": 720,
+        "level": 2,
+        "location": "Neon Lounge",
         "unlocked_levels": {
             "1": true,
             "2": true,
@@ -405,6 +405,17 @@
     "aa": {
         "credits": 136,
         "xp": 220,
+        "level": 1,
+        "location": "Back Alley Kiosk",
+        "unlocked_levels": {
+            "1": true,
+            "2": false,
+            "3": false
+        }
+    },
+    "Player": {
+        "credits": 100,
+        "xp": 0,
         "level": 1,
         "location": "Back Alley Kiosk",
         "unlocked_levels": {
