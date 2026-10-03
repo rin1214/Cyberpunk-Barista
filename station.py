@@ -7,7 +7,7 @@ from drink import (
 )
 from game_state import MixingGameState, GameState
 from mini_challenges import MiniChallenge
-from audio_settings import AudioSettings
+from audio_settings import get_audio
 from recipe_book import RecipeBook
 
 
@@ -61,7 +61,7 @@ class MixingStation:
         self.game_state   = MixingGameState()
         self.progression, self.rewards, self.economy = progression, rewards, economy
         self.level = max(1, int(level))
-        self.audio = AudioSettings()
+        self.audio = get_audio()   # shared with the start screen
 
         base = os.path.dirname(os.path.abspath(__file__))
         self.drink_dir = os.path.join(base, "assets", "drinks")
@@ -75,6 +75,7 @@ class MixingStation:
         self._load_drink_images()
         self._create_layout()
         self._attach_legacy_bridge()
+        self.audio.load_sfx()
         self.audio.apply_volumes()
 
     def _init_state(self):
@@ -371,6 +372,8 @@ class MixingStation:
         dt  = max(0.0, min(dt or (now - self._last_time), 0.1))
         self._last_time = now
 
+        self._update_hover_sound()
+
         if self.show_menu_overlay:
             self.audio.update_drag(pygame.mouse.get_pos()[0])
             return   # Pause all gameplay while overlay is open
@@ -411,7 +414,41 @@ class MixingStation:
         self.assembly_phase = "ready"
         if self.game_state.state == GameState.BLENDING:
             self.game_state.finish_blending()
+            self.audio.stop_sfx("blender", 150)
             self._sync_legacy_values()
+
+    # ------------------------------------------------------------------ hover / click sounds
+
+    def _interactive_targets(self):
+        """(key, rect) pairs the mouse can hover or click right now (for sounds)."""
+        if self.show_recipes_overlay or self.recipe_book.is_open:
+            return []
+        if self.show_menu_overlay:
+            return [
+                ("resume", self.resume_menu_btn), ("exit", self.exit_menu_btn),
+                ("return", self.return_start_btn), ("close", self.close_overlay_btn),
+                ("mute_music", self.audio.music_mute_btn), ("mute_sfx", self.audio.sfx_mute_btn),
+            ]
+        if self.challenge.active:
+            return []
+        targets = [("recipes", self.recipes_button), ("menu", self.menu_button),
+                   ("map", self.map_button), ("leaderboard", self.leaderboard_button)]
+        for drink_name, rect in self.menu_slots:
+            if is_valid_drink(drink_name) and is_drink_unlocked(drink_name, self.level):
+                targets.append((f"drink:{drink_name}", rect))
+        if self.game_state.state in (GameState.CUSTOMISE, GameState.READY_TO_BLEND):
+            targets += [(f"slider:{p}", r) for p, r in self.slider_hitboxes.items()]
+        targets += [("blend", self.blend_button), ("serve", self.serve_button)]
+        return targets
+
+    def _target_at(self, pos):
+        for key, rect in self._interactive_targets():
+            if rect.collidepoint(pos):
+                return key
+        return None
+
+    def _update_hover_sound(self):
+        self.audio.update_hover(self._target_at(pygame.mouse.get_pos()))
 
     # ------------------------------------------------------------------ events
 
@@ -436,6 +473,8 @@ class MixingStation:
         if self.show_menu_overlay:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mouse = event.pos
+                if self._target_at(mouse):
+                    self.audio.play_click()
                 if   self.resume_menu_btn.collidepoint(mouse):  self.show_menu_overlay = False
                 elif self.exit_menu_btn.collidepoint(mouse):    self.show_menu_overlay = False; self.exit_requested = True
                 elif self.return_start_btn.collidepoint(mouse): self.show_menu_overlay = False; self.return_start_requested = True
@@ -450,6 +489,9 @@ class MixingStation:
 
         if self.challenge.active:
             self.challenge.handle_event(event); return
+
+        if self._target_at(mouse):
+            self.audio.play_click()
 
         if   self.recipes_button.collidepoint(mouse):
             self.recipe_book.open()
@@ -476,6 +518,7 @@ class MixingStation:
             if self.challenge.done: self.liquid_unlocked = True
             if self.liquid_unlocked and self.game_state.start_blending():
                 self.blend_start_time, self.blender_angle = time.monotonic(), 0.0
+                self.audio.play_sfx("blender")
             return
 
         if self.serve_button.collidepoint(mouse) and self.game_state.serve():
@@ -858,6 +901,7 @@ class MixingStation:
 
     def reset(self):
         """Reset gameplay only — barista selection is preserved."""
+        self.audio.stop_sfx("blender")
         self.player_drink.reset()
         self.game_state.reset()
         self._init_state()

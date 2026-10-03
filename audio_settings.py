@@ -7,13 +7,25 @@ AUDIO SETTINGS SYSTEM
 This file manages all audio settings, sound effects, and menu controls for the game.
 """
 
+import os
 import pygame
+
+# --- Audio file locations ---
+AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "audio")
+MUSIC_FILE = os.path.join(AUDIO_DIR, "cyberpunk_cafe_theme.wav")
+
+# Shared by every screen 
+_active_audio = None
+
 
 class AudioSettings:
     DEFAULT_MUSIC_VOLUME = 0.30
     DEFAULT_SFX_VOLUME = 0.16
 
     def __init__(self, music_volume=DEFAULT_MUSIC_VOLUME, sfx_volume=DEFAULT_SFX_VOLUME):
+        global _active_audio
+        _active_audio = self
+
         # --- State ---
         self.music_volume = music_volume
         self.sfx_volume = sfx_volume
@@ -21,6 +33,9 @@ class AudioSettings:
         self.sfx_muted = False
         self.dragging_slider = None          # None, "music" or "sfx"
         self.registered_sfx = []             # pygame.mixer.Sound objects kept in sync
+        self.sfx = {}                        # named gameplay sounds: click / hover / blender
+        self._hover_key = None               # which button the mouse is currently over
+        self._music_missing_reported = False
 
         # --- Layout ---
         self.panel_rect = pygame.Rect(0, 0, 0, 0)
@@ -68,6 +83,96 @@ class AudioSettings:
                 snd.set_volume(sfx_vol)
             except Exception:
                 pass
+
+    # ------------------------------------------------------------------
+    # Gameplay sound effects
+    # ------------------------------------------------------------------
+    SFX_FILES = {
+        "click": "button_click.wav",
+        "hover": "button_hover.wav",
+        "blender": "blender.wav",
+    }
+
+    def load_sfx(self, audio_dir=AUDIO_DIR):
+        """Load the sound effects from audio_dir (safe to call more than once).
+        A missing file is skipped, so that sound simply stays silent."""
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init()
+            except pygame.error as error:
+                print(f"[AUDIO] Could not start mixer: {error}")
+                return
+        for name, filename in self.SFX_FILES.items():
+            if name in self.sfx:
+                continue
+            path = os.path.join(audio_dir, filename)
+            if not os.path.isfile(path):
+                print(f"[AUDIO] Sound effect not found: {path}")
+                continue
+            try:
+                sound = pygame.mixer.Sound(path)
+            except pygame.error as error:
+                print(f"[AUDIO] Could not load {filename}: {error}")
+                continue
+            self.sfx[name] = sound
+            self.register_sfx_sound(sound)
+
+    def play_sfx(self, name):
+        sound = self.sfx.get(name)
+        if sound is not None and not self.sfx_muted:
+            sound.play()
+
+    def play_click(self):
+        self.play_sfx("click")
+
+    def play_hover(self):
+        self.play_sfx("hover")
+
+    def update_hover(self, key):
+        """Call every frame with the id of the button under the mouse (or None).
+        Plays the hover sound once each time the mouse enters a new button."""
+        if key != self._hover_key:
+            self._hover_key = key
+            if key is not None:
+                self.play_hover()
+
+    def stop_sfx(self, name, fade_ms=0):
+        sound = self.sfx.get(name)
+        if sound is None:
+            return
+        if fade_ms > 0:
+            sound.fadeout(fade_ms)
+        else:
+            sound.stop()
+
+    # ------------------------------------------------------------------
+    # Background music
+    # ------------------------------------------------------------------
+    def start_music(self, restart=True):
+        """Load and loop the theme at the current volume.
+        restart=False leaves it alone if it is already playing."""
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            if not os.path.isfile(MUSIC_FILE):
+                if not self._music_missing_reported:
+                    print(f"[AUDIO] Music not found: {MUSIC_FILE}")
+                    self._music_missing_reported = True
+                return False
+            if restart or not pygame.mixer.music.get_busy():
+                pygame.mixer.music.load(MUSIC_FILE)
+                pygame.mixer.music.play(-1)
+            self.apply_volumes()
+            return True
+        except pygame.error as error:
+            print(f"[AUDIO ERROR] {error}")
+            return False
+
+    def stop_music(self):
+        try:
+            pygame.mixer.music.stop()
+        except pygame.error:
+            pass
 
     # ------------------------------------------------------------------
     # Input
@@ -172,3 +277,27 @@ class AudioSettings:
         s_txt = "UNMUTE SFX" if self.sfx_muted else "MUTE SFX"
         ui._action_button(screen, self.music_mute_btn, m_txt, ui.PINK if self.music_muted else ui.CYAN, True, large=False)
         ui._action_button(screen, self.sfx_mute_btn, s_txt, ui.PINK if self.sfx_muted else ui.CYAN, True, large=False)
+
+
+# ----------------------------------------------------------------------
+# One shared AudioSettings for the whole game
+# ----------------------------------------------------------------------
+def get_audio():
+    """Return the single AudioSettings object every screen shares (start screen,
+    game screen...). It is created the first time it is asked for, so volume,
+    mute state and loaded sounds carry over between screens."""
+    if _active_audio is None:
+        AudioSettings()          # registers itself as the active one
+    return _active_audio
+
+
+def ensure_game_music(start_screen=None):
+    """Make sure the theme is playing at the shared volume.
+    (start_screen is kept only so existing calls still work.)"""
+    return get_audio().start_music(restart=False)
+
+
+def keep_music_running(start_screen=None):
+    """Call every frame: restarts the theme if it stopped."""
+    if not pygame.mixer.get_init() or not pygame.mixer.music.get_busy():
+        ensure_game_music(start_screen)
