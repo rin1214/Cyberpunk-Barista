@@ -23,6 +23,19 @@ SCALE_Y = GAME_HEIGHT / BASE_HEIGHT
 SPRITE_BASE_WIDTH = 180
 SPRITE_BASE_HEIGHT = 220
 
+# What the customer says after being served (keyed by how many of the 4 parts were right).
+REACTION_LINES = {
+    0: ("I can't stand around all day. I'm out of here!", (255, 50, 80)),
+    1: ("This tastes awful. I'm leaving a bad review.", (255, 50, 80)),
+    2: ("You got half of it wrong. Pay attention next time.", (255, 170, 60)),
+    3: ("Great work! Just missing that final touch.", (0, 225, 255)),
+    4: ("Absolute perfection. Keep up the great work!", (0, 255, 150)),
+}
+REACTION_SECONDS = 2.5   # how long the dialogue stays on screen
+LEAVE_SECONDS = 2.5      # how long the slow walk-away / fade-out takes
+# Said when the customer runs out of patience (same bubble + timer as the others)
+TIMEOUT_REACTION = ("Too slow! I'm not waiting any longer.", (255, 50, 80))
+
 def sx(value):
     return int(round(value * SCALE_X))
 
@@ -117,12 +130,20 @@ class Customer:
         self.font_order = pygame.font.SysFont("Consolas", sy(12), bold=True)
         self.font_timer = pygame.font.SysFont("Consolas", sy(11), bold=True)
         self.font_feedback = pygame.font.SysFont("Consolas", sy(18), bold=True)
+        self.font_reaction = pygame.font.SysFont("Consolas", sy(13), bold=True)
         self.font = self.font_small
         
         self.quick_service_ratio = 0.50
         self.dialogue = self._generate_dialogue()
         self.feedback_text = ""
         self.feedback_color = (0, 255, 150)
+
+        # Reaction dialogue + slow leave (used after a drink is served with 1-4 correct)
+        self.reaction_text = ""
+        self.reaction_color = (0, 225, 255)
+        self.reaction_timer = 0.0
+        self.leave_progress = 0.0
+        self.leave_start_y = self.current_y
 
     def _generate_order(self):
         global _last_drink
@@ -201,20 +222,49 @@ class Customer:
             self.current_patience -= dt
             if self.current_patience <= 0:
                 self.current_patience = 0.0
-                self.feedback_text = "TOO SLOW!"
-                self.feedback_color = (255, 50, 80)
+                # Show a proper dialogue bubble instead of a quick "TOO SLOW!" ghost exit
+                self.feedback_text = ""
+                self.reaction_text, self.reaction_color = TIMEOUT_REACTION
+                self.reaction_timer = REACTION_SECONDS
+                self.leave_progress = 0.0
+                self.leave_start_y = self.current_y
                 self.state = CustomerState.LEAVING
                 
         elif self.state in (CustomerState.SERVED, CustomerState.LEAVING):
-            if self.current_y < self.spawn_y:
+            if self.reaction_text:
+                if self.reaction_timer > 0:
+                    # Customer stays and talks first
+                    self.reaction_timer = max(0.0, self.reaction_timer - dt)
+                elif self.leave_progress < 1.0:
+                    # Then slowly walks away while fading out
+                    self.leave_progress = min(1.0, self.leave_progress + dt / LEAVE_SECONDS)
+                    self.current_y = self.leave_start_y + (self.spawn_y - self.leave_start_y) * self.leave_progress
+            elif self.current_y < self.spawn_y:
                 self.current_y += sy(150) * dt
             self.rect.bottom = int(self.current_y)
 
-    def serve_drink(self, drink_data):
+    def serve_drink(self, drink_data, correct_count=None):
         if self.state != CustomerState.WAITING:
             return False
             
         success = self.verify_order(drink_data)
+
+        if correct_count is None:
+            correct_count = self.get_order_accuracy(drink_data)["correct"]
+        try:
+            reaction = REACTION_LINES.get(int(correct_count))
+        except (TypeError, ValueError):
+            reaction = None
+        if reaction:
+            # 0-4 correct: say a short line for 2.5s, then leave slowly
+            self.reaction_text, self.reaction_color = reaction
+            self.reaction_timer = REACTION_SECONDS
+            self.leave_progress = 0.0
+            self.leave_start_y = self.current_y
+            self.feedback_text = ""
+            self.state = CustomerState.SERVED if success else CustomerState.LEAVING
+            return success
+
         if success:
             self.feedback_text = "PERFECT!"
             self.feedback_color = (0, 255, 150)
@@ -257,6 +307,12 @@ class Customer:
         }
 
     def is_finished(self):
+        if self.reaction_text:
+            return (
+                self.state in (CustomerState.SERVED, CustomerState.LEAVING)
+                and self.reaction_timer <= 0
+                and self.leave_progress >= 1.0
+            )
         return (
             self.state in (CustomerState.SERVED, CustomerState.LEAVING)
             and self.current_y >= self.spawn_y
@@ -287,10 +343,77 @@ class Customer:
         if self.state in (CustomerState.ORDERING, CustomerState.WAITING):
             self._draw_speech_bubble(screen)
             
-        screen.blit(current_sprite, self.rect)
+        # Fade the customer out while they walk away after their reaction
+        alpha = 255
+        if self.reaction_text and self.leave_progress > 0:
+            alpha = int(255 * (1.0 - self.leave_progress))
+        if alpha < 255:
+            faded = current_sprite.copy()
+            faded.set_alpha(max(0, alpha))
+            screen.blit(faded, self.rect)
+        else:
+            screen.blit(current_sprite, self.rect)
         
         if self.feedback_text and self.state in (CustomerState.SERVED, CustomerState.LEAVING):
             self._draw_feedback(screen)
+
+        if (
+            self.reaction_text
+            and self.reaction_timer > 0
+            and self.state in (CustomerState.SERVED, CustomerState.LEAVING)
+        ):
+            self._draw_reaction_bubble(screen)
+
+    def _wrap_text(self, text, font, max_width):
+        lines, line = [], ""
+        for word in text.split():
+            test = (line + " " + word).strip()
+            if font.size(test)[0] <= max_width or not line:
+                line = test
+            else:
+                lines.append(line)
+                line = word
+        if line:
+            lines.append(line)
+        return lines
+
+    def _draw_reaction_bubble(self, screen):
+        pad_x, pad_y = sx(12), sy(9)
+        max_text_w = sx(230)
+        lines = self._wrap_text(self.reaction_text, self.font_reaction, max_text_w)
+        line_h = self.font_reaction.get_linesize()
+        text_w = max(self.font_reaction.size(line)[0] for line in lines)
+        bubble_w = text_w + pad_x * 2
+        bubble_h = line_h * len(lines) + pad_y * 2
+
+        bubble_rect = pygame.Rect(0, 0, bubble_w, bubble_h)
+        bubble_rect.centerx = self.rect.centerx
+        bubble_rect.bottom = self.rect.top - sy(16)
+        bubble_rect.left = max(sx(12), bubble_rect.left)
+        bubble_rect.right = min(GAME_WIDTH - sx(12), bubble_rect.right)
+        bubble_rect.top = max(sy(10), bubble_rect.top)
+
+        bg_surface = pygame.Surface(bubble_rect.size, pygame.SRCALPHA)
+        bg_surface.fill((8, 12, 25, 235))
+        screen.blit(bg_surface, bubble_rect.topleft)
+        pygame.draw.rect(screen, self.reaction_color, bubble_rect, width=2, border_radius=sy(10))
+
+        text_y = bubble_rect.y + pad_y
+        for line in lines:
+            surface = self.font_reaction.render(line, True, (235, 245, 255))
+            screen.blit(surface, (bubble_rect.x + pad_x, text_y))
+            text_y += line_h
+
+        pointer_x = max(bubble_rect.left + sx(20), min(self.rect.centerx, bubble_rect.right - sx(20)))
+        pointer_top = bubble_rect.bottom
+        points = [
+            (pointer_x - sx(8), pointer_top),
+            (pointer_x + sx(8), pointer_top),
+            (pointer_x, pointer_top + sy(11)),
+        ]
+        pygame.draw.polygon(screen, (8, 12, 25), points)
+        pygame.draw.line(screen, self.reaction_color, (pointer_x - sx(8), pointer_top), (pointer_x, pointer_top + sy(11)), width=2)
+        pygame.draw.line(screen, self.reaction_color, (pointer_x, pointer_top + sy(11)), (pointer_x + sx(8), pointer_top), width=2)
 
     def _draw_speech_bubble(self, screen):
         bubble_w = sx(255)
