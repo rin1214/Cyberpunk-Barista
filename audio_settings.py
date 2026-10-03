@@ -14,12 +14,12 @@ import pygame
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "audio")
 MUSIC_FILE = os.path.join(AUDIO_DIR, "cyberpunk_cafe_theme.wav")
 
-# Shared by every screen 
+# The one AudioSettings object shared by every screen (see get_audio() below)
 _active_audio = None
 
 
 class AudioSettings:
-    DEFAULT_MUSIC_VOLUME = 0.30
+    DEFAULT_MUSIC_VOLUME = 0.80   # 0.0 - 1.0 (1.0 = loudest pygame allows)
     DEFAULT_SFX_VOLUME = 0.16
 
     def __init__(self, music_volume=DEFAULT_MUSIC_VOLUME, sfx_volume=DEFAULT_SFX_VOLUME):

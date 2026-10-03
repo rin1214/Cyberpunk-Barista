@@ -34,6 +34,7 @@ class UIEconomy:
     COLOR_GOLD = (255, 200, 0)        # Gold
     COLOR_PINK = (255, 0, 110)        # Pink
     COLOR_CYAN = (0, 240, 255)        # Cyan
+    POPUP_MS = 1800                   # how long +/- popups stay visible
 
     def __init__(self, screen, player_name="Player"):
         self.screen = screen
@@ -53,7 +54,59 @@ class UIEconomy:
             3: False
         }
         
+        # Floating "+$12" / "+50 XP" popups shown under the HUD
+        self.popups = []
+        self.popup_font = None
+
         self.load_economy_data()
+
+    def show_reward_popups(self, xp_delta=0, credit_delta=0):
+        """Queue floating popups under the XP and Credits HUD values."""
+        now = pygame.time.get_ticks()
+        try:
+            xp_delta = int(xp_delta)
+        except (TypeError, ValueError):
+            xp_delta = 0
+        try:
+            credit_delta = int(credit_delta)
+        except (TypeError, ValueError):
+            credit_delta = 0
+        if xp_delta:
+            sign = "+" if xp_delta > 0 else "-"
+            self.popups.append({"kind": "xp", "text": f"{sign}{abs(xp_delta):,} XP",
+                                "positive": xp_delta > 0, "start": now})
+        if credit_delta:
+            sign = "+" if credit_delta > 0 else "-"
+            self.popups.append({"kind": "credits", "text": f"{sign}${abs(credit_delta):,}",
+                                "positive": credit_delta > 0, "start": now})
+
+    def _draw_popups(self, xp_x, cred_x, hud_bottom):
+        if not self.popups:
+            return
+        if self.popup_font is None:
+            self.popup_font = pygame.font.SysFont("Consolas", 16, bold=True)
+        now = pygame.time.get_ticks()
+        alive = []
+        slot_count = {"xp": 0, "credits": 0}
+        for p in self.popups:
+            age = now - p["start"]
+            if age > self.POPUP_MS:
+                continue
+            alive.append(p)
+            t = age / self.POPUP_MS
+            alpha = 255 if t < 0.6 else int(255 * (1.0 - (t - 0.6) / 0.4))
+            color = (0, 255, 150) if p["positive"] else (255, 70, 90)
+            x = xp_x if p["kind"] == "xp" else cred_x
+            # stack multiple popups of the same kind so they never overlap
+            y = hud_bottom + 6 + slot_count[p["kind"]] * 20 + int(14 * t)
+            slot_count[p["kind"]] += 1
+            shadow = self.popup_font.render(p["text"], True, (0, 0, 0))
+            text = self.popup_font.render(p["text"], True, color)
+            shadow.set_alpha(alpha)
+            text.set_alpha(alpha)
+            self.screen.blit(shadow, (x + 1, y + 1))
+            self.screen.blit(text, (x, y))
+        self.popups = alive
 
     def get_drink_price(self, drink_name=None, level=None):
         if drink_name:
@@ -353,6 +406,9 @@ class UIEconomy:
         combo_val = font_main.render(f"x{combo_count}", True, self.COLOR_PINK)
         self.screen.blit(combo_txt, (combo_x, hud_rect.y + 12))
         self.screen.blit(combo_val, (combo_x, hud_rect.y + 32))
+
+        # Floating +/- popups for XP and Credits
+        self._draw_popups(xp_x, cred_x, hud_rect.bottom)
 
     def draw(self, combo_count=1, dt=0):
         self.draw_hud(combo_count=combo_count)

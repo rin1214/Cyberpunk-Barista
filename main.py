@@ -485,6 +485,7 @@ while running:
                 successful_order = (accuracy_result.correct_count == 4)
                 if successful_order:
                     successful_drinks += 1
+                credits_before = economy.credits
                 try:
                     economy.apply_reward(reward_result)
                     if jax_bonus:
@@ -492,12 +493,22 @@ while running:
                 except Exception as error:
                     print(f"[ECONOMY] Reward warning: {error}")
                 try:
+                    economy.show_reward_popups(
+                        xp_delta=new_xp - current_xp,
+                        credit_delta=economy.credits - credits_before,
+                    )
+                except Exception as error:
+                    print(f"[HUD] Popup warning: {error}")
+                try:
                     sync_level_systems(economy, progression, mixing_station)
                     economy.save_economy_data()
                 except Exception as error:
                     print(f"[MAIN] Sync/Save warning: {error}")
                 try:
-                    active_customer.serve_drink(player_drink_data)
+                    active_customer.serve_drink(
+                        player_drink_data,
+                        correct_count=accuracy_result.correct_count,
+                    )
                 except Exception as error:
                     print(f"[CUSTOMER] Serve reaction warning: {error}")
                 try:
