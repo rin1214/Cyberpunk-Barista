@@ -39,9 +39,7 @@ class LeaderboardScreen:
 
         self.close = pygame.Rect(495, 648, 290, 48)
 
-    # ------------------------------------------------------------
     # DRAW HELPERS
-    # ------------------------------------------------------------
 
     def text(self, value, font, color, pos):
         surface = font.render(str(value), True, color)
@@ -55,9 +53,7 @@ class LeaderboardScreen:
             self.screen, color, rect, 2, border_radius=10
         )
 
-    # ------------------------------------------------------------
     # BACKGROUND
-    # ------------------------------------------------------------
 
     def draw_background(self):
         w, h = self.screen.get_size()
@@ -79,9 +75,7 @@ class LeaderboardScreen:
         overlay.fill((3, 5, 18, 115))
         self.screen.blit(overlay, (0, 0))
 
-    # ------------------------------------------------------------
     # HEADER
-    # ------------------------------------------------------------
 
     def draw_header(self):
         title_plate = pygame.Rect(330, 33, 620, 102)
@@ -132,9 +126,7 @@ class LeaderboardScreen:
             credits.center
         )
 
-    # ------------------------------------------------------------
     # TABLE
-    # ------------------------------------------------------------
 
     def draw_table(self, players):
         table = pygame.Rect(290, 155, 700, 465)
@@ -273,9 +265,7 @@ class LeaderboardScreen:
 
             y += 47
 
-    # ------------------------------------------------------------
     # FOOTER
-    # ------------------------------------------------------------
 
     def draw_footer(self):
         color = (
@@ -307,10 +297,8 @@ class LeaderboardScreen:
             (1060, 695)
         )
 
-    # ------------------------------------------------------------
     # MAIN LOOP
-    # ------------------------------------------------------------
-
+    
     def run(self):
         self.lb.update_current_player_score()
 

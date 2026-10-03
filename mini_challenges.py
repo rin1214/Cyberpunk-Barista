@@ -2,9 +2,8 @@ import math
 import random
 import pygame
 
-# -------------------------------------------------------------
 # CHALLENGE METADATA & INGREDIENT CONFIGURATIONS
-# -------------------------------------------------------------
+
 CHALLENGES = {
     "Neon Latte": {
         "title": "MILK MATCH OVERDRIVE", "ingredient": "MILK", "accent": (120, 235, 255),
@@ -116,9 +115,8 @@ class MiniChallenge:
         self.rhythm_notes, self.rhythm_spawn_timer, self.rhythm_hit_count = [], 0.0, 0
         self.rhythm_combo, self.rhythm_score, self.rhythm_speed, self.target_rhythm_score = 0, 0, 320.0, 3000
 
-    # -------------------------------------------------------------
     # VISUAL EFFECTS & PARTICLES
-    # -------------------------------------------------------------
+
     def add_particles(self, x, y, color, count=12, speed_mult=1.0):
         for _ in range(count):
             a = random.uniform(0, math.pi * 2)
@@ -131,9 +129,8 @@ class MiniChallenge:
     def add_floating_text(self, text, x, y, color=(255, 230, 100)):
         self.floating_texts.append({"text": text, "x": x, "y": y, "vy": -50.0, "life": 0.5, "color": color})
 
-    # -------------------------------------------------------------
     # CHALLENGE INITIALIZATION
-    # -------------------------------------------------------------
+    
     def start_challenge(self, drink_name):
         self.drink = drink_name
         d = CHALLENGES.get(drink_name, CHALLENGES["Neon Latte"])
@@ -173,9 +170,8 @@ class MiniChallenge:
             self.level_mode, self.time_left = "MATCH3", 20
             self.board = self._new_board()
 
-    # -------------------------------------------------------------
     # SOLDER CIRCUIT GRAPH SOLVER & GENERATOR
-    # -------------------------------------------------------------
+   
     def _solder_has_path(self, glitch_tiles):
         last_col = self.N - 1
         seen = {(r, 0) for r in range(self.N)}
@@ -205,9 +201,8 @@ class MiniChallenge:
             glitch = set()
         self.glitch_tiles, self.glitch_timer = glitch, 0
 
-    # -------------------------------------------------------------
     # EVENT HANDLING
-    # -------------------------------------------------------------
+   
     def handle_event(self, event):
         if not self.active or self.done or self.failed:
             return
@@ -286,9 +281,8 @@ class MiniChallenge:
                 else:
                     self.selected = cell
 
-    # -------------------------------------------------------------
     # UPDATE & WIN CONDITION LOGIC
-    # -------------------------------------------------------------
+
     def _is_target_reached(self):
         targets = {
             "DEFLECT": self.blocked_count >= self.target_blocked,
@@ -357,9 +351,8 @@ class MiniChallenge:
         else:
             self._fail()
 
-    # -------------------------------------------------------------
     # NEON DASH
-    # -------------------------------------------------------------
+    
     def _start_neon_dash(self):
         self.time_left, self.dash_player_y, self.dash_velocity = 999.0, 535, 0
         self.dash_on_ground = True
@@ -428,9 +421,8 @@ class MiniChallenge:
         self._text(screen, f"SCORE {self.dash_score} / {self.target_dash_score}", self.fs, self.accent, 220)
         self._text(screen, f"COMBO x{self.dash_combo}", self.fs, (255, 230, 120), 240)
 
-    # -------------------------------------------------------------
     # AIM RUSH
-    # -------------------------------------------------------------
+    
     def _start_aim_rush(self):
         self.time_left, self.aim_targets, self.aim_targets_left = 999.0, [], 20
         self.aim_combo = self.aim_score = self.aim_best_combo = self.aim_spawn_timer = 0
@@ -495,9 +487,8 @@ class MiniChallenge:
         self._text(screen, f"SCORE {self.aim_score} / {self.target_aim_score}", self.fs, self.accent, 220)
         self._text(screen, f"COMBO x{self.aim_combo}", self.fs, (255, 230, 120), 240)
 
-    # -------------------------------------------------------------
     # RHYTHM BLITZ
-    # -------------------------------------------------------------
+   
     def _start_rhythm_rush(self):
         self.time_left, self.rhythm_notes = 999.0, []
         self.rhythm_spawn_timer, self.rhythm_hit_count = 0.2, 0
@@ -557,9 +548,8 @@ class MiniChallenge:
         self._text(screen, f"SCORE {self.rhythm_score} / {self.target_rhythm_score}", self.fs, self.accent, 220)
         self._text(screen, f"COMBO x{self.rhythm_combo}", self.fs, (255, 230, 120), 240)
 
-    # -------------------------------------------------------------
     # DEFLECT, WASD RUN & SOLDER LOGIC
-    # -------------------------------------------------------------
+   
     def _update_deflect(self, dt):
         mx, my = pygame.mouse.get_pos()
         self.shield_angle = math.atan2(my - self.center_pos[1], mx - self.center_pos[0])
@@ -672,9 +662,8 @@ class MiniChallenge:
                     else:
                         self._reset_solder_board()
 
-    # -------------------------------------------------------------
     # MAIN DRAW PIPELINE
-    # -------------------------------------------------------------
+    
     def draw(self, screen):
         if not self.active:
             return
@@ -752,9 +741,8 @@ class MiniChallenge:
             text = self.fi.render(label, True, (248, 250, 255))
             screen.blit(text, text.get_rect(center=rect.center))
 
-    # -------------------------------------------------------------
     # GUIDE & TUTORIAL OVERLAY
-    # -------------------------------------------------------------
+   
     def _draw_guide(self, screen):
         overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         overlay.fill((4, 7, 18, 215))
@@ -780,9 +768,8 @@ class MiniChallenge:
         pygame.draw.rect(screen, self.accent, button, 2, border_radius=8)
         self._text(screen, "GOT IT", self.fs, (248, 250, 255), 520)
 
-    # -------------------------------------------------------------
     # MATCH-3 BOARD ENGINE
-    # -------------------------------------------------------------
+    
     def _new_board(self):
         for _ in range(500):
             board = [[None] * self.N for _ in range(self.N)]
@@ -905,9 +892,8 @@ class MiniChallenge:
             return int(r), int(c)
         return None
 
-    # -------------------------------------------------------------
     # STATUS & MODE-SPECIFIC RENDERERS
-    # -------------------------------------------------------------
+   
     def _draw_status_tracker(self, screen):
         y = 208
         if self.level_mode == "DEFLECT":
@@ -972,9 +958,8 @@ class MiniChallenge:
             pygame.draw.lines(screen, (255, 255, 255), False, points, 8)
             pygame.draw.lines(screen, self.accent, False, points, 4)
 
-    # -------------------------------------------------------------
     # FINISH, FAIL & HELPER UTILITIES
-    # -------------------------------------------------------------
+    
     def _finish(self):
         self.done, self.selected, self.show_guide, self.done_timer = True, None, False, 1.2
 
@@ -991,9 +976,8 @@ class MiniChallenge:
         surface = font.render(text, True, color)
         screen.blit(surface, surface.get_rect(center=(640, y)))
 
-    # -------------------------------------------------------------
-    # INGREDIENT ICONS & CUTE FACES
-    # -------------------------------------------------------------
+    # INGREDIENT ICONS 
+   
     def _icon(self, s, center, kind):
         x, y = center
         ink, cream = (68, 76, 98), (255, 252, 246)
