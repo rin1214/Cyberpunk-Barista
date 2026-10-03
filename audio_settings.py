@@ -3,7 +3,7 @@ import pygame
 
 # --- Audio file locations ---
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "audio")
-MUSIC_FILE = os.path.join(AUDIO_DIR, "cyberpunk_cafe_theme.wav")
+MUSIC_FILE = os.path.join(AUDIO_DIR, "cyberpunk_cafe_theme.ogg")
 
 # The one AudioSettings object shared by every screen
 _active_audio = None
