@@ -103,7 +103,7 @@ class Customer:
         
         self.order = self._generate_order()
         
-        # Legacy compatibility values for older systems
+        # Legacy compatibility values 
         self.target_sweetness = self._sweetness_to_number(self.order.sweetness)
         self.target_caffeine = self._caffeine_to_number(self.order.caffeine)
         self.target_temperature = self._temperature_to_number(self.order.temperature)
@@ -319,8 +319,7 @@ class Customer:
         screen.blit(header, (bubble_rect.x + sx(12), bubble_rect.y + sy(8)))
         pygame.draw.line(screen, (55, 90, 120), (bubble_rect.x + sx(12), bubble_rect.y + sy(27)), (bubble_rect.right - sx(12), bubble_rect.y + sy(27)), width=1)
         
-        # Show clues instead of revealing the requested drink name.
-        # Keep the existing customer name, patience timer and patience bar unchanged.
+        # Show clues not straight away drinks name
         drink_profiles = {
             "Neon Latte": "smooth coffee + creamy",
             "Milkyway": "creamy + chocolate",

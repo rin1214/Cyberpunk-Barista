@@ -103,7 +103,7 @@ RECIPE_GRID_ORDER = [
 
 
 class RecipeBook:
-    """Cyberpunk Cafe Recipe Book Overlay: Clean, authentic cyberpunk recipe handbook."""
+    """Cyberpunk Cafe Recipe Book Overlay"""
 
     WIDTH, HEIGHT = 1280, 720
 

@@ -11,10 +11,7 @@ class LeaderboardManager:
             filename
         )
 
-    # ============================================================
     # UPDATE CURRENT PLAYER SCORE
-    # ============================================================
-
     def update_current_player_score(self):
        
         if self.economy is None:
@@ -29,9 +26,7 @@ class LeaderboardManager:
                 f"Could not update player score: {error}"
             )
 
-    # ============================================================
-    # GET RANKED PLAYERS
-    # ============================================================
+    # GET PLAYERS RANK
 
     def get_ranked_players(self):
         """
@@ -48,17 +43,11 @@ class LeaderboardManager:
 
         players = []
 
-        # --------------------------------------------------------
         # CHECK SAVE FILE
-        # --------------------------------------------------------
-
         if not os.path.exists(self.filepath):
             return players
 
-        # --------------------------------------------------------
         # LOAD SAVE DATA
-        # --------------------------------------------------------
-
         try:
 
             with open(
@@ -81,17 +70,11 @@ class LeaderboardManager:
 
             return players
 
-        # --------------------------------------------------------
         # MAKE SURE DATA IS A DICTIONARY
-        # --------------------------------------------------------
-
         if not isinstance(profiles, dict):
             return players
 
-        # --------------------------------------------------------
         # READ PLAYER PROFILES
-        # --------------------------------------------------------
-
         for name, data in profiles.items():
 
             if not isinstance(data, dict):
@@ -145,10 +128,8 @@ class LeaderboardManager:
                 }
             )
 
-        # --------------------------------------------------------
         # SORT BY XP
-        # --------------------------------------------------------
-
+        
         players.sort(
             key=lambda player: player["xp"],
             reverse=True

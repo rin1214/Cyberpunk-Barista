@@ -22,7 +22,7 @@ class OrderScene:
         self.clue_drink = ""
 
         # Clickable areas for the existing skip/continue hints.
-        # Keep these aligned with the hint text drawn in the dialogue bubbles.
+        # Keep aligned with the hint text drawn in the dialogue bubbles.
         self.customer_skip_rect = pygame.Rect(160, 188, 480, 38)
         self.barista_skip_rect = pygame.Rect(640, 188, 480, 38)
         
@@ -146,9 +146,9 @@ class OrderScene:
         self.barista_text = "Let me think... I think I know what you mean. I'll make it."
 
     def _make_customer_text(self, customer):
-        # The customer gives clues instead of saying the drink name. The
-        # actual order values remain unchanged, so the existing mixing and
-        # accuracy systems continue to use the same customer order.
+        # The customer gives clues instead of saying the drink name. 
+        # actual order values remain unchanged
+        # the existing mixing and accuracy systems continue to use the same customer order.
         o = customer.order
         ingredient_clues = {
             "Neon Latte": "a smooth coffee taste with a creamy finish",
@@ -203,8 +203,8 @@ class OrderScene:
             self._handle_advance()
 
     def _handle_advance(self):
-        # First click while text is still being typed: immediately reveal the
-        # entire current dialogue. The next click advances to the next part.
+        # First click while text is still being typed: immediately reveal the entire current dialogue. 
+        # The next click advances to the next part.
         if self.phase == 0:
             if self.shown < len(self.customer_text):
                 self.shown = len(self.customer_text)
@@ -228,7 +228,7 @@ class OrderScene:
     def _finish(self):
         self.active = False
         if self.customer:
-            # front-facing sprite for workstation mixing/waiting phase!
+            # front-facing sprite for workstation mixing/waiting phase
             if hasattr(self.customer, "original_image") and self.customer.original_image is not None:
                 self.customer.image = self.customer.original_image
             elif hasattr(self.customer, "_load_sprite") and hasattr(self.customer, "current_type"):

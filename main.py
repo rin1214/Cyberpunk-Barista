@@ -548,7 +548,7 @@ while running:
     if not running:
         break
 
-    # --- RENDER STEP ---
+    #  RENDER STEP
     screen.blit(active_bg, (0, 0))
     if active_customer is not None:
         try:

@@ -40,10 +40,8 @@ class MapScreen:
         self.small    = pygame.font.SysFont("Consolas", 12, bold=True)
         self.back     = pygame.Rect(1040, 24, 205, 50)
 
-    # ------------------------------------------------------------
     # BASIC UI
-    # ------------------------------------------------------------
-
+   
     def panel(self, rect, border, alpha=205):
         s = pygame.Surface(rect.size, pygame.SRCALPHA)
         s.fill((*self.DARK, alpha))
@@ -60,9 +58,8 @@ class MapScreen:
     def node_hitbox(self, node):
         return pygame.Rect(node.pos[0] - 75, node.pos[1] - 75, 150, 220)
 
-    # ------------------------------------------------------------
+   
     # BACKGROUND, HEADER, TITLE
-    # ------------------------------------------------------------
 
     def draw_background(self):
         w, h = self.screen.get_size()
@@ -92,9 +89,7 @@ class MapScreen:
         self.text("SELECT YOUR NEXT CAFÉ LOCATION", self.subtitle, self.WHITE, (cx, 142))
         pygame.draw.line(self.screen, self.CYAN, (cx - 185, 158), (cx + 185, 158), 1)
 
-    # ------------------------------------------------------------
     # LOCATION ICONS
-    # ------------------------------------------------------------
 
     def draw_icon(self, node):
         x, y = node.pos
@@ -146,9 +141,7 @@ class MapScreen:
             pygame.draw.rect(self.screen, self.MUTED, (x + 32, y + 38, 14, 11), 2, border_radius=2)
             pygame.draw.arc(self.screen, self.MUTED, (x + 34, y + 30, 10, 12), math.pi, 2 * math.pi, 2)
 
-    # ------------------------------------------------------------
     # LOCATION LABELS & ROUTE
-    # ------------------------------------------------------------
 
     def draw_label(self, node):
         x, y = node.pos
@@ -174,9 +167,7 @@ class MapScreen:
             if a.is_unlocked and b.is_unlocked:
                 pygame.draw.line(self.screen, (55, 120, 155), a.pos, b.pos, 2)
 
-    # ------------------------------------------------------------
     # CURRENT LOCATION & DISTRICT STATUS
-    # ------------------------------------------------------------
 
     def draw_current(self):
         node = next((n for n in self.map_manager.nodes.values() if n.level_req == self.economy.level), None)
@@ -210,10 +201,8 @@ class MapScreen:
                 pygame.draw.line(self.screen, col, (1036, y - 4), (1024, y + 4), 2)
             self.text(status_text, self.small, col, (1148, y))
 
-    # ------------------------------------------------------------
     # INPUT & MAIN LOOP
-    # ------------------------------------------------------------
-
+    
     def update_hover(self):
         m = pygame.mouse.get_pos()
         self.hover = next((n for n in self.map_manager.nodes.values() if self.node_hitbox(n).collidepoint(m)), None)
