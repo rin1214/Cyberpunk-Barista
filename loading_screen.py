@@ -1,5 +1,3 @@
-"""CYBERPUNK CAFÉ — Loading Screen (reusable, all three levels)"""
-
 import os
 import pygame
 

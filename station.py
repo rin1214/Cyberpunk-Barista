@@ -51,9 +51,7 @@ class MixingStation:
         "Stardust Matcha": ["milk","matcha","star"],
         "Meteorite":       ["milk","meteor","ice"],
     }
-
-    # ------------------------------------------------------------------ init
-
+ #init # #for the mixing station, we need to know the current drink, level, progression, rewards, economy, and barista
     def __init__(self, drink=None, level=1, progression=None, rewards=None, economy=None, barista="Ryu"):
         self.drink = drink
         self.barista = barista if barista in ("Ryu", "Kira", "Jax") else "Ryu"
@@ -105,8 +103,7 @@ class MixingStation:
         self.slider_speeds = {"temperature": 0.62, "caffeine": 0.74, "sweetness": 0.86}
         self._reset_sliders()
 
-    # ------------------------------------------------------------------ assets
-
+ # assets #
     def _load_ui_images(self):
         """Load fullscreen audio-menu background."""
         bg_path = os.path.join(self.ui_dir, "audio_menu_bg.png")
@@ -126,9 +123,7 @@ class MixingStation:
                 self.drink_images[name] = pygame.image.load(os.path.join(self.drink_dir, fn)).convert_alpha()
             except (pygame.error, FileNotFoundError):
                 self.drink_images[name] = None
-
-    # ------------------------------------------------------------------ fonts
-
+ # font #
     def _find_font(self, preferred_names):
         """Search assets/fonts then system fonts for a preferred typeface."""
         if os.path.isdir(self.font_dir):
@@ -160,9 +155,7 @@ class MixingStation:
         self.font_medium    = f(clean, 13)
         self.font_close     = pygame.font.SysFont("consolas,couriernew,lucidaconsole,monospace", 17, bold=True)
         self.font_hint      = pygame.font.SysFont("consolas,couriernew,lucidaconsole,monospace", 12, bold=True)
-
-    # ------------------------------------------------------------------ layout
-
+ #layout #
     def _create_layout(self):
         """Define all Rect positions for panels, buttons and sliders."""
         self.hud_rect = pygame.Rect(8, 4, 730, 52)
@@ -210,9 +203,7 @@ class MixingStation:
         self.exit_menu_btn    = pygame.Rect(self.overlay_rect.x + 370, self.overlay_rect.y + 410, 250, 48)
         self.return_start_btn = pygame.Rect(self.overlay_rect.x + 80,  self.overlay_rect.y + 472, 540, 48)
 
-    # ------------------------------------------------------------------ audio proxy
-    # Other modules still reference these names directly on the station object.
-
+    #audio #
     def register_sfx_sound(self, sound_obj): self.audio.register_sfx_sound(sound_obj)
     def get_effective_sfx_volume(self):      return self.audio.get_effective_sfx_volume()
 
@@ -235,9 +226,7 @@ class MixingStation:
     def sfx_muted(self): return self.audio.sfx_muted
     @sfx_muted.setter
     def sfx_muted(self, v): self.audio.sfx_muted = bool(v); self.audio.apply_volumes()
-
-    # ------------------------------------------------------------------ setters
-
+ #setters #
     def set_barista(self, barista):
         self.barista = barista if barista in ("Ryu", "Kira", "Jax") else "Ryu"
         self.blend_duration = self._prep_duration(0.7)
@@ -271,9 +260,8 @@ class MixingStation:
 
     set_customer_order = set_order
 
-    # ------------------------------------------------------------------ request flags
-    # Callers poll these once per frame via consume_*_request().
 
+ #request flags #
     def _consume(self, attr):
         val = getattr(self, attr)
         setattr(self, attr, False)
@@ -285,8 +273,7 @@ class MixingStation:
     def consume_exit_request(self):        return self._consume("exit_requested")
     def consume_return_start_request(self):return self._consume("return_start_requested")
 
-    # ------------------------------------------------------------------ legacy bridge
-
+ #legacy bridge #
     def _attach_legacy_bridge(self):
         if self.drink is not None:
             try: self.drink.get_data = self.get_player_drink_data
@@ -308,16 +295,14 @@ class MixingStation:
     def get_player_drink_data(self): return self.game_state.get_player_drink_data()
     get_data = get_player_drink_data
 
-    # ------------------------------------------------------------------ barista helpers
-
+ #barista helpers #
     def _prep_multiplier(self):
         return 1.20 if self.barista == "Kira" else 1.0
 
     def _prep_duration(self, duration):
         return float(duration) / self._prep_multiplier()
 
-    # ------------------------------------------------------------------ sliders
-
+ # sliders #
     def _reset_sliders(self):
         self.slider_positions  = {"temperature": 0.08, "caffeine": 0.50, "sweetness": 0.92}
         self.slider_directions = {"temperature": 1.0,  "caffeine": -1.0, "sweetness": 1.0}
@@ -365,8 +350,7 @@ class MixingStation:
         self.challenge.start_challenge(drink_name)
         self._sync_legacy_values()
 
-    # ------------------------------------------------------------------ update
-
+ #update #
     def update(self, dt=0.0):
         now = time.monotonic()
         dt  = max(0.0, min(dt or (now - self._last_time), 0.1))
@@ -417,8 +401,7 @@ class MixingStation:
             self.audio.stop_sfx("blender", 150)
             self._sync_legacy_values()
 
-    # ------------------------------------------------------------------ hover / click sounds
-
+ #hover click sound  #
     def _interactive_targets(self):
         """(key, rect) pairs the mouse can hover or click right now (for sounds)."""
         if self.show_recipes_overlay or self.recipe_book.is_open:
@@ -450,8 +433,7 @@ class MixingStation:
     def _update_hover_sound(self):
         self.audio.update_hover(self._target_at(pygame.mouse.get_pos()))
 
-    # ------------------------------------------------------------------ events
-
+ #Event #
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_f:
@@ -525,8 +507,7 @@ class MixingStation:
             self.served = True
             self._sync_legacy_values()
 
-    # ------------------------------------------------------------------ draw
-
+ #draw #
     def draw(self, screen):
         """Render the full mixing station UI."""
         self._draw_hud(screen)
@@ -578,8 +559,7 @@ class MixingStation:
         hint = self.font_hint.render("ADJUST VOLUME BASED ON YOUR PREFERENCE", True, self.MUTED)
         screen.blit(hint, hint.get_rect(center=(self.close_overlay_btn.centerx, self.close_overlay_btn.bottom + 22)))
 
-    # ------------------------------------------------------------------ menu panel
-
+ #Drink menu panel #
     def _draw_menu(self, screen):
         """Drink selection row at the top of the station."""
         self._panel(screen, self.menu_rect, self.CYAN, self.PANEL)
@@ -609,8 +589,7 @@ class MixingStation:
             t = self.font_menu.render(drink_name.upper(), True, col)
             screen.blit(t, t.get_rect(center=(rect.centerx, rect.bottom - 14)))
 
-    # ------------------------------------------------------------------ customise panel
-
+ #drink customisation panel  # #slider bars #
     def _draw_customise(self, screen):
         """Animated slider panel for temperature, caffeine and sweetness."""
         self._panel(screen, self.customise_rect, self.CYAN, (6, 12, 29, 190), radius=14, width=2)
@@ -659,8 +638,7 @@ class MixingStation:
         fbt = self.font_small.render(fb, True, col)
         screen.blit(fbt, (track.right - fbt.get_width(), track.y - 26))
 
-    # ------------------------------------------------------------------ blender panel
-
+    #blender panel # #draw ingredients #
     def _draw_ingredient(self, screen, kind, x, y):
         """Draw a single pixel ingredient icon inside the blender jug."""
         if   kind == "milk":      pygame.draw.ellipse(screen, (240,248,255),(x-16,y-10,32,20))
@@ -788,9 +766,7 @@ class MixingStation:
             self.game_state.can_blend() and self.liquid_unlocked and self.assembly_phase == "empty",
             large=True,
         )
-
-    # ------------------------------------------------------------------ preview / cup panel
-
+ #cup panel # #draw cup assembly #
     def _draw_preview(self, screen):
         """Cup assembly preview and serve button."""
         self._panel(screen, self.preview_rect, self.PINK, (7, 10, 26, 150))
@@ -858,8 +834,7 @@ class MixingStation:
             elif "meteor"    in t: pygame.draw.polygon(screen, (210, 230, 250), [(x-7,y),(x+5,y-6),(x+8,y+6)])
             else:                   pygame.draw.circle(screen, (245, 245, 255), (x, y), 8)
 
-    # ------------------------------------------------------------------ primitives
-
+ #premitive drawing helpers  # #draw panel #
     def _panel(self, screen, rect, border, fill, radius=14, width=2):
         """Draw a rounded, semi-transparent panel with a glowing border."""
         s = pygame.Surface(rect.size, pygame.SRCALPHA)
@@ -897,8 +872,7 @@ class MixingStation:
         pygame.draw.arc(screen, self.LOCKED, pygame.Rect(x - 6, y - 11, 12, 16), math.pi, 2 * math.pi, 2)
         pygame.draw.circle(screen, (25, 28, 45), (x, y + 7), 2)
 
-    # ------------------------------------------------------------------ reset
-
+ #event handling  # #reset gameplay #
     def reset(self):
         """Reset gameplay only — barista selection is preserved."""
         self.audio.stop_sfx("blender")

@@ -45,8 +45,6 @@ class StartScreen:
     def muted(self):
         return self.music_muted
 
-    # Volume / mute state is stored in the shared AudioSettings object,
-    # so it stays the same on every screen.
     @property
     def music_volume(self):
         return self.audio.music_volume

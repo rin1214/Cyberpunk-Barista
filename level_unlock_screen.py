@@ -1,5 +1,3 @@
-"""CYBERPUNK CAFÉ — Level Unlock Screen"""
-
 import os
 import pygame
 

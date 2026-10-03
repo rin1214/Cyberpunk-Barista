@@ -2,8 +2,8 @@
     "lucy": {
         "credits": 1719,
         "xp": 760,
-        "level": 3,
-        "location": "Cyber Penthouse",
+        "level": 1,
+        "location": "Back Alley Kiosk",
         "unlocked_levels": {
             "1": true,
             "2": true,
