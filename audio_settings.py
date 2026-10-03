@@ -1,12 +1,3 @@
-"""
-============================================================
-CYBERPUNK CAFÉ
-AUDIO SETTINGS SYSTEM
-============================================================
-
-This file manages all audio settings, sound effects, and menu controls for the game.
-"""
-
 import os
 import pygame
 
@@ -14,12 +5,12 @@ import pygame
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "audio")
 MUSIC_FILE = os.path.join(AUDIO_DIR, "cyberpunk_cafe_theme.wav")
 
-# The one AudioSettings object shared by every screen (see get_audio() below)
+# The one AudioSettings object shared by every screen
 _active_audio = None
 
 
 class AudioSettings:
-    DEFAULT_MUSIC_VOLUME = 0.80   # 0.0 - 1.0 (1.0 = loudest pygame allows)
+    DEFAULT_MUSIC_VOLUME = 0.80   
     DEFAULT_SFX_VOLUME = 0.16
 
     def __init__(self, music_volume=DEFAULT_MUSIC_VOLUME, sfx_volume=DEFAULT_SFX_VOLUME):
@@ -219,10 +210,6 @@ class AudioSettings:
     # Drawing
     # ------------------------------------------------------------------
     def draw(self, screen, ui):
-        """
-        Draw the AUDIO SETTINGS header, both sliders and both mute buttons.
-        
-        """
         rect = self.panel_rect
 
         # Header title box
@@ -287,13 +274,12 @@ def get_audio():
     game screen...). It is created the first time it is asked for, so volume,
     mute state and loaded sounds carry over between screens."""
     if _active_audio is None:
-        AudioSettings()          # registers itself as the active one
+        AudioSettings()          
     return _active_audio
 
 
 def ensure_game_music(start_screen=None):
-    """Make sure the theme is playing at the shared volume.
-    (start_screen is kept only so existing calls still work.)"""
+    """Make sure the theme is playing at the shared volume."""
     return get_audio().start_music(restart=False)
 
 
