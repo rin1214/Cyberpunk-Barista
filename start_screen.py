@@ -1,5 +1,6 @@
 import os
 import pygame
+from audio_settings import get_audio
 
 class StartScreen:
     
@@ -24,10 +25,7 @@ class StartScreen:
         self.name_active = False
         self.finished = False
         self.audio_menu_open = False
-        self.music_volume = 0.30
-        self.sfx_volume = 0.16
-        self.music_muted = False
-        self.sfx_muted = False
+        self.audio = get_audio()          # shared audio: all sound logic lives in audio_settings.py
         self.dragging_music = False
         self.dragging_sfx = False
         self.last_hover = set()
@@ -36,7 +34,6 @@ class StartScreen:
         root = os.path.dirname(os.path.abspath(__file__))
         self.start_root = os.path.join(root, "assets", "start")
         self.ui_root    = os.path.join(root, "assets", "ui")
-        self.audio_root = os.path.join(root, "assets", "audio")
         self.font_root  = os.path.join(root, "assets", "fonts")
 
         self._load_all_assets()
@@ -47,6 +44,40 @@ class StartScreen:
     @property
     def muted(self):
         return self.music_muted
+
+    # Volume / mute state is stored in the shared AudioSettings object,
+    # so it stays the same on every screen.
+    @property
+    def music_volume(self):
+        return self.audio.music_volume
+
+    @music_volume.setter
+    def music_volume(self, value):
+        self.audio.music_volume = value
+
+    @property
+    def sfx_volume(self):
+        return self.audio.sfx_volume
+
+    @sfx_volume.setter
+    def sfx_volume(self, value):
+        self.audio.sfx_volume = value
+
+    @property
+    def music_muted(self):
+        return self.audio.music_muted
+
+    @music_muted.setter
+    def music_muted(self, value):
+        self.audio.music_muted = bool(value)
+
+    @property
+    def sfx_muted(self):
+        return self.audio.sfx_muted
+
+    @sfx_muted.setter
+    def sfx_muted(self, value):
+        self.audio.sfx_muted = bool(value)
 
     # ── Asset & Font Initialization ──────────────────────────────────────────
 
@@ -157,60 +188,33 @@ class StartScreen:
         self.mute_sfx_rect     = pygame.Rect(1045, 500, 185, 68)
 
     def _init_audio(self):
-        self.click_sound = None
-        self.hover_sound = None
-        try:
-            if not pygame.mixer.get_init():
-                pygame.mixer.init()
-            theme = os.path.join(self.audio_root, "cyberpunk_cafe_theme.wav")
-            if os.path.isfile(theme):
-                pygame.mixer.music.load(theme)
-                self.update_music_volume()
-                pygame.mixer.music.play(-1)
-            click_p = os.path.join(self.audio_root, "button_click.wav")
-            hover_p = os.path.join(self.audio_root, "button_hover.wav")
-            if os.path.isfile(click_p):
-                self.click_sound = pygame.mixer.Sound(click_p)
-            if os.path.isfile(hover_p):
-                self.hover_sound = pygame.mixer.Sound(hover_p)
-            self.update_sfx_volume()
-        except pygame.error as e:
-            print(f"[AUDIO] Init error: {e}")
+        self.audio.load_sfx()
+        self.audio.start_music()
 
-    # ── Audio Control ────────────────────────────────────────────────────────
+    # ── Audio Control (all handled by audio_settings.py) ─────────────────────
 
     def update_music_volume(self):
-        try:
-            pygame.mixer.music.set_volume(0.0 if self.music_muted else self.music_volume)
-        except pygame.error:
-            pass
+        self.audio.apply_volumes()
 
     def update_sfx_volume(self):
-        vol = 0.0 if self.sfx_muted else self.sfx_volume
-        if self.click_sound: self.click_sound.set_volume(vol)
-        if self.hover_sound: self.hover_sound.set_volume(vol)
+        self.audio.apply_volumes()
 
     def play_click(self):
-        if self.click_sound and not self.sfx_muted:
-            self.click_sound.play()
+        self.audio.play_click()
 
     def play_hover(self):
-        if self.hover_sound and not self.sfx_muted:
-            self.hover_sound.play()
+        self.audio.play_hover()
 
     def toggle_music_mute(self):
-        self.music_muted = not self.music_muted
-        self.update_music_volume()
+        self.audio.music_muted = not self.audio.music_muted
+        self.audio.apply_volumes()
 
     def toggle_sfx_mute(self):
-        self.sfx_muted = not self.sfx_muted
-        self.update_sfx_volume()
+        self.audio.sfx_muted = not self.audio.sfx_muted
+        self.audio.apply_volumes()
 
     def stop_music(self):
-        try:
-            pygame.mixer.music.stop()
-        except pygame.error:
-            pass
+        self.audio.stop_music()
 
     # ── Drawing Primitives ───────────────────────────────────────────────────
 

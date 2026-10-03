@@ -20,6 +20,7 @@ from game_end_screen import GameEndScreen
 from mini_challenges import MiniChallenge
 from order_scene import OrderScene
 from barista_selection import choose_barista
+from audio_settings import ensure_game_music, keep_music_running
 
 pygame.init()
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -58,42 +59,6 @@ def load_level_background(level_num):
         fallback.fill((25, 15, 35))
         bg_cache[level_num] = fallback
         return fallback
-
-MUSIC_FILE = os.path.join(PROJECT_ROOT, "assets", "audio", "cyberpunk_cafe_theme.wav")
-
-def ensure_game_music(start_screen=None):
-    try:
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
-        volume = 0.30
-        muted = False
-        if start_screen is not None:
-            try:
-                volume = float(getattr(start_screen, "music_volume", 0.30))
-            except (TypeError, ValueError):
-                volume = 0.30
-            muted = bool(getattr(start_screen, "muted", False))
-        else:
-            # Keep the volume chosen in the F menu instead of resetting it to 30%
-            station = globals().get("mixing_station")
-            if station is not None:
-                try:
-                    volume = float(getattr(station, "music_volume", volume))
-                except (TypeError, ValueError):
-                    pass
-                muted = bool(getattr(station, "music_muted", False))
-        volume = max(0.0, min(volume, 1.0))
-        pygame.mixer.music.set_volume(0.0 if muted else volume)
-        if pygame.mixer.music.get_busy():
-            return True
-        if not os.path.exists(MUSIC_FILE):
-            return False
-        pygame.mixer.music.load(MUSIC_FILE)
-        pygame.mixer.music.play(-1)
-        return True
-    except pygame.error as error:
-        print(f"[AUDIO ERROR] {error}")
-        return False
 
 def position_customer(customer):
     if customer is None:
@@ -304,8 +269,7 @@ def run_level_transition(new_level, economy, progression, mixing_station, player
 running = True
 while running:
     dt = clock.tick(FPS) / 1000.0
-    if not pygame.mixer.music.get_busy():
-        ensure_game_music(start_screen)
+    keep_music_running(start_screen)
     current_combo = getattr(reward_system, "combo", getattr(reward_system, "combo_multiplier", 1))
     
     for event in pygame.event.get():
