@@ -853,22 +853,41 @@ class MiniChallenge:
             for r in range(self.N - 1, -1, -1):
                 self.board[r][c] = values.pop() if values else None
 
-        for r in range(self.N):
-            for c in range(self.N):
-                if self.board[r][c] is None:
-                    choices = list(range(self.TYPES))
-                    random.shuffle(choices)
-                    for val in choices:
-                        self.board[r][c] = val
-                        if not self._matches():
-                            break
-                    if self.board[r][c] is None:
-                        self.board = self._new_board()
+        self._refill_board()
 
         self.strikes += 1
         if self.strikes >= self.TARGET_STRIKES:
             self._finish()
         return True
+
+    def _refill_board(self):
+        base_board = [row[:] for row in self.board]
+        empty_cells = [
+            (r, c)
+            for r in range(self.N)
+            for c in range(self.N)
+            if base_board[r][c] is None
+        ]
+
+        for _ in range(100):
+            board = [row[:] for row in base_board]
+            filled = True
+            for r, c in empty_cells:
+                choices = list(range(self.TYPES))
+                random.shuffle(choices)
+                for value in choices:
+                    board[r][c] = value
+                    if not self._matches(board):
+                        break
+                else:
+                    filled = False
+                    break
+
+            if filled and self._has_move(board):
+                self.board = board
+                return
+
+        self.board = self._new_board()
 
     def _try_swap(self, a, b):
         self._swap(a, b)
